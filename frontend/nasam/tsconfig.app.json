@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "composite": true, // Add this
+    "target": "ESNext",
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": false, // Ensure this is false or removed
+    "declaration": true, // Needed for composite
+    "sourceMap": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
