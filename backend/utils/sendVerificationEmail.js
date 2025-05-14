@@ -1,23 +1,24 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
+async function sendVerificationEmail(email, code, subject = 'NAS Registration | Email Verification') {
+  const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.SMTP_EMAIL,
-        pass: process.env.SMTP_PASSWORD
-    }
-});
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
 
-async function sendVerificationEmail(email, code) {
-    const mailOptions = {
-        from: process.env.GMAIL_USER,
-        to: email,
-        subject: 'NASM | Your Verification Code',
-        text: `Your verification code is: ${code}\nValid for 1 day`
-    };
+  const verificationUrl = `http://localhost:3000/api/auth/email/verify?code=${code}`;
 
-    await transporter.sendMail(mailOptions);
+  const mailOptions = {
+    from: process.env.EMAIL_USER, 
+    to: email,
+    subject,
+    html: `<p>Please verify your email by clicking <a href="${verificationUrl}">here</a>.</p>`,
+  };
+
+  await transporter.sendMail(mailOptions);
 }
 
 module.exports = sendVerificationEmail;
-
