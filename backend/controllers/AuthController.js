@@ -1,6 +1,7 @@
 const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Course = require('../models/Course');
 const BlacklistedToken = require('../models/BlacklistedToken');
 const sendVerificationEmail = require('../utils/sendVerificationEmail');
 
@@ -11,19 +12,14 @@ function generateVerificationCode() {
 
 // Helper: Generate a JWT token for a user
 function generateToken(user) {
-  const payload = { id: user._id, email: user.email, role: user.role };
+  const payload = { id: user._id, idNumber: user.idNumber, role: user.role };
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 }
 
-// Helper: Update a user's verification details (optionally updating the email)
-// Returns the generated verification code.
-function updateVerificationDetails(user, newEmail = null) {
+// Helper: Update a user's verification details
+function updateVerificationDetails(user, pendingEmail = null) {
   const code = generateVerificationCode();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1-day expiry
-
-  if (newEmail) {
-    user.email = newEmail;
-  }
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   user.verified = false;
   user.emailVerification = {
@@ -31,19 +27,31 @@ function updateVerificationDetails(user, newEmail = null) {
     expiresAt,
     lastSentAt: new Date(),
     verified: false,
+    pendingEmail: pendingEmail || null,
   };
 
   return code;
 }
 
 const AuthController = {
-  // 1.1 Login
   async login(req, res) {
     try {
-      const { email, password } = req.body;
-      const user = await User.findOne({ email });
+      const { idNumber, password, rememberMe } = req.body;
+      if (!idNumber || !password) {
+        return res.status(400).json({ message: 'ID number and password are required' });
+      }
+
+      const user = await User.findOne({ idNumber });
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      if (user.disabled) {
+        return res.status(403).json({ message: 'Account is disabled' });
+      }
+
+      if (user.email && !user.verified) {
+        return res.status(403).json({ message: 'Please verify your email before logging in' });
       }
 
       const isMatch = await argon2.verify(user.password, password);
@@ -52,10 +60,19 @@ const AuthController = {
       }
 
       const token = generateToken(user);
+      const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+
+      res.cookie('jwt', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge,
+        path: '/',
+      });
+
       return res.json({
         message: 'Login successful',
-        token,
-        user: { id: user._id, email: user.email, role: user.role }
+        user: { id: user._id, idNumber: user.idNumber, role: user.role },
       });
     } catch (error) {
       console.error(error);
@@ -63,29 +80,49 @@ const AuthController = {
     }
   },
 
-  // 1.2 Registration
   async register(req, res) {
     try {
-      const { name, email, password } = req.body;
+      const { name, idNumber, email, password, courseId, rememberMe } = req.body;
+      if (!name || !idNumber || !password || !courseId) {
+        return res.status(400).json({ message: 'Name, ID number, password, and course ID are required' });
+      }
 
-      // Check if email already exists
-      if (await User.findOne({ email })) {
+      if (await User.findOne({ idNumber })) {
+        return res.status(400).json({ message: 'ID number already exists' });
+      }
+      if (email && (await User.findOne({ email }))) {
         return res.status(400).json({ message: 'Email already exists' });
       }
 
-      const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
-      const user = new User({ name, email, password: hashedPassword });
+      const course = await Course.findOne({ courseId });
+      if (!course) {
+        return res.status(400).json({ message: 'Invalid course ID' });
+      }
 
-      // Set verification details and send email
-      const code = updateVerificationDetails(user);
+      const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
+      const user = new User({ name, idNumber, email, password: hashedPassword, course: course._id });
+
+      if (email) {
+        const code = updateVerificationDetails(user);
+        await sendVerificationEmail(user.email, code);
+      }
+
       await user.save();
-      await sendVerificationEmail(user.email, code);
 
       const token = generateToken(user);
+      const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+
+      res.cookie('jwt', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge,
+        path: '/',
+      });
+
       return res.status(201).json({
-        message: 'Registration successful, please verify your email.',
-        token,
-        user: { id: user._id, email: user.email }
+        message: email ? 'Registration successful, please verify your email.' : 'Registration successful',
+        user: { id: user._id, idNumber: user.idNumber, role: user.role },
       });
     } catch (error) {
       console.error(error);
@@ -93,10 +130,9 @@ const AuthController = {
     }
   },
 
-  // 1.3 Logout
   async logout(req, res) {
     try {
-      const token = req.header('Authorization')?.replace('Bearer ', '');
+      const token = req.cookies.jwt;
       if (!token) {
         return res.status(400).json({ message: 'No token provided' });
       }
@@ -106,6 +142,13 @@ const AuthController = {
       }
 
       await new BlacklistedToken({ token }).save();
+      res.clearCookie('jwt', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+      });
+
       return res.json({ message: 'Logout successful' });
     } catch (error) {
       console.error(error);
@@ -113,22 +156,23 @@ const AuthController = {
     }
   },
 
-  // 1.4 Verify Email
   async verifyEmail(req, res) {
     try {
-      const { code } = req.body;
-      const userId = req.user?.id;
-      const user = await User.findById(userId);
+      const { code } = req.query;
+      if (!code) {
+        return res.status(400).json({ message: 'Verification code is required' });
+      }
 
+      const user = await User.findOne({ 'emailVerification.code': code });
       if (!user || !user.emailVerification) {
-        return res.status(400).json({ message: 'Verification not requested' });
+        return res.status(400).json({ message: 'Invalid or unknown verification code' });
       }
 
       if (user.verified) {
         return res.status(400).json({ message: 'Email is already verified' });
       }
 
-      const { code: storedCode, expiresAt } = user.emailVerification;
+      const { code: storedCode, expiresAt, pendingEmail } = user.emailVerification;
       if (code !== storedCode) {
         return res.status(400).json({ message: 'Invalid verification code' });
       }
@@ -138,23 +182,32 @@ const AuthController = {
 
       user.emailVerification.verified = true;
       user.verified = true;
+      if (pendingEmail) {
+        user.email = pendingEmail; // Apply new email
+        user.emailVerification.pendingEmail = null; // Clear pending
+      }
       await user.save();
 
-      return res.json({ message: 'Email verified successfully' });
+      return res.redirect('http://localhost:3000/verified');
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: 'Server error' });
     }
   },
 
-  // 1.5 Resend Verification Email
   async resendVerificationEmail(req, res) {
     try {
-      const userId = req.user?.id;
-      const user = await User.findById(userId);
+      const { idNumber } = req.query;
+      if (!idNumber) {
+        return res.status(400).json({ message: 'ID number is required' });
+      }
 
+      const user = await User.findOne({ idNumber });
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
+      }
+      if (!user.email && !user.emailVerification?.pendingEmail) {
+        return res.status(400).json({ message: 'No email associated with this account' });
       }
       if (user.verified) {
         return res.status(400).json({ message: 'Email is already verified' });
@@ -162,25 +215,26 @@ const AuthController = {
 
       const now = Date.now();
       const lastSent = user.emailVerification?.lastSentAt?.getTime() || 0;
-      const cooldown = 5 * 60 * 1000; // 5 minutes
+      const cooldown = 5 * 60 * 1000;
 
       if (now - lastSent < cooldown) {
         const wait = Math.ceil((cooldown - (now - lastSent)) / 1000);
         return res.status(429).json({ message: `Please wait ${wait}s before resending.` });
       }
 
-      // Update verification details and resend email
       const code = generateVerificationCode();
       const expiresAt = new Date(now + 24 * 60 * 60 * 1000);
       user.emailVerification = {
+        ...user.emailVerification,
         code,
         expiresAt,
         lastSentAt: new Date(),
-        verified: false
+        verified: false,
       };
 
       await user.save();
-      await sendVerificationEmail(user.email, code);
+      const targetEmail = user.emailVerification.pendingEmail || user.email;
+      await sendVerificationEmail(targetEmail, code);
       return res.json({ message: 'Verification email sent' });
     } catch (error) {
       console.error(error);
@@ -188,33 +242,66 @@ const AuthController = {
     }
   },
 
-  // 1.6 Update Email
   async updateEmail(req, res) {
     try {
-      const userId = req.user?.id;
-      const { email } = req.body;
+      const { idNumber, email } = req.body;
+      if (!idNumber || !email) {
+        return res.status(400).json({ message: 'ID number and email are required' });
+      }
+
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
 
       if (await User.findOne({ email })) {
         return res.status(400).json({ message: 'Email already in use' });
       }
 
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+      const now = Date.now();
+      const lastSent = user.emailVerification?.lastSentAt?.getTime() || 0;
+      const cooldown = 5 * 60 * 1000;
+
+      if (now - lastSent < cooldown) {
+        const wait = Math.ceil((cooldown - (now - lastSent)) / 1000);
+        return res.status(429).json({ message: `Please wait ${wait}s before updating email.` });
       }
 
-      // Update verification details with the new email
       const code = updateVerificationDetails(user, email);
       await user.save();
-      await sendVerificationEmail(user.email, code);
+      await sendVerificationEmail(email, code);
 
-      return res.json({ message: 'Email updated. Verification sent.' });
+      return res.json({ message: 'Verification email sent to new email.' });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: 'Server error' });
     }
-  }
+  },
+
+  async getCurrentUser(req, res) {
+    try {
+      const user = await User.findById(req.user.id)
+        .select('-password -emailVerification')
+        .populate('course', 'courseId name');
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      if (user.disabled) {
+        return res.status(403).json({ message: 'Account is disabled' });
+      }
+      return res.json({
+        user: {
+          id: user._id,
+          idNumber: user.idNumber,
+          role: user.role,
+          course: user.course,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
 };
 
 module.exports = AuthController;
-
