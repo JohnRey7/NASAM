@@ -14,8 +14,10 @@
   "dependencies": {
     "argon2": "^0.41.1",
     "backend_nasm": "file:",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.13.2",
     "nodemailer": "^6.10.0",
