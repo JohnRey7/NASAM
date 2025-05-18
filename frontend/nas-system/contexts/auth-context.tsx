@@ -19,8 +19,10 @@ interface AuthContextType {
   status: AuthStatus
   login: (idNumber: string, password: string, remember: boolean) => Promise<void>
   logout: () => void
-  register: (email: string, idNumber: string, password: string, course: string) => Promise<void>
+  register: (email: string, idNumber: string, password: string, course: string, name?: string) => Promise<void>
 }
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -30,90 +32,221 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem("nas_user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-      setStatus("authenticated")
-    } else {
-      setStatus("unauthenticated")
+    const checkAuthStatus = async () => {
+      try {
+        // Check if user is stored in localStorage
+        const storedUser = localStorage.getItem("nas_user")
+        
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          
+          // Special handling for admin and panelist users (they don't need backend validation)
+          if (parsedUser.role === "oas_staff" || parsedUser.role === "panelist") {
+            setUser(parsedUser)
+            setStatus("authenticated")
+            return
+          }
+          
+          // For regular users, verify with the backend
+          try {
+            const response = await fetch(`${API_URL}/auth/me`, {
+              method: "GET",
+              credentials: "include", // Include cookies
+            })
+            
+            if (response.ok) {
+              const data = await response.json()
+              // Update user data with the latest from the server
+              const updatedUser = {
+                ...parsedUser,
+                ...data.user,
+                name: data.user.name || parsedUser.name, // Keep the name from backend or use stored name
+                role: "applicant", // Regular users are always applicants
+              }
+              
+              setUser(updatedUser)
+              localStorage.setItem("nas_user", JSON.stringify(updatedUser))
+              setStatus("authenticated")
+            } else {
+              // If backend says not authenticated, clear local storage
+              localStorage.removeItem("nas_user")
+              setStatus("unauthenticated")
+            }
+          } catch (apiError) {
+            console.error("API error:", apiError)
+            // If API call fails but we have a stored user, keep them logged in
+            // This allows the app to work offline for returning users
+            setUser(parsedUser)
+            setStatus("authenticated")
+          }
+        } else {
+          setStatus("unauthenticated")
+        }
+      } catch (error) {
+        console.error("Auth check error:", error)
+        setStatus("unauthenticated")
+      }
     }
+    
+    checkAuthStatus()
   }, [])
 
   const login = async (idNumber: string, password: string, remember: boolean) => {
     setStatus("loading")
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // Mock users for different roles
-    let mockUser: User
-
-    if (idNumber === "admin123") {
-      mockUser = {
-        id: "1",
-        name: "Admin User",
-        email: "admin@cit.edu",
-        role: "oas_staff",
+    
+    try {
+      // Special cases for OAS and panelist roles (hardcoded credentials)
+      if (idNumber === "admin123" && password === "admin123") {
+        // OAS staff hardcoded login
+        const oasUser: User = {
+          id: "admin-1",
+          name: "OAS Administrator",
+          email: "oas@example.com",
+          role: "oas_staff",
+        }
+        
+        setUser(oasUser)
+        setStatus("authenticated")
+        
+        if (remember) {
+          localStorage.setItem("nas_user", JSON.stringify(oasUser))
+        }
+        
+        router.push("/oas-dashboard")
+        return
+      } 
+      
+      if (idNumber === "panel123" && password === "panel123") {
+        // Panelist hardcoded login
+        const panelistUser: User = {
+          id: "panel-1",
+          name: "Panel Member",
+          email: "panel@example.com",
+          role: "panelist",
+        }
+        
+        setUser(panelistUser)
+        setStatus("authenticated")
+        
+        if (remember) {
+          localStorage.setItem("nas_user", JSON.stringify(panelistUser))
+        }
+        
+        router.push("/panel-dashboard")
+        return
       }
-    } else if (idNumber === "panel123") {
-      mockUser = {
-        id: "2",
-        name: "Panel Member",
-        email: "panel@cit.edu",
-        role: "panelist",
+      
+      // For regular users, use the API
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies
+        body: JSON.stringify({
+          idNumber,
+          password,
+          rememberMe: remember
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Login failed")
       }
-    } else {
-      mockUser = {
-        id: "3",
-        name: "Student User",
-        email: "student@cit.edu",
-        role: "applicant",
+      
+      const data = await response.json()
+      
+      // Map backend user data to frontend user format
+      const loggedInUser: User = {
+        id: data.user.id,
+        name: data.user.name || "Student", // Use the actual name from the backend
+        email: data.user.email || "",
+        role: "applicant", // Regular users are always applicants
       }
-    }
-
-    setUser(mockUser)
-    setStatus("authenticated")
-
-    if (remember) {
-      localStorage.setItem("nas_user", JSON.stringify(mockUser))
-    }
-
-    // Redirect based on role
-    if (mockUser.role === "applicant") {
+      
+      setUser(loggedInUser)
+      setStatus("authenticated")
+      
+      if (remember) {
+        localStorage.setItem("nas_user", JSON.stringify(loggedInUser))
+      }
+      
       router.push("/dashboard")
-    } else if (mockUser.role === "oas_staff") {
-      router.push("/oas-dashboard")
-    } else if (mockUser.role === "panelist") {
-      router.push("/panel-dashboard")
+    } catch (error) {
+      console.error("Login error:", error)
+      setStatus("unauthenticated")
+      throw error
     }
   }
 
-  const logout = () => {
-    setUser(null)
-    setStatus("unauthenticated")
-    localStorage.removeItem("nas_user")
-    router.push("/")
+  const logout = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include", // Include cookies
+      })
+      
+      if (!response.ok) {
+        console.error("Logout failed on server, but proceeding with client logout")
+      }
+    } catch (error) {
+      console.error("Logout error:", error)
+    } finally {
+      // Always clear local state regardless of server response
+      setUser(null)
+      setStatus("unauthenticated")
+      localStorage.removeItem("nas_user")
+      router.push("/")
+    }
   }
 
-  const register = async (email: string, idNumber: string, password: string, course: string) => {
+  const register = async (email: string, idNumber: string, password: string, courseId: string, name?: string) => {
     setStatus("loading")
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies
+        body: JSON.stringify({
+          name: name || idNumber, // Use provided name or fallback to ID number
+          idNumber,
+          email,
+          password,
+          courseId,
+          rememberMe: true, // Default to remember
+        }),
+      })
 
-    const newUser: User = {
-      id: Math.random().toString(36).substring(2, 9),
-      name: "New Student",
-      email,
-      role: "applicant",
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Registration failed")
+      }
+
+      const data = await response.json()
+      
+      // Map backend user data to frontend user format
+      const newUser: User = {
+        id: data.user.id,
+        name: data.user.name || "Student", // Use the actual name from the backend
+        email: email,
+        role: "applicant", // Default role for new registrations
+      }
+
+      setUser(newUser)
+      setStatus("authenticated")
+      localStorage.setItem("nas_user", JSON.stringify(newUser))
+
+      router.push("/dashboard")
+      return data
+    } catch (error) {
+      console.error("Registration error:", error)
+      setStatus("unauthenticated")
+      throw error
     }
-
-    setUser(newUser)
-    setStatus("authenticated")
-    localStorage.setItem("nas_user", JSON.stringify(newUser))
-
-    router.push("/dashboard")
   }
 
   return <AuthContext.Provider value={{ user, status, login, logout, register }}>{children}</AuthContext.Provider>

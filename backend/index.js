@@ -5,9 +5,24 @@ const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const AuthController = require('./controllers/AuthController');
 const authenticate = require('./middleware/authenticate');
+const roleCheck = require('./middleware/roleCheck');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// CORS middleware for development
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3001'); // Updated frontend URL
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Middleware
 app.use(helmet());
@@ -22,11 +37,17 @@ mongoose.connect(process.env.MONGODB_URI)
 // Routes
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
-app.post('/api/auth/logout', AuthController.logout);
+app.post('/api/auth/logout', authenticate, AuthController.logout);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
+
+// Protected routes that require user role
+app.use('/api/user', authenticate, roleCheck(['user', 'admin']));
+
+// Protected routes that require admin role
+app.use('/api/admin', authenticate, roleCheck(['admin']));
 
 // Basic route
 app.get('/', (req, res) => {

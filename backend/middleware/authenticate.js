@@ -7,9 +7,7 @@ const authenticate = async (req, res, next) => {
     token = req.header('Authorization').replace('Bearer ', '');
   }
 
-  if (!token) {
-    return res.status(401).json({ message: 'Authentication required' });
-  }
+    if (!token) {    return res.status(401).json({ message: 'Please log in with your user credentials.' });  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -22,8 +20,7 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     console.error(error);
-    return res.status(401).json({ message: 'Invalid or expired token' });
-  }
+        return res.status(401).json({ message: 'Please log in with your user credentials.' });  }
 };
 
 module.exports = authenticate;

@@ -34,30 +34,7 @@ function updateVerificationDetails(user, pendingEmail = null) {
 }
 
 const AuthController = {
-  async login(req, res) {
-    try {
-      const { idNumber, password, rememberMe } = req.body;
-      if (!idNumber || !password) {
-        return res.status(400).json({ message: 'ID number and password are required' });
-      }
-
-      const user = await User.findOne({ idNumber });
-      if (!user) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      if (user.disabled) {
-        return res.status(403).json({ message: 'Account is disabled' });
-      }
-
-      if (user.email && !user.verified) {
-        return res.status(403).json({ message: 'Please verify your email before logging in' });
-      }
-
-      const isMatch = await argon2.verify(user.password, password);
-      if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
+    async login(req, res) {    try {      const { idNumber, password, rememberMe } = req.body;      if (!idNumber || !password) {        return res.status(400).json({ message: 'ID number and password are required' });      }      const user = await User.findOne({ idNumber });      if (!user) {        return res.status(401).json({ message: 'Please log in with your user credentials.' });      }      if (user.disabled) {        return res.status(403).json({ message: 'Account is disabled' });      }      if (user.email && !user.verified) {        return res.status(403).json({ message: 'Please verify your email before logging in' });      }      const isMatch = await argon2.verify(user.password, password);      if (!isMatch) {        return res.status(401).json({ message: 'Please log in with your user credentials.' });      }
 
       const token = generateToken(user);
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
@@ -72,7 +49,12 @@ const AuthController = {
 
       return res.json({
         message: 'Login successful',
-        user: { id: user._id, idNumber: user.idNumber, role: user.role },
+        user: { 
+          id: user._id, 
+          idNumber: user.idNumber, 
+          name: user.name,
+          role: user.role 
+        },
       });
     } catch (error) {
       console.error(error);
@@ -94,13 +76,32 @@ const AuthController = {
         return res.status(400).json({ message: 'Email already exists' });
       }
 
+      console.log('Registration attempt:', { name, idNumber, email, courseId });
+      
+      // Find the course by ID
       const course = await Course.findOne({ courseId });
       if (!course) {
+        console.log('Course not found:', courseId);
         return res.status(400).json({ message: 'Invalid course ID' });
       }
+      
+      console.log('Found course:', course);
 
+      // Make sure name is not the same as idNumber
+      let finalName = name;
+      if (name === idNumber || !name) {
+        finalName = `Student ${idNumber}`;
+        console.log('Using default name:', finalName);
+      }
+      
       const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
-      const user = new User({ name, idNumber, email, password: hashedPassword, course: course._id });
+      const user = new User({ 
+        name: finalName, 
+        idNumber, 
+        email, 
+        password: hashedPassword, 
+        course: course._id 
+      });
 
       if (email) {
         const code = updateVerificationDetails(user);
@@ -122,7 +123,12 @@ const AuthController = {
 
       return res.status(201).json({
         message: email ? 'Registration successful, please verify your email.' : 'Registration successful',
-        user: { id: user._id, idNumber: user.idNumber, role: user.role },
+        user: { 
+          id: user._id, 
+          idNumber: user.idNumber, 
+          name: user.name,
+          role: user.role 
+        },
       });
     } catch (error) {
       console.error(error);
@@ -293,6 +299,7 @@ const AuthController = {
         user: {
           id: user._id,
           idNumber: user.idNumber,
+          name: user.name,
           role: user.role,
           course: user.course,
         },

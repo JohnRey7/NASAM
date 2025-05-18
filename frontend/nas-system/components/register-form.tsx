@@ -27,6 +27,7 @@ const COURSES = [
 
 export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   const { toast } = useToast()
   const { register } = useAuth()
   const [course, setCourse] = useState("")
@@ -34,30 +35,46 @@ export function RegisterForm() {
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsLoading(true)
+    setErrorMessage("")
 
     const formData = new FormData(event.currentTarget)
     const email = formData.get("email") as string
     const idNumber = formData.get("id-number") as string
     const password = formData.get("password") as string
+    const name = formData.get("name") as string
+
+    if (!course) {
+      setErrorMessage("Please select a course")
+      setIsLoading(false)
+      return
+    }
 
     try {
-      await register(email, idNumber, password, course)
+      await register(email, idNumber, password, course, name)
       toast({
         title: "Registration successful",
-        description: "Your account has been created. You can now login.",
+        description: "Your account has been created. Please verify your email if provided.",
       })
     } catch (error) {
+      console.error("Registration error:", error)
+      const errorMsg = error instanceof Error ? error.message : "Registration failed. Please try again."
+      setErrorMessage(errorMsg)
       toast({
         title: "Registration failed",
-        description: "There was an error creating your account. Please try again.",
+        description: errorMsg,
         variant: "destructive",
       })
+    } finally {
       setIsLoading(false)
     }
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 pt-2">
+      <div className="space-y-2">
+        <Label htmlFor="name">Full Name</Label>
+        <Input id="name" name="name" placeholder="Enter your full name" required type="text" />
+      </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" placeholder="Enter your email" required type="email" />
@@ -85,6 +102,11 @@ export function RegisterForm() {
           </SelectContent>
         </Select>
       </div>
+      
+      {errorMessage && (
+        <div className="text-red-500 text-sm">{errorMessage}</div>
+      )}
+      
       <Button type="submit" className="w-full bg-[#800000] hover:bg-[#600000]" disabled={isLoading}>
         {isLoading ? "Creating account..." : "Register"}
       </Button>
