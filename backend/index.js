@@ -5,6 +5,8 @@ const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const AuthController = require('./controllers/AuthController');
 const ApplicationController = require('./controllers/ApplicationController');
+const DocumentController = require('./controllers/DocumentController');
+const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
 
 const app = express();
@@ -41,10 +43,20 @@ app.put('/api/auth/email', authenticate, AuthController.updateEmail);
 app.post('/api/application', authenticate, ApplicationController.createApplicationForm);
 app.get('/api/application', authenticate, ApplicationController.getMyApplicationForm);
 app.get('/api/application/:id', authenticate, ApplicationController.getApplicationFormById);
-app.put('/api/application', authenticate, ApplicationController.updateMyApplicationForm);
-app.put('/api/application/:id', authenticate, ApplicationController.updateApplicationForm);
-app.delete('/api/application/:id', authenticate, ApplicationController.deleteApplicationForm);
+app.patch('/api/application', authenticate, ApplicationController.updateMyApplicationForm);
+app.patch('/api/application/:id', authenticate, adminOnly, ApplicationController.updateApplicationForm);
+app.delete('/api/application/:id', authenticate, adminOnly, ApplicationController.deleteApplicationForm);
 app.get('/api/application/all', authenticate, adminOnly, ApplicationController.getAllApplicationForms);
+
+// Document routes
+app.put('/api/documents/:applicationId', authenticate, DocumentController.checkApplicationAccess, DocumentController.uploadDocuments, DocumentController.createOrUpdateDocuments);
+app.get('/api/documents/:applicationId', authenticate, DocumentController.checkApplicationAccess, DocumentController.getDocuments);
+app.delete('/api/documents/:applicationId', authenticate, DocumentController.checkApplicationAccess, DocumentController.deleteDocuments);
+
+// File download route
+app.get('/api/files/:fileName', authenticate, async (req, res) => {
+  await fileUtils.downloadFile(req.params.fileName, res);
+});
 
 // Basic route
 app.get('/', (req, res) => {
