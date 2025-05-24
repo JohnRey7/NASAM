@@ -15,7 +15,7 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(helmet());
 app.use(express.json());
-app.use(cookieParser());
+app.use(cookieParser()); // Ensure cookieParser is included
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)

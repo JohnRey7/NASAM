@@ -1,31 +1,5 @@
 const DocumentUpload = require('../models/DocumentUpload');
-const ApplicationForm = require('../models/ApplicationForm'); // Assumed to exist
-const fileUtils = require('../utils/FileUtils');
-
-// Middleware to check if user has access to the application
-const checkApplicationAccess = async (req, res, next) => {
-  try {
-    const applicationId = req.params.applicationId;
-    const application = await ApplicationForm.findById(applicationId);
-    if (!application) {
-      return res.status(404).json({ message: 'Application not found' });
-    }
-    if (req.user.role !== 'admin' && application.userId.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-    req.application = application; // Pass application to next handler if needed
-    next();
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Middleware for handling multiple file uploads
-const uploadDocuments = fileUtils.uploadMultipleFiles([
-  { name: 'gradeReport', maxCount: 1 },
-  { name: 'incomeTaxReturn', maxCount: 1 },
-  { name: 'certificates', maxCount: 10 } // Allow up to 10 certificates
-]);
+const { checkApplicationAccess, uploadDocuments } = require('../middleware/documentMiddleware');
 
 // Create or update documents (combined for simplicity)
 const createOrUpdateDocuments = async (req, res) => {
