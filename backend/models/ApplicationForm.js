@@ -7,7 +7,6 @@ const applicationFormSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  studentPicture: { type: String, required: true },
   firstName: { type: String, required: true },
   middleName: { type: String },
   lastName: { type: String, required: true },

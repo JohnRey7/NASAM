@@ -1,55 +1,94 @@
-const ApplicationForm = require('../models/ApplicationForm'); // Assumed to exist
-const fileUtils = require('../utils/FileUtils');
+const mongoose = require('mongoose');
+const multer = require('multer');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const sanitizePath = require('sanitize-filename');
+const ApplicationForm = require('../models/ApplicationForm');
 
-// Middleware to check if user has access to the application
+const uploadDir = path.join(__dirname, '../files');
+
+// Ensure upload directory exists
+const ensureUploadDir = async () => {
+  try {
+    await require('fs').promises.mkdir(uploadDir, { recursive: true });
+  } catch (error) {
+    console.error('Error creating upload directory:', error);
+    throw new Error('Server error');
+  }
+};
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    await ensureUploadDir();
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uuid = uuidv4();
+    const sanitizedName = `${uuid}${ext}`;
+    cb(null, sanitizedName);
+  }
+});
+
+// File filter for allowed mime types
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF, JPEG, and PNG files are allowed'), false);
+  }
+};
+
+// Multer upload configuration
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+}).fields([
+  { name: 'studentPicture', maxCount: 1 }, // Single file for studentPicture
+  { name: 'nbiClearance', maxCount: 5 },
+  { name: 'gradeReport', maxCount: 5 },
+  { name: 'incomeTaxReturn', maxCount: 5 },
+  { name: 'goodBoyCertificate', maxCount: 5 },
+  { name: 'physicalCheckup', maxCount: 5 }
+]);
+
+// Middleware to check application access
 const checkApplicationAccess = async (req, res, next) => {
   try {
-    const applicationId = req.params.applicationId;
-    if (!applicationId) {
-      return res.status(400).json({ message: 'Application ID is required' });
+    const { applicationId } = req.params;
+
+    // Validate applicationId
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      return res.status(400).json({ message: `Invalid application ID: ${applicationId}` });
     }
 
+    // Find application
     const application = await ApplicationForm.findById(applicationId);
     if (!application) {
       return res.status(404).json({ message: 'Application not found' });
     }
 
-    // Ensure req.user exists
-    if (!req.user || !req.user.id || !req.user.role) {
-      return res.status(401).json({ message: 'User authentication data missing' });
-    }
-
-    // Define the user reference field (matches 'user' in ApplicationForm schema)
-    const userField = 'user';
-    const userRef = application[userField];
-
-    // Check if the user reference field exists and is not null
-    if (!userRef) {
-      console.error(`Application ${applicationId} does not have a valid ${userField} field. Application data:`, application.toObject());
-      return res.status(500).json({ message: `Application data is missing or has invalid ${userField} field` });
-    }
-
-    // Authorization check
-    if (req.user.role !== 'admin' && userRef.toString() !== req.user.id) {
+    // Check if user is the owner or has admin permissions
+    const userId = req.user.id;
+    const user = await require('../models/User').findById(userId);
+    if (application.user.toString() !== userId) {
       return res.status(403).json({ message: 'Not authorized to access this application' });
     }
 
-    req.application = application; // Pass application to next handler if needed
+    // Attach application to request for use in controller
+    req.application = application;
     next();
   } catch (error) {
-    console.error('Error in checkApplicationAccess:', error);
-    res.status(500).json({ message: `Server error: ${error.message}` });
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Middleware for handling multiple file uploads
-const uploadDocuments = fileUtils.uploadMultipleFiles([
-  { name: 'gradeReport', maxCount: 1 },
-  { name: 'incomeTaxReturn', maxCount: 1 },
-  { name: 'certificates', maxCount: 10 } // Allow up to 10 certificates
-]);
-
+// Export middleware
 module.exports = {
-  checkApplicationAccess,
-  uploadDocuments
+  uploadDocuments: upload,
+  checkApplicationAccess
 };

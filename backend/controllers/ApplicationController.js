@@ -1,5 +1,6 @@
+const mongoose = require('mongoose');
 const ApplicationForm = require('../models/ApplicationForm');
-const fileUtils = require('../utils/FileUtils');
+const User = require('../models/User');
 
 const ApplicationController = {
   // Create a new application form for the authenticated user
@@ -18,12 +19,6 @@ const ApplicationController = {
 
       // Parse JSON data if sent as string in form-data
       const formData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
-
-      // Use file path from upload middleware
-      const studentPicture = req.filePath;
-      if (!studentPicture) {
-        return res.status(400).json({ message: 'studentPicture is required' });
-      }
 
       // Extract and validate required fields
       const {
@@ -65,7 +60,6 @@ const ApplicationController = {
 
       const applicationData = {
         user: userId,
-        studentPicture,
         firstName,
         middleName,
         lastName,
@@ -130,32 +124,60 @@ const ApplicationController = {
   async getApplicationFormById(req, res) {
     try {
       const application = await ApplicationForm.findById(req.params.id)
-        .populate('user approvalsSummary.interviewedBy approvalsSummary.endorsedBy approvalsSummary.approvedBy');
+        .populate({
+          path: 'user',
+          select: '_id name role'
+        })
+        .populate({
+          path: 'approvalsSummary.interviewedBy',
+          select: '_id name role'
+        })
+        .populate({
+          path: 'approvalsSummary.endorsedBy',
+          select: '_id name role'
+        })
+        .populate({
+          path: 'approvalsSummary.approvedBy',
+          select: '_id name role'
+        });
+
       if (!application) {
         return res.status(404).json({ message: 'Application not found' });
       }
-      if (application.user.toString() !== req.user.id && req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Not authorized' });
-      }
+
       res.json(application);
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
   },
 
-  // Get all application forms (admin only, paginated with filters)
   async getAllApplicationForms(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
-      const limit = Math.min(parseInt(req.query.limit) || 25, 25);
+      const limit = Math.min(parseInt(req.query.limit) || 10, 25);
       const skip = (page - 1) * limit;
 
       const filter = {};
       const queryFields = req.query;
 
+      const objectIdFields = [
+        '_id',
+        'user',
+        'approvalsSummary.interviewedBy',
+        'approvalsSummary.endorsedBy',
+        'approvalsSummary.approvedBy'
+      ];
+
       for (const key in queryFields) {
         if (key !== 'page' && key !== 'limit') {
-          filter[key] = queryFields[key];
+          if (objectIdFields.includes(key)) {
+            if (!mongoose.Types.ObjectId.isValid(queryFields[key])) {
+              return res.status(400).json({ message: `Invalid ObjectId for ${key}: ${queryFields[key]}` });
+            }
+            filter[key] = queryFields[key];
+          } else {
+            filter[key] = queryFields[key];
+          }
         }
       }
 
@@ -167,7 +189,23 @@ const ApplicationController = {
       }
 
       const applications = await ApplicationForm.find(filter)
-        .populate('user approvalsSummary.interviewedBy approvalsSummary.endorsedBy approvalsSummary.approvedBy')
+        .populate({
+          path: 'user',
+          select: '_id name role'
+        })
+        .populate({
+          path: 'approvalsSummary.interviewedBy',
+          select: '_id name role'
+        })
+        .populate({
+          path: 'approvalsSummary.endorsedBy',
+          select: '_id name role'
+        })
+        .populate({
+          path: 'approvalsSummary.approvedBy',
+          select: '_id name role'
+        })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
 
@@ -201,7 +239,6 @@ const ApplicationController = {
       }
 
       const formData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
-      const studentPicture = req.filePath || application.studentPicture;
 
       const {
         firstName, middleName, lastName, suffix, typeOfScholarship,
@@ -213,7 +250,6 @@ const ApplicationController = {
       } = formData;
 
       Object.assign(application, {
-        studentPicture,
         firstName,
         middleName,
         lastName,
@@ -252,7 +288,6 @@ const ApplicationController = {
       }
 
       const formData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
-      const studentPicture = req.filePath || application.studentPicture;
 
       const {
         firstName, middleName, lastName, suffix, typeOfScholarship,
@@ -267,7 +302,6 @@ const ApplicationController = {
       if (approvalsSummary) {
         const { interviewedBy, endorsedBy, approvedBy } = approvalsSummary;
 
-        // Validate interviewedBy (array of User IDs)
         if (interviewedBy) {
           if (!Array.isArray(interviewedBy)) {
             return res.status(400).json({ message: 'approvalsSummary.interviewedBy must be an array' });
@@ -283,7 +317,6 @@ const ApplicationController = {
           }
         }
 
-        // Validate endorsedBy (single User ID)
         if (endorsedBy) {
           if (!mongoose.Types.ObjectId.isValid(endorsedBy)) {
             return res.status(400).json({ message: `Invalid User ID in endorsedBy: ${endorsedBy}` });
@@ -294,7 +327,6 @@ const ApplicationController = {
           }
         }
 
-        // Validate approvedBy (single User ID)
         if (approvedBy) {
           if (!mongoose.Types.ObjectId.isValid(approvedBy)) {
             return res.status(400).json({ message: `Invalid User ID in approvedBy: ${approvedBy}` });
@@ -307,7 +339,6 @@ const ApplicationController = {
       }
 
       Object.assign(application, {
-        studentPicture,
         firstName,
         middleName,
         lastName,
@@ -353,22 +384,13 @@ const ApplicationController = {
   }
 };
 
-// Export with middleware for routes
+// Export without file upload middleware
 module.exports = {
-  createApplicationForm: [
-    fileUtils.uploadFile('studentPicture', ['image/jpeg', 'image/png'], 2 * 1024 * 1024),
-    ApplicationController.createApplicationForm
-  ],
+  createApplicationForm: ApplicationController.createApplicationForm,
   getMyApplicationForm: ApplicationController.getMyApplicationForm,
   getApplicationFormById: ApplicationController.getApplicationFormById,
   getAllApplicationForms: ApplicationController.getAllApplicationForms,
-  updateMyApplicationForm: [
-    fileUtils.uploadFile('studentPicture', ['image/jpeg', 'image/png'], 2 * 1024 * 1024, true),
-    ApplicationController.updateMyApplicationForm
-  ],
-  updateApplicationForm: [
-    fileUtils.uploadFile('studentPicture', ['image/jpeg', 'image/png'], 2 * 1024 * 1024, true),
-    ApplicationController.updateApplicationForm
-  ],
+  updateMyApplicationForm: ApplicationController.updateMyApplicationForm,
+  updateApplicationForm: ApplicationController.updateApplicationForm,
   deleteApplicationForm: ApplicationController.deleteApplicationForm
 };

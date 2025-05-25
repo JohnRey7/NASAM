@@ -2,6 +2,7 @@ const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Course = require('../models/Course');
+const Role = require('../models/Role');
 const BlacklistedToken = require('../models/BlacklistedToken');
 const sendVerificationEmail = require('../utils/sendVerificationEmail');
 
@@ -12,7 +13,12 @@ function generateVerificationCode() {
 
 // Helper: Generate a JWT token for a user
 function generateToken(user) {
-  const payload = { id: user._id, idNumber: user.idNumber, role: user.role };
+  const payload = { 
+    id: user._id, 
+    idNumber: user.idNumber, 
+    role: user.role._id,
+    roleName: user.role.name 
+  };
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 }
 
@@ -41,7 +47,7 @@ const AuthController = {
         return res.status(400).json({ message: 'ID number and password are required' });
       }
 
-      const user = await User.findOne({ idNumber });
+      const user = await User.findOne({ idNumber }).populate('role');
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
@@ -72,7 +78,14 @@ const AuthController = {
 
       return res.json({
         message: 'Login successful',
-        user: { id: user._id, idNumber: user.idNumber, role: user.role },
+        user: { 
+          id: user._id, 
+          idNumber: user.idNumber, 
+          role: { 
+            id: user.role._id, 
+            name: user.role.name 
+          }
+        },
       });
     } catch (error) {
       console.error(error);
@@ -82,9 +95,9 @@ const AuthController = {
 
   async register(req, res) {
     try {
-      const { name, idNumber, email, password, courseId, rememberMe } = req.body;
-      if (!name || !idNumber || !password || !courseId) {
-        return res.status(400).json({ message: 'Name, ID number, password, and course ID are required' });
+      const { name, idNumber, email, password, courseId, roleId, rememberMe } = req.body;
+      if (!name || !idNumber || !password || !courseId || !roleId) {
+        return res.status(400).json({ message: 'Name, ID number, password, course ID, and role ID are required' });
       }
 
       if (await User.findOne({ idNumber })) {
@@ -99,8 +112,20 @@ const AuthController = {
         return res.status(400).json({ message: 'Invalid course ID' });
       }
 
+      const role = await Role.findById(roleId);
+      if (!role) {
+        return res.status(400).json({ message: 'Invalid role ID' });
+      }
+
       const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
-      const user = new User({ name, idNumber, email, password: hashedPassword, course: course._id });
+      const user = new User({ 
+        name, 
+        idNumber, 
+        email, 
+        password: hashedPassword, 
+        course: course._id,
+        role: role._id 
+      });
 
       if (email) {
         const code = updateVerificationDetails(user);
@@ -109,7 +134,7 @@ const AuthController = {
 
       await user.save();
 
-      const token = generateToken(user);
+      const token = generateToken({ ...user._doc, role });
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
       res.cookie('jwt', token, {
@@ -122,7 +147,14 @@ const AuthController = {
 
       return res.status(201).json({
         message: email ? 'Registration successful, please verify your email.' : 'Registration successful',
-        user: { id: user._id, idNumber: user.idNumber, role: user.role },
+        user: { 
+          id: user._id, 
+          idNumber: user.idNumber, 
+          role: { 
+            id: role._id, 
+            name: role.name 
+          }
+        },
       });
     } catch (error) {
       console.error(error);
@@ -163,7 +195,7 @@ const AuthController = {
         return res.status(400).json({ message: 'Verification code is required' });
       }
 
-      const user = await User.findOne({ 'emailVerification.code': code });
+      const user = await User.findOne({ 'emailVerification.code': code }).populate('role');
       if (!user || !user.emailVerification) {
         return res.status(400).json({ message: 'Invalid or unknown verification code' });
       }
@@ -183,8 +215,8 @@ const AuthController = {
       user.emailVerification.verified = true;
       user.verified = true;
       if (pendingEmail) {
-        user.email = pendingEmail; // Apply new email
-        user.emailVerification.pendingEmail = null; // Clear pending
+        user.email = pendingEmail;
+        user.emailVerification.pendingEmail = null;
       }
       await user.save();
 
@@ -278,23 +310,99 @@ const AuthController = {
     }
   },
 
+  async changePassword(req, res) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user.id; // Assumes JWT middleware sets req.user
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current and new passwords are required' });
+      }
+
+      // Validate new password strength (example: minimum 8 characters)
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      if (user.disabled) {
+        return res.status(403).json({ message: 'Account is disabled' });
+      }
+
+      const isMatch = await argon2.verify(user.password, currentPassword);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Current password is incorrect' });
+      }
+
+      // Prevent reuse of same password
+      if (await argon2.verify(user.password, newPassword)) {
+        return res.status(400).json({ message: 'New password cannot be the same as current password' });
+      }
+
+      user.password = await argon2.hash(newPassword, { type: argon2.argon2id });
+      await user.save();
+
+      // Invalidate current JWT by blacklisting it
+      const token = req.cookies.jwt;
+      if (token) {
+        await new BlacklistedToken({ token }).save();
+        res.clearCookie('jwt', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          path: '/',
+        });
+      }
+
+      return res.json({ message: 'Password changed successfully. Please log in again.' });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
   async getCurrentUser(req, res) {
     try {
       const user = await User.findById(req.user.id)
         .select('-password -emailVerification')
-        .populate('course', 'courseId name');
+        .populate({
+          path: 'course',
+          select: 'courseId name'
+        })
+        .populate({
+          path: 'role',
+          populate: {
+            path: 'permissions',
+            select: 'name'
+          }
+        });
+      
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
       if (user.disabled) {
         return res.status(403).json({ message: 'Account is disabled' });
       }
+      
       return res.json({
         user: {
           id: user._id,
           idNumber: user.idNumber,
-          role: user.role,
+          name: user.name,
+          email: user.email,
           course: user.course,
+          role: {
+            id: user.role._id,
+            name: user.role.name,
+            permissions: user.role.permissions.map(p => ({
+              id: p._id,
+              name: p.name
+            }))
+          }
         },
       });
     } catch (error) {
