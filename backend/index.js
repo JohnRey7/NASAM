@@ -8,6 +8,8 @@ const AuthController = require('./controllers/AuthController');
 const ApplicationController = require('./controllers/ApplicationController');
 const DocumentController = require('./controllers/DocumentController');
 const RoleController = require('./controllers/RoleController');
+const PanelistController = require('./controllers/PanelistController');
+const EvaluationController = require('./controllers/EvaluationController');
 const PersonalityTestController = require('./controllers/PersonalityTestController');
 const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
@@ -76,9 +78,9 @@ app.patch('/api/application/:id', authenticate, checkPermission('application.upd
 app.delete('/api/application/:id', authenticate, checkPermission('application.delete'), ApplicationController.deleteApplicationForm);
 
 // Document routes
-app.put('/api/documents/:applicationId', authenticate, checkPermission('document.set'), checkApplicationAccess, uploadDocuments, DocumentController.uploadDocuments);
-app.get('/api/documents/:applicationId', authenticate, checkPermission('document.get'), checkApplicationAccess, DocumentController.getDocuments);
-app.delete('/api/documents/:applicationId', authenticate, checkPermission('document.delete'), checkApplicationAccess, DocumentController.deleteDocuments);
+app.put('/api/documents', authenticate, checkPermission('document.set'), checkApplicationAccess, uploadDocuments, DocumentController.uploadDocuments);
+app.get('/api/documents', authenticate, checkPermission('document.get'), checkApplicationAccess, DocumentController.getDocuments);
+app.delete('/api/documents', authenticate, checkPermission('document.delete'), checkApplicationAccess, DocumentController.deleteDocuments);
 
 // Personality Test routes
 app.post('/api/personality-test/start', authenticate, checkPermission('personality_test.create'), PersonalityTestController.startPersonalityTest);
@@ -96,6 +98,23 @@ app.get('/api/personality-test/template', authenticate, checkPermission('persona
 app.get('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getTemplateById);
 app.patch('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.update'), PersonalityTestController.updateTemplate);
 app.delete('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.delete'), PersonalityTestController.deleteTemplate);
+
+// Panelist Routes
+app.post('/api/panelists', authenticate, checkPermission('panelist.create'), PanelistController.createPanelist);
+app.get('/api/panelists', authenticate, checkPermission('panelist.read'), PanelistController.getAllPanelists);
+app.get('/api/panelists/:id', authenticate, checkPermission('panelist.read'), PanelistController.getPanelistById);
+app.patch('/api/panelists/:id', authenticate, checkPermission('panelist.update'), PanelistController.updatePanelist);
+app.delete('/api/panelists/:id', authenticate, checkPermission('panelist.delete'), PanelistController.deletePanelist);
+
+// Evaluation Routes
+app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
+app.get('/api/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluations);
+app.get('/api/evaluations/:id', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationById);
+app.patch('/api/evaluations/:id', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluation);
+app.delete('/api/evaluations/:id', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluation);
+app.patch('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeKeepingRecord);
+app.get('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.read_timekeeping'), EvaluationController.getTimeKeepingRecord);
+
 
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {

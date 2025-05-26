@@ -17,7 +17,7 @@ function generateToken(user) {
     id: user._id, 
     idNumber: user.idNumber, 
     role: user.role._id,
-    roleName: user.role.name 
+    roleName: user.role.name
   };
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 }
@@ -95,9 +95,9 @@ const AuthController = {
 
   async register(req, res) {
     try {
-      const { name, idNumber, email, password, courseId, roleId, rememberMe } = req.body;
-      if (!name || !idNumber || !password || !courseId || !roleId) {
-        return res.status(400).json({ message: 'Name, ID number, password, course ID, and role ID are required' });
+      const { name, idNumber, email, password, courseId, rememberMe } = req.body;
+      if (!name || !idNumber || !password || !courseId) {
+        return res.status(400).json({ message: 'Name, ID number, password, course ID, and are required' });
       }
 
       if (await User.findOne({ idNumber })) {
@@ -112,7 +112,7 @@ const AuthController = {
         return res.status(400).json({ message: 'Invalid course ID' });
       }
 
-      const role = await Role.findById(roleId);
+      const role = await Role.findOne( { name: "applicant"} );
       if (!role) {
         return res.status(400).json({ message: 'Invalid role ID' });
       }
