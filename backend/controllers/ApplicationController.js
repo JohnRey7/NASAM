@@ -12,6 +12,12 @@ const ApplicationController = {
         return res.status(409).json({ message: 'User already filled an application' });
       }
 
+      // Get user's email from the User model
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
       // Prevent approvalsSummary from being set
       if (req.body.approvalsSummary) {
         return res.status(400).json({ message: 'Cannot set approvalsSummary during creation' });
@@ -60,6 +66,7 @@ const ApplicationController = {
 
       const applicationData = {
         user: userId,
+        emailAddress: user.email,
         firstName,
         middleName,
         lastName,
@@ -86,6 +93,7 @@ const ApplicationController = {
       await application.save();
       res.status(201).json(application);
     } catch (error) {
+      console.error('Error creating application:', error);
       res.status(400).json({ message: error.message });
     }
   },

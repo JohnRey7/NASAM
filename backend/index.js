@@ -20,6 +20,20 @@ const User = require('./models/User');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// CORS middleware for development
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3001');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Middleware
 app.use(helmet({
   contentSecurityPolicy: {
@@ -31,7 +45,7 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: process.env.CLIENT_URL || 'http://localhost:3001',
   credentials: true,
 }));
 app.use(express.json());
@@ -60,6 +74,8 @@ app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
+app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
+
 
 // Role routes
 app.post('/api/roles', authenticate, checkPermission('role.create'), RoleController.createRole);
@@ -70,12 +86,12 @@ app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleC
 
 // Application routes
 app.post('/api/application', authenticate, checkPermission('application.create'), ApplicationController.createApplicationForm);
-app.get('/api/application', authenticate, checkPermission('application.readOwn'), ApplicationController.getMyApplicationForm);
-app.get('/api/application/all', authenticate, checkPermission('application.retrieve.all'), ApplicationController.getAllApplicationForms);
+app.get('/api/application/me', authenticate, checkPermission('application.readOwn'), ApplicationController.getMyApplicationForm);
+app.patch('/api/application/me', authenticate, checkPermission('application.updateOwn'), ApplicationController.updateMyApplicationForm);
 app.get('/api/application/:id', authenticate, checkPermission('application.read'), ApplicationController.getApplicationFormById);
-app.patch('/api/application', authenticate, checkPermission('application.updateOwn'), ApplicationController.updateMyApplicationForm);
 app.patch('/api/application/:id', authenticate, checkPermission('application.update'), ApplicationController.updateApplicationForm);
 app.delete('/api/application/:id', authenticate, checkPermission('application.delete'), ApplicationController.deleteApplicationForm);
+app.get('/api/application/all', authenticate, checkPermission('application.retrieve.all'), ApplicationController.getAllApplicationForms);
 
 // Document routes
 app.put('/api/documents', authenticate, checkPermission('document.set'), checkApplicationAccess, uploadDocuments, DocumentController.uploadDocuments);

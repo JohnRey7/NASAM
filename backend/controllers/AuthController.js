@@ -107,8 +107,12 @@ const AuthController = {
         return res.status(400).json({ message: 'Email already exists' });
       }
 
+      console.log('Registration attempt:', { name, idNumber, email, courseId });
+      
+      // Find the course by ID
       const course = await Course.findOne({ courseId });
       if (!course) {
+        console.log('Course not found:', courseId);
         return res.status(400).json({ message: 'Invalid course ID' });
       }
 
@@ -405,6 +409,48 @@ const AuthController = {
           }
         },
       });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  async changePassword(req, res) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required' });
+      }
+
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify current password
+      const isMatch = await argon2.verify(user.password, currentPassword);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
+      user.password = hashedPassword;
+      await user.save();
+
+      // Invalidate all existing sessions
+      const token = req.cookies.jwt;
+      if (token) {
+        await new BlacklistedToken({ token }).save();
+      }
+      res.clearCookie('jwt', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+      });
+
+      return res.json({ message: 'Password changed successfully' });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: 'Server error' });
