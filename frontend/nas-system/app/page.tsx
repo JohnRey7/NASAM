@@ -9,27 +9,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-[#800000] text-white py-4 shadow-md">
-        <div className="container mx-auto px-4 flex justify-between items-center">
+        <div className="container mx-auto px-4 flex justify-left items-center">
           <h1 className="text-2xl font-bold">CIT-U Non-Academic Scholars</h1>
-          <nav>
-            <ul className="flex space-x-4">
-              <li>
-                <Link href="/" className="hover:underline">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link href="/about" className="hover:underline">
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="hover:underline">
-                  Contact
-                </Link>
-              </li>
-            </ul>
-          </nav>
         </div>
       </header>
 

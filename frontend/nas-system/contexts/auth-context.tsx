@@ -19,7 +19,11 @@ interface AuthContextType {
   status: AuthStatus
   login: (idNumber: string, password: string, remember: boolean) => Promise<void>
   logout: () => void
-  register: (email: string, idNumber: string, password: string, course: string, name?: string) => Promise<void>
+  register: (email: string, idNumber: string, password: string, course: string, name?: string) => Promise<{
+    success: boolean
+    message: string
+    data: any
+  }>
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"
@@ -56,14 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             if (response.ok) {
               const data = await response.json()
+              console.log("Backend user data:", data) // Debug log
+              
               // Update user data with the latest from the server
               const updatedUser = {
                 ...parsedUser,
                 ...data.user,
-                name: data.user.name || parsedUser.name, // Keep the name from backend or use stored name
+                // Always use the backend name if available
+                name: data.user?.name || parsedUser.name || "Student",
                 role: "applicant", // Regular users are always applicants
               }
               
+              console.log("Updated user data:", updatedUser) // Debug log
               setUser(updatedUser)
               localStorage.setItem("nas_user", JSON.stringify(updatedUser))
               setStatus("authenticated")
@@ -108,9 +116,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(oasUser)
         setStatus("authenticated")
         
-        if (remember) {
-          localStorage.setItem("nas_user", JSON.stringify(oasUser))
-        }
+        // Set both localStorage and cookie
+        localStorage.setItem("nas_user", JSON.stringify(oasUser))
+        document.cookie = `nas_user=${JSON.stringify(oasUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
         
         router.push("/oas-dashboard")
         return
@@ -128,9 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(panelistUser)
         setStatus("authenticated")
         
-        if (remember) {
-          localStorage.setItem("nas_user", JSON.stringify(panelistUser))
-        }
+        // Set both localStorage and cookie
+        localStorage.setItem("nas_user", JSON.stringify(panelistUser))
+        document.cookie = `nas_user=${JSON.stringify(panelistUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
         
         router.push("/panel-dashboard")
         return
@@ -156,21 +164,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       const data = await response.json()
+      console.log("Login response data:", data) // Debug log
       
       // Map backend user data to frontend user format
       const loggedInUser: User = {
         id: data.user.id,
-        name: data.user.name || "Student", // Use the actual name from the backend
+        // Always use the backend name if available
+        name: data.user?.name || "Student",
         email: data.user.email || "",
         role: "applicant", // Regular users are always applicants
       }
       
+      console.log("Logged in user data:", loggedInUser) // Debug log
       setUser(loggedInUser)
       setStatus("authenticated")
       
-      if (remember) {
-        localStorage.setItem("nas_user", JSON.stringify(loggedInUser))
-      }
+      // Set both localStorage and cookie
+      localStorage.setItem("nas_user", JSON.stringify(loggedInUser))
+      document.cookie = `nas_user=${JSON.stringify(loggedInUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
       
       router.push("/dashboard")
     } catch (error) {
@@ -197,6 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setStatus("unauthenticated")
       localStorage.removeItem("nas_user")
+      // Clear the cookie
+      document.cookie = "nas_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
       router.push("/")
     }
   }
@@ -212,12 +225,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         credentials: "include", // Include cookies
         body: JSON.stringify({
-          name: name || idNumber, // Use provided name or fallback to ID number
+          name: name || `Student ${idNumber}`,
           idNumber,
           email,
           password,
           courseId,
-          rememberMe: true, // Default to remember
+          rememberMe: false, // Don't remember by default until email is verified
         }),
       })
 
@@ -228,20 +241,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json()
       
-      // Map backend user data to frontend user format
-      const newUser: User = {
-        id: data.user.id,
-        name: data.user.name || "Student", // Use the actual name from the backend
-        email: email,
-        role: "applicant", // Default role for new registrations
+      // Don't automatically log in the user
+      setStatus("unauthenticated")
+      
+      // Return the registration data for the UI to handle
+      return {
+        success: true,
+        message: "Registration successful. Please check your email for verification.",
+        data: data
       }
-
-      setUser(newUser)
-      setStatus("authenticated")
-      localStorage.setItem("nas_user", JSON.stringify(newUser))
-
-      router.push("/dashboard")
-      return data
     } catch (error) {
       console.error("Registration error:", error)
       setStatus("unauthenticated")

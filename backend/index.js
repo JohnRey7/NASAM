@@ -42,6 +42,7 @@ app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
+app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
 
 // Protected routes that require user role
 app.use('/api/user', authenticate, roleCheck(['user', 'admin']));

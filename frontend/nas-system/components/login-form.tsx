@@ -31,10 +31,10 @@ export function LoginForm() {
         title: "Login successful",
         description: "Welcome back to the Non-Academic Scholars System",
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Login failed",
-        description: "Invalid credentials. Please try again.",
+        description: error.message || "Please log in with your user credentials.",
         variant: "destructive",
       })
       setIsLoading(false)
@@ -83,6 +83,8 @@ export function LoginForm() {
           Create account
         </Link>
       </div>
+      
+      
     </form>
   )
 }

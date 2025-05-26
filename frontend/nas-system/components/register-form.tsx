@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
 
 // Sample courses - in a real app, these would come from an API
 const COURSES = [
@@ -31,6 +32,7 @@ export function RegisterForm() {
   const { toast } = useToast()
   const { register } = useAuth()
   const [course, setCourse] = useState("")
+  const router = useRouter()
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -50,17 +52,35 @@ export function RegisterForm() {
     }
 
     try {
-      await register(email, idNumber, password, course, name)
+      // Show loading toast
       toast({
-        title: "Registration successful",
-        description: "Your account has been created. Please verify your email if provided.",
+        title: "Creating Account",
+        description: "Please wait while we create your account...",
       })
+
+      const result = await register(email, idNumber, password, course, name)
+      
+      // Show success toast
+      toast({
+        title: "Registration Successful",
+        description: "Please check your email for verification instructions.",
+      })
+
+      // Reset form safely
+      const form = event.currentTarget
+      if (form) {
+        form.reset()
+        setCourse("")
+      }
+      
+      // Switch to login tab
+      document.querySelector('[data-value="login"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
     } catch (error) {
       console.error("Registration error:", error)
       const errorMsg = error instanceof Error ? error.message : "Registration failed. Please try again."
       setErrorMessage(errorMsg)
       toast({
-        title: "Registration failed",
+        title: "Registration Failed",
         description: errorMsg,
         variant: "destructive",
       })
