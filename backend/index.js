@@ -62,7 +62,7 @@ app.put('/api/auth/email', authenticate, AuthController.updateEmail);
 // Role routes
 app.post('/api/roles', authenticate, checkPermission('role.create'), RoleController.createRole);
 app.get('/api/roles', authenticate, checkPermission('role.read'), RoleController.getAllRoles);
-app.get('/api/roles/:id', authenticate, checkPermission('role.read'), RoleController.getRoleById);
+app.get('/api/roles/:id', authenticate, checkPermission('role.read.id'), RoleController.getRoleById);
 app.patch('/api/roles/:id', authenticate, checkPermission('role.update'), RoleController.updateRole);
 app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleController.deleteRole);
 
@@ -87,6 +87,7 @@ app.get('/api/personality-test/stop', authenticate, checkPermission('personality
 app.get('/api/personality-test/me', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getMyPersonalityTest);
 app.get('/api/personality-test/all', authenticate, checkPermission('personality_test.readAll'), PersonalityTestController.getAllUserPersonalityTest);
 app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getPersonalityTestByUserId);
+app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest);
 app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deletePersonalityTestByUserId);
 
 // Personality Test Template routes

@@ -9,7 +9,7 @@ const personalityTestSchema = new mongoose.Schema({
     },
     questions: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: "PersonalityAssessmentTemplate"
+        ref: 'PersonalityAssessmentTemplate'
     }],
     answers: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -25,6 +25,9 @@ const personalityTestSchema = new mongoose.Schema({
     timeLimitSeconds: {
         type: Number,
         default: 900 // 15 minutes
+    },
+    score: {
+        type: mongoose.Schema.Types.Decimal128
     }
 }, { timestamps: true });
 

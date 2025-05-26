@@ -77,7 +77,7 @@ async function initializeAdminAccount() {
       const hashedPassword = await argon2.hash('Welcome1!', { type: argon2.argon2id });
       const adminUser = new User({
         name: 'Administrator',
-        idNumber: 'ADMIN001',
+        idNumber: 'Welcome1!',
         email: 'admin@example.com',
         password: hashedPassword,
         role: adminRole._id,

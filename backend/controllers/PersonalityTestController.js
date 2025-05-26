@@ -321,6 +321,116 @@ const PersonalityTestController = {
     }
   },
 
+  // PATCH /updatePersonalityTest/:testId
+  async updatePersonalityTest(req, res) {
+    try {
+      const { testId } = req.params;
+
+      // Validate user authentication
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: 'Unauthorized: User not authenticated' });
+      }
+      const userId = req.user.id;
+
+      // Validate request body
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ message: 'Request body is required' });
+      }
+      const { answers, score } = req.body;
+
+      // Validate input
+      if (!mongoose.Types.ObjectId.isValid(testId)) {
+        return res.status(400).json({ message: 'Invalid test ID' });
+      }
+      if (answers && !Array.isArray(answers)) {
+        return res.status(400).json({ message: 'Answers must be an array' });
+      }
+      if (score !== undefined && (isNaN(score) || score < 0)) {
+        return res.status(400).json({ message: 'Score must be a non-negative number' });
+      }
+
+      // Find application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for user' });
+      }
+
+      // Find test
+      const test = await PersonalityTest.findOne({
+        _id: testId,
+        applicationId: application._id,
+      }).populate('questions');
+      if (!test) {
+        return res.status(404).json({ message: 'Personality test not found' });
+      }
+
+      // Update score if provided
+      if (score !== undefined) {
+        test.score = score; // Mongoose converts to Decimal128
+      }
+
+      // Process answers if provided and non-empty
+      if (answers && answers.length > 0) {
+        for (const { questionId, answer } of answers) {
+          if (!questionId || !answer) {
+            return res.status(400).json({ 
+              message: 'questionId and answer are required for each answer' 
+            });
+          }
+
+          // Validate question is part of the test
+          const questionExists = test.questions.some(q => q._id.toString() === questionId);
+          if (!questionExists) {
+            return res.status(400).json({ 
+              message: `Question ${questionId} is not part of this test` 
+            });
+          }
+
+          // Check for existing answer
+          let answerDoc = await PersonalityAssessmentAnswers.findOne({
+            applicationId: application._id,
+            questionId,
+          });
+
+          if (answerDoc) {
+            // Update existing answer
+            answerDoc.answer = answer;
+            await answerDoc.save();
+          } else {
+            // Create new answer
+            answerDoc = new PersonalityAssessmentAnswers({
+              applicationId: application._id,
+              questionId,
+              answer,
+            });
+            await answerDoc.save();
+            test.answers.push(answerDoc._id);
+          }
+        }
+      }
+
+      await test.save();
+
+      // Fetch updated test with populated fields
+      const updatedTest = await PersonalityTest.findById(test._id)
+        .populate({
+          path: 'questions',
+          select: 'type question',
+        })
+        .populate({
+          path: 'answers',
+          populate: [
+            { path: 'questionId', select: 'type question' },
+            { path: 'applicationId', select: '_id' },
+          ],
+        });
+
+      res.status(200).json(updatedTest);
+    } catch (error) {
+      console.error('Error in updatePersonalityTest:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
+    }
+  },  
   // DELETE /deletePersonalityTestByUserId
   async deletePersonalityTestByUserId(req, res) {
     try {
