@@ -4,8 +4,13 @@ const personalityTestSchema = new mongoose.Schema({
     applicationId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ApplicationForm',
+        required: true,
         index: true
     },
+    questions: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PersonalityAssessmentTemplate"
+    }],
     answers: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'PersonalityAssessmentAnswers',

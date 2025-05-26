@@ -16,19 +16,14 @@ const PersonalityTestController = {
         return res.status(404).json({ message: 'No application found for user' });
       }
 
-      // Check for existing incomplete test
-      const existingTest = await PersonalityTest.findOne({ applicationId: application._id, endTime: {$exists: false} } );
-      if (existingTest) {
-        return res.status(409).json({ message: 'An active personality test already exists' });
-      }
-
-      // Check for completed test
-      const completedTest = await PersonalityTest.findOne({
-        'answers': { $elemMatch: { applicationId: application._id } },
-        endTime: { $exists: true },
+      // Check if user has ever taken a test
+      const existingTest = await PersonalityTest.findOne({
+        applicationId: application._id,
       });
-      if (completedTest) {
-        return res.status(403).json({ message: 'User has already completed a personality test' });
+      if (existingTest) {
+        return res.status(403).json({ 
+          message: 'User has already taken a personality test and cannot take another' 
+        });
       }
 
       // Get distinct categories from PersonalityAssessmentTemplate
@@ -53,30 +48,38 @@ const PersonalityTestController = {
         return res.status(404).json({ message: 'No questions found for categories' });
       }
 
-      // Create test
+      // Create test with start and end time
       const startTime = new Date();
+      const endTime = new Date(startTime.getTime() + 900 * 1000); // 15 minutes from start
       const test = new PersonalityTest({
+        applicationId: application._id,
+        questions: questions.map(q => q._id), // Save question IDs
         answers: [],
         startTime,
-        endTime: null,
+        endTime,
         timeLimitSeconds: 900, // 15 minutes
       });
       await test.save();
+
+      // Populate questions for response
+      const populatedTest = await PersonalityTest.findById(test._id)
+        .populate('questions', 'type question');
 
       // Return questions
       res.status(201).json({
         testId: test._id,
         startTime,
+        endTime,
         timeLimitSeconds: test.timeLimitSeconds,
-        questions: questions.map(q => ({
+        questions: populatedTest.questions.map(q => ({
           _id: q._id,
           type: q.type,
           question: q.question,
         })),
       });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in startPersonalityTest:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -84,11 +87,11 @@ const PersonalityTestController = {
   async answerPersonalityTest(req, res) {
     try {
       const userId = req.user.id;
-      const { testId, questionId, answer } = req.body;
+      const answers = req.body;
 
       // Validate input
-      if (!testId || !questionId || !answer) {
-        return res.status(400).json({ message: 'testId, questionId, and answer are required' });
+      if (!Array.isArray(answers) || answers.length === 0) {
+        return res.status(400).json({ message: 'Answers must be a non-empty array' });
       }
 
       // Find application
@@ -97,52 +100,62 @@ const PersonalityTestController = {
         return res.status(404).json({ message: 'No application found for user' });
       }
 
-      // Find test
-      const test = await PersonalityTest.findById(testId);
-      if (!test) {
-        return res.status(404).json({ message: 'Personality test not found' });
-      }
-
-      // Check if test is active
+      // Find active test
       const currentTime = new Date();
-      const deadline = new Date(test.startTime.getTime() + test.timeLimitSeconds * 1000);
-      if (test.endTime || currentTime > deadline) {
-        test.endTime = test.endTime || currentTime;
-        await test.save();
-        return res.status(403).json({ message: 'Test is already completed or past deadline' });
-      }
-
-      // Validate question
-      const question = await PersonalityAssessmentTemplate.findById(questionId);
-      if (!question) {
-        return res.status(404).json({ message: 'Question not found' });
-      }
-
-      // Check for existing answer
-      const existingAnswer = await PersonalityAssessmentAnswers.findOne({
+      const test = await PersonalityTest.findOne({
         applicationId: application._id,
-        questionId,
-      });
-      if (existingAnswer) {
-        return res.status(409).json({ message: 'Question already answered' });
+        endTime: { $gt: currentTime },
+      }).populate('questions');
+      if (!test) {
+        return res.status(404).json({ 
+          message: 'No active personality test found or test time has expired' 
+        });
       }
 
-      // Save answer
-      const answerDoc = new PersonalityAssessmentAnswers({
-        applicationId: application._id,
-        questionId,
-        answer,
-      });
-      await answerDoc.save();
+      // Process each answer
+      for (const { questionId, answer } of answers) {
+        if (!questionId || !answer) {
+          return res.status(400).json({ 
+            message: 'questionId and answer are required for each answer' 
+          });
+        }
 
-      // Update test
-      test.answers.push(answerDoc._id);
+        // Validate question is part of the test
+        const questionExists = test.questions.some(q => q._id.toString() === questionId);
+        if (!questionExists) {
+          return res.status(400).json({ 
+            message: `Question ${questionId} is not part of this test` 
+          });
+        }
+
+        // Check for existing answer
+        const existingAnswer = await PersonalityAssessmentAnswers.findOne({
+          applicationId: application._id,
+          questionId,
+        });
+        if (existingAnswer) {
+          return res.status(409).json({ 
+            message: `Question already answered: ${questionId}` 
+          });
+        }
+
+        // Save answer
+        const answerDoc = new PersonalityAssessmentAnswers({
+          applicationId: application._id,
+          questionId,
+          answer,
+        });
+        await answerDoc.save();
+
+        // Update test
+        test.answers.push(answerDoc._id);
+      }
+
       await test.save();
-
-      res.status(201).json({ message: 'Answer submitted successfully' });
+      res.status(201).json({ message: 'Answers submitted successfully' });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in answerPersonalityTest:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -158,22 +171,23 @@ const PersonalityTestController = {
       }
 
       // Find active test
+      const currentTime = new Date();
       const test = await PersonalityTest.findOne({
-        'answers': { $elemMatch: { applicationId: application._id } },
-        endTime: { $exists: false },
+        applicationId: application._id,
+        endTime: { $gt: currentTime },
       });
       if (!test) {
         return res.status(404).json({ message: 'No active personality test found' });
       }
 
-      // Stop test
+      // Stop test by setting endTime to current time
       test.endTime = new Date();
       await test.save();
 
-      res.json({ message: 'Personality test stopped', testId: test._id });
+      res.json({ message: 'Personality test submitted', testId: test._id });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in stopPersonalityTest:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -190,8 +204,12 @@ const PersonalityTestController = {
 
       // Find test
       const test = await PersonalityTest.findOne({
-        'answers': { $elemMatch: { applicationId: application._id } },
+        applicationId: application._id,
       })
+        .populate({
+          path: 'questions',
+          select: 'type question',
+        })
         .populate({
           path: 'answers',
           populate: [
@@ -204,20 +222,10 @@ const PersonalityTestController = {
         return res.status(404).json({ message: 'No personality test found' });
       }
 
-      // Check deadline
-      if (!test.endTime) {
-        const currentTime = new Date();
-        const deadline = new Date(test.startTime.getTime() + test.timeLimitSeconds * 1000);
-        if (currentTime > deadline) {
-          test.endTime = currentTime;
-          await test.save();
-        }
-      }
-
       res.json(test);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in getMyPersonalityTest:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -244,6 +252,10 @@ const PersonalityTestController = {
 
       const tests = await PersonalityTest.find(filter)
         .populate({
+          path: 'questions',
+          select: 'type question',
+        })
+        .populate({
           path: 'answers',
           populate: [
             { path: 'questionId', select: 'type question' },
@@ -266,8 +278,8 @@ const PersonalityTestController = {
         },
       });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in getAllUserPersonalityTest:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -284,8 +296,12 @@ const PersonalityTestController = {
 
       // Find test
       const test = await PersonalityTest.findOne({
-        'answers': { $elemMatch: { applicationId: application._id } },
+        applicationId: application._id,
       })
+        .populate({
+          path: 'questions',
+          select: 'type question',
+        })
         .populate({
           path: 'answers',
           populate: [
@@ -295,13 +311,13 @@ const PersonalityTestController = {
         });
 
       if (!test) {
-        return res.status(404).json({ message: 'No personality test found for user' });
+        return res.status(404).json({ message: 'No personality test found' });
       }
 
       res.json(test);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in getPersonalityTestByUserId:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -318,7 +334,7 @@ const PersonalityTestController = {
 
       // Find test
       const test = await PersonalityTest.findOne({
-        'answers': { $elemMatch: { applicationId: application._id } },
+        applicationId: application._id,
       });
       if (!test) {
         return res.status(404).json({ message: 'No personality test found for user' });
@@ -332,8 +348,8 @@ const PersonalityTestController = {
 
       res.json({ message: 'Personality test deleted successfully' });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in deletePersonalityTestByUserId:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -356,8 +372,8 @@ const PersonalityTestController = {
 
       res.status(201).json(template);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in createTemplate:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -365,12 +381,12 @@ const PersonalityTestController = {
   async getAllTemplates(req, res) {
     try {
       const templates = await PersonalityAssessmentTemplate.find()
-        .populate('createdBy', 'name _id')
+        .populate('createdBy', 'firstName lastName _id')
         .sort({ createdAt: -1 });
       res.json(templates);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in getAllTemplates:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -378,14 +394,14 @@ const PersonalityTestController = {
   async getTemplateById(req, res) {
     try {
       const template = await PersonalityAssessmentTemplate.findById(req.params.id)
-        .populate('createdBy', 'name _id');
+        .populate('createdBy', 'firstName lastName _id');
       if (!template) {
         return res.status(404).json({ message: 'Template not found' });
       }
       res.json(template);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in getTemplateById:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -399,8 +415,8 @@ const PersonalityTestController = {
       }
 
       // Check ownership or admin
-      const user = await require('../models/User').findById(req.user.id);
-      if (template.createdBy.toString() !== req.user.id) {
+      const user = await require('../models/User').findById(req.user.id).populate('role');
+      if (template.createdBy.toString() !== req.user.id && user.role.name !== 'admin') {
         return res.status(403).json({ message: 'Not authorized to update this template' });
       }
 
@@ -410,8 +426,8 @@ const PersonalityTestController = {
 
       res.json(template);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in updateTemplate:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
@@ -424,16 +440,16 @@ const PersonalityTestController = {
       }
 
       // Check ownership or admin
-      const user = await require('../models/User').findById(req.user.id);
-      if (template.createdBy.toString() !== req.user.id) {
+      const user = await require('../models/User').findById(req.user.id).populate('role');
+      if (template.createdBy.toString() !== req.user.id && user.role.name !== 'admin') {
         return res.status(403).json({ message: 'Not authorized to delete this template' });
       }
 
       await PersonalityAssessmentTemplate.deleteOne({ _id: req.params.id });
       res.json({ message: 'Template deleted successfully' });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in deleteTemplate:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 };
