@@ -7,14 +7,13 @@ const userSchema = new mongoose.Schema({
   email: { type: String, sparse: true, unique: true },
   password: { type: String, required: true },
   course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  role: { type: mongoose.Schema.Types.ObjectId, ref: "Role", required: [true, 'Role is required'] },
   disabled: { type: Boolean, default: false },
   verified: { type: Boolean, default: false },
   emailVerification: {
     code: String,
     expiresAt: Date,
     lastSentAt: Date,
-    verified: { type: Boolean, default: false },
     pendingEmail: String,
   },
 });

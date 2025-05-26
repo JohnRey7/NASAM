@@ -7,19 +7,34 @@ const fileUploadSchema = new mongoose.Schema({
         required: true,
         index: true
     },
-    gradeReport: {
-        filePath: { type: String, required: true }, // Path or URL to the file
-        originalName: { type: String, required: true }, // Original file name
+    studentPicture: {
+        filePath: { type: String }, 
+        originalName: { type: String },
         uploadedAt: { type: Date, default: Date.now }
     },
-    incomeTaxReturn: {
-        filePath: { type: String, required: true }, // Path or URL to the file
-        originalName: { type: String, required: true }, // Original file name
+    nbiClearance: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
-    },
-    certificates: [{
-        filePath: { type: String, required: true }, // Path or URL to the file
-        originalName: { type: String, required: true }, // Original file name
+    }],
+    gradeReport: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
+    incomeTaxReturn: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
+    goodBoyCertificate: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
+    physicalCheckup: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
     }]
 }, { timestamps: true });

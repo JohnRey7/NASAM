@@ -16,7 +16,7 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: 'You are logged out. Please log in again.' });
     }
 
-    req.user = decoded; // Contains { id, idNumber, role }
+    req.user = decoded;
     next();
   } catch (error) {
     console.error(error);
