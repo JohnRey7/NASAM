@@ -27,7 +27,7 @@ const fileUploadSchema = new mongoose.Schema({
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
     }],
-    goodBoyCertificate: [{
+    goodMoralCertificate: [{
         filePath: { type: String, required: true },
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }

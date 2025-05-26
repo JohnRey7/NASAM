@@ -230,6 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email,
           password,
           courseId,
+          roleId: "683490a6e02b1d61dbb4bf0e", // Applicant role ID from the seeded roles
           rememberMe: false, // Don't remember by default until email is verified
         }),
       })

@@ -7,6 +7,11 @@ const applicationFormSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  emailAddress: {
+    type: String,
+    sparse: true,  // This allows multiple null values
+    index: true
+  },
   firstName: { type: String, required: true },
   middleName: { type: String },
   lastName: { type: String, required: true },
@@ -151,6 +156,9 @@ const applicationFormSchema = new mongoose.Schema({
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }
 }, { timestamps: true });
+
+// Drop the old index if it exists
+applicationFormSchema.index({ emailAddress: 1 }, { unique: false, sparse: true });
 
 const ApplicationForm = mongoose.model('ApplicationForm', applicationFormSchema);
 
