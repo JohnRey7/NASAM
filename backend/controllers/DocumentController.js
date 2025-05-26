@@ -2,17 +2,20 @@ const DocumentUpload = require('../models/DocumentUpload');
 const ApplicationForm = require('../models/ApplicationForm');
 const path = require('path');
 const fs = require('fs').promises;
-const mime = require('mime-types');
 
 const DocumentController = {
-  // Upload or update documents for an application
+  // Upload or update documents for the authenticated user's application
   async uploadDocuments(req, res) {
     try {
-      const { applicationId } = req.params;
-      const files = req.files;
+      const userId = req.user.id;
 
-      // Log received files for debugging
-      console.log('Received files:', files);
+      // Find the user's application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for this user' });
+      }
+
+      const files = req.files;
 
       // Validate that at least one file is uploaded
       if (!files || Object.keys(files).length === 0) {
@@ -21,7 +24,7 @@ const DocumentController = {
 
       // Prepare document data
       const documentData = {
-        applicationId,
+        applicationId: application._id,
         studentPicture: null,
         nbiClearance: [],
         gradeReport: [],
@@ -52,11 +55,8 @@ const DocumentController = {
         }
       }
 
-      // Log document data before saving
-      console.log('Document data to save:', documentData);
-
       // Find existing document or create new
-      let document = await DocumentUpload.findOne({ applicationId });
+      let document = await DocumentUpload.findOne({ applicationId: application._id });
       if (document) {
         // Delete old files from storage
         const oldFiles = [
@@ -120,12 +120,18 @@ const DocumentController = {
     }
   },
 
-  // Get documents for an application
+  // Get documents for the authenticated user's application
   async getDocuments(req, res) {
     try {
-      const { applicationId } = req.params;
+      const userId = req.user.id;
 
-      const document = await DocumentUpload.findOne({ applicationId })
+      // Find the user's application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for this user' });
+      }
+
+      const document = await DocumentUpload.findOne({ applicationId: application._id })
         .populate('applicationId', '_id');
 
       if (!document) {
@@ -152,12 +158,18 @@ const DocumentController = {
     }
   },
 
-  // Delete documents for an application
+  // Delete documents for the authenticated user's application
   async deleteDocuments(req, res) {
     try {
-      const { applicationId } = req.params;
+      const userId = req.user.id;
 
-      const document = await DocumentUpload.findOne({ applicationId });
+      // Find the user's application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for this user' });
+      }
+
+      const document = await DocumentUpload.findOne({ applicationId: application._id });
       if (!document) {
         return res.status(404).json({ message: 'Documents not found for this application' });
       }
@@ -181,7 +193,7 @@ const DocumentController = {
       }
 
       // Delete document from MongoDB
-      await DocumentUpload.deleteOne({ applicationId });
+      await DocumentUpload.deleteOne({ applicationId: application._id });
 
       res.json({ message: 'Documents deleted successfully' });
     } catch (error) {
