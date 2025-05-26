@@ -3,59 +3,103 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
+const cors = require('cors');
 const AuthController = require('./controllers/AuthController');
 const ApplicationController = require('./controllers/ApplicationController');
 const DocumentController = require('./controllers/DocumentController');
+const RoleController = require('./controllers/RoleController');
+const PersonalityTestController = require('./controllers/PersonalityTestController');
 const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
+const checkPermission = require('./middleware/checkPermission');
+const { checkApplicationAccess, uploadDocuments } = require('./middleware/documentMiddleware');
+const User = require('./models/User');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+    },
+  },
+}));
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true,
+}));
 app.use(express.json());
-app.use(cookieParser()); // Ensure cookieParser is included
+app.use(cookieParser());
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB Atlas (nasm_database)'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
-// Admin Only Middleware
-const adminOnly = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Not authorized' });
+// MongoDB Connection with retry logic
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    console.log('Connected to MongoDB Atlas (nasm_database)');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    setTimeout(connectDB, 5000);
   }
-  next();
 };
+connectDB();
 
 // Routes
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
 app.post('/api/auth/logout', AuthController.logout);
+app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
 
+// Role routes
+app.post('/api/roles', authenticate, checkPermission('role.create'), RoleController.createRole);
+app.get('/api/roles', authenticate, checkPermission('role.read'), RoleController.getAllRoles);
+app.get('/api/roles/:id', authenticate, checkPermission('role.read.id'), RoleController.getRoleById);
+app.patch('/api/roles/:id', authenticate, checkPermission('role.update'), RoleController.updateRole);
+app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleController.deleteRole);
+
 // Application routes
-app.post('/api/application', authenticate, ApplicationController.createApplicationForm);
-app.get('/api/application', authenticate, ApplicationController.getMyApplicationForm);
-app.get('/api/application/:id', authenticate, ApplicationController.getApplicationFormById);
-app.patch('/api/application', authenticate, ApplicationController.updateMyApplicationForm);
-app.patch('/api/application/:id', authenticate, adminOnly, ApplicationController.updateApplicationForm);
-app.delete('/api/application/:id', authenticate, adminOnly, ApplicationController.deleteApplicationForm);
-app.get('/api/application/all', authenticate, adminOnly, ApplicationController.getAllApplicationForms);
+app.post('/api/application', authenticate, checkPermission('application.create'), ApplicationController.createApplicationForm);
+app.get('/api/application', authenticate, checkPermission('application.readOwn'), ApplicationController.getMyApplicationForm);
+app.get('/api/application/all', authenticate, checkPermission('application.retrieve.all'), ApplicationController.getAllApplicationForms);
+app.get('/api/application/:id', authenticate, checkPermission('application.read'), ApplicationController.getApplicationFormById);
+app.patch('/api/application', authenticate, checkPermission('application.updateOwn'), ApplicationController.updateMyApplicationForm);
+app.patch('/api/application/:id', authenticate, checkPermission('application.update'), ApplicationController.updateApplicationForm);
+app.delete('/api/application/:id', authenticate, checkPermission('application.delete'), ApplicationController.deleteApplicationForm);
 
 // Document routes
-app.put('/api/documents/:applicationId', authenticate, DocumentController.checkApplicationAccess, DocumentController.uploadDocuments, DocumentController.createOrUpdateDocuments);
-app.get('/api/documents/:applicationId', authenticate, DocumentController.checkApplicationAccess, DocumentController.getDocuments);
-app.delete('/api/documents/:applicationId', authenticate, DocumentController.checkApplicationAccess, DocumentController.deleteDocuments);
+app.put('/api/documents/:applicationId', authenticate, checkPermission('document.set'), checkApplicationAccess, uploadDocuments, DocumentController.uploadDocuments);
+app.get('/api/documents/:applicationId', authenticate, checkPermission('document.get'), checkApplicationAccess, DocumentController.getDocuments);
+app.delete('/api/documents/:applicationId', authenticate, checkPermission('document.delete'), checkApplicationAccess, DocumentController.deleteDocuments);
+
+// Personality Test routes
+app.post('/api/personality-test/start', authenticate, checkPermission('personality_test.create'), PersonalityTestController.startPersonalityTest);
+app.post('/api/personality-test/answer', authenticate, checkPermission('personality_test.answer'), PersonalityTestController.answerPersonalityTest);
+app.get('/api/personality-test/stop', authenticate, checkPermission('personality_test.stop'), PersonalityTestController.stopPersonalityTest);
+app.get('/api/personality-test/me', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getMyPersonalityTest);
+app.get('/api/personality-test/all', authenticate, checkPermission('personality_test.readAll'), PersonalityTestController.getAllUserPersonalityTest);
+app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getPersonalityTestByUserId);
+app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest);
+app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deletePersonalityTestByUserId);
+
+// Personality Test Template routes
+app.post('/api/personality-test/template', authenticate, checkPermission('personality_test.template.create'), PersonalityTestController.createTemplate);
+app.get('/api/personality-test/template', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getAllTemplates);
+app.get('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getTemplateById);
+app.patch('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.update'), PersonalityTestController.updateTemplate);
+app.delete('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.delete'), PersonalityTestController.deleteTemplate);
 
 // File download route
-app.get('/api/files/:fileName', authenticate, async (req, res) => {
-  await fileUtils.downloadFile(req.params.fileName, res);
+app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {
+  await fileUtils.downloadFile(req.params.fileName, req, res);
 });
 
 // Basic route
@@ -66,10 +110,23 @@ app.get('/', (req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  if (err instanceof mongoose.MulterError) {
+    return res.status(400).json({ message: `File upload error: ${err.message}` });
+  }
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Start server
-app.listen(port, () => {
+// Graceful shutdown
+const server = app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Closing server...');
+  server.close(() => {
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed.');
+      process.exit(0);
+    });
+  });
 });

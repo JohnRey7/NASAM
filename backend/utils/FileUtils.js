@@ -1,127 +1,108 @@
 const path = require('path');
 const fs = require('fs').promises;
-const multer = require('multer');
 const sanitizePath = require('sanitize-filename');
-const { v4: uuidv4 } = require('uuid');
 const mime = require('mime-types');
+const DocumentUpload = require('../models/DocumentUpload');
+const ApplicationForm = require('../models/ApplicationForm');
+const User = require('../models/User');
 
-// Define upload directory
-const UPLOAD_DIR = path.join(__dirname, '..', 'files');
-
-// Ensure upload directory exists
-fs.mkdir(UPLOAD_DIR, { recursive: true }).catch(err => {
-  console.error('Failed to create upload directory:', err);
-});
-
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    const sanitizedName = sanitizePath(file.originalname);
-    const extension = path.extname(sanitizedName);
-    const uniqueName = `${uuidv4()}${extension}`;
-    cb(null, uniqueName);
-  }
-});
-
-const fileUtils = {
-  // Middleware to handle file upload with customizable allowedTypes, fileSizeLimit, and optional flag
-  uploadFile(fieldName, allowedTypes = ['image/jpeg', 'image/png', 'image/gif'], fileSizeLimit = 5 * 1024 * 1024, isOptional = false) {
-    const fileFilter = (req, file, cb) => {
-      if (!allowedTypes.includes(file.mimetype)) {
-        return cb(new Error(`Only ${allowedTypes.join(', ')} files are allowed`), false);
-      }
-      cb(null, true);
-    };
-
-    const upload = multer({
-      storage,
-      fileFilter,
-      limits: {
-        fileSize: fileSizeLimit
-      }
-    }).single(fieldName);
-
-    return (req, res, next) => {
-      upload(req, res, (err) => {
-        if (err instanceof multer.MulterError) {
-          return res.status(400).json({ message: `Upload error: ${err.message}` });
-        } else if (err) {
-          return res.status(400).json({ message: err.message });
-        }
-        if (!req.file && !isOptional) {
-          return res.status(400).json({ message: 'No file uploaded' });
-        }
-        if (req.file) {
-          req.filePath = `/files/${req.file.filename}`;
-        }
-        next();
-      });
-    };
-  },
-
-  // Middleware to handle multiple file uploads
-  uploadMultipleFiles(fields) {
-    const upload = multer({
-      storage,
-      fileFilter: (req, file, cb) => {
-        cb(null, true); // Allow all file types for simplicity; adjust as needed
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit per file
-      }
-    }).fields(fields);
-
-    return (req, res, next) => {
-      upload(req, res, (err) => {
-        if (err instanceof multer.MulterError) {
-          return res.status(400).json({ message: `Upload error: ${err.message}` });
-        } else if (err) {
-          return res.status(400).json({ message: err.message });
-        }
-        next();
-      });
-    };
-  },
-
-  // Function to retrieve/serve a file for viewing
-  async downloadFile(fileName, res) {
-    try {
-      // Sanitize and validate file path
-      const sanitizedFileName = sanitizePath(fileName);
-      const filePath = path.join(UPLOAD_DIR, sanitizedFileName);
-
-      // Prevent path traversal
-      if (!filePath.startsWith(UPLOAD_DIR)) {
-        throw new Error('Invalid file path');
-      }
-
-      // Check if file exists
-      try {
-        await fs.access(filePath);
-      } catch {
-        throw new Error('File not found');
-      }
-
-      // Get MIME type for the file
-      const mimeType = mime.lookup(filePath) || 'application/octet-stream';
-
-      // Set headers for viewing (not downloading)
-      res.setHeader('Content-Type', mimeType);
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-
-      // Stream file to response
-      res.sendFile(filePath, (err) => {
-        if (err) {
-          res.status(500).json({ message: `Error sending file: ${err.message}` });
-        }
-      });
-    } catch (error) {
-      res.status(error.message === 'File not found' ? 404 : 400).json({ message: error.message });
+const downloadFile = async (fileName, req, res) => {
+  try {
+    // Sanitize and validate fileName
+    const sanitizedFileName = sanitizePath(fileName);
+    if (!sanitizedFileName || sanitizedFileName.includes('..')) {
+      return res.status(400).json({ message: 'Invalid file name' });
     }
+
+    // Construct file path
+    const filePath = path.join(__dirname, '../files', sanitizedFileName);
+    const relativeFilePath = path.join('files', sanitizedFileName).replace(/\\/g, '/');
+
+    // Check if file exists in DocumentUpload
+    const document = await DocumentUpload.findOne({
+      $or: [
+        { 'studentPicture.filePath': relativeFilePath },
+        { 'nbiClearance.filePath': relativeFilePath },
+        { 'gradeReport.filePath': relativeFilePath },
+        { 'incomeTaxReturn.filePath': relativeFilePath },
+        { 'goodBoyCertificate.filePath': relativeFilePath },
+        { 'physicalCheckup.filePath': relativeFilePath }
+      ]
+    }).lean();
+
+    if (!document) {
+      return res.status(404).json({ message: 'File not associated with any document' });
+    }
+
+    // Get associated application
+    const application = await ApplicationForm.findById(document.applicationId).lean();
+    if (!application) {
+      return res.status(404).json({ message: 'Associated application not found' });
+    }
+
+    // Validate file ownership
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    const isOwner = application.user.toString() === userId;
+    if (!isOwner) {
+      return res.status(403).json({ message: 'Not authorized to access this file' });
+    }
+
+    // Check if file exists on disk
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
+
+    // Get file stats and metadata
+    const stats = await fs.stat(filePath);
+    const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+    const originalName = getOriginalFileName(document, relativeFilePath);
+
+    // Set headers for download
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Length': stats.size,
+      'Content-Disposition': `attachment; filename="${sanitizePath(originalName)}"`
+    });
+
+    // Stream the file
+    const fileStream = require('fs').createReadStream(filePath);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-module.exports = fileUtils;
+// Helper function to get original file name from DocumentUpload
+const getOriginalFileName = (document, filePath) => {
+  if (document.studentPicture && document.studentPicture.filePath === filePath) {
+    return document.studentPicture.originalName;
+  }
+
+  const fields = [
+    'nbiClearance',
+    'gradeReport',
+    'incomeTaxReturn',
+    'goodBoyCertificate',
+    'physicalCheckup'
+  ];
+
+  for (const field of fields) {
+    const file = document[field].find(doc => doc.filePath === filePath);
+    if (file) {
+      return file.originalName;
+    }
+  }
+  return filePath.split('/').pop(); // Fallback to filename
+};
+
+module.exports = {
+  downloadFile
+};

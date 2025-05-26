@@ -10,7 +10,7 @@ const acceptanceFormSchema = new mongoose.Schema({
   to: { type: String, required: true },
   designation: { type: String, required: true },
   department: { type: String, required: true },
-  endorsedBy: { type: String },
+  endorsedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   departmentOfficeHead: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
