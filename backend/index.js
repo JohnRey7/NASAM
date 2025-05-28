@@ -130,9 +130,9 @@ app.get('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evalu
 // Department Routes
 app.post('/api/departments', authenticate, checkPermission('department.create'), DepartmentController.createDepartment);
 app.get('/api/departments', authenticate, checkPermission('department.read'), DepartmentController.getAllDepartments);
-app.get('/api/departments/:id', authenticate, checkPermission('department.read'), DepartmentController.getDepartmentById);
-app.patch('/api/departments/:id', authenticate, checkPermission('department.update'), DepartmentController.updateDepartment);
-app.delete('/api/departments/:id', authenticate, checkPermission('department.delete'), DepartmentController.deleteDepartment);
+app.get('/api/departments/:departmentCode', authenticate, checkPermission('department.read'), DepartmentController.getDepartmentByCode);
+app.patch('/api/departments/:departmentCode', authenticate, checkPermission('department.update'), DepartmentController.updateDepartment);
+app.delete('/api/departments/:departmentCode', authenticate, checkPermission('department.delete'), DepartmentController.deleteDepartment);
 
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {

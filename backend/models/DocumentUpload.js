@@ -37,7 +37,18 @@ const fileUploadSchema = new mongoose.Schema({
         filePath: { type: String, required: true },
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
-    }]
+    }],
+    certificates: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
+    homeLocationSketch: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
+
 }, { timestamps: true });
 
 const DocumentUpload = mongoose.model('DocumentUpload', fileUploadSchema);
