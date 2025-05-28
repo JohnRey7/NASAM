@@ -151,8 +151,6 @@ const applicationFormSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Drop the old index if it exists
-applicationFormSchema.index({ emailAddress: 1 }, { unique: false, sparse: true });
 
 const ApplicationForm = mongoose.model('ApplicationForm', applicationFormSchema);
 
