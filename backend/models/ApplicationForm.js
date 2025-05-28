@@ -144,8 +144,8 @@ const applicationFormSchema = new mongoose.Schema({
     relationshipToTheApplicant: { type: String, required: true },
     contactNumber: { type: String, required: true }
   }],
+  status: { type: String, enum: ['Pending', 'Approved', 'Document Verification', 'Interview Scheduled', 'Rejected'], default: 'Pending'},
   approvalsSummary: {
-    interviewedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     endorsedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }

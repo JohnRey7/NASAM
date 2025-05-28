@@ -51,7 +51,7 @@ const upload = multer({
   { name: 'nbiClearance', maxCount: 5 },
   { name: 'gradeReport', maxCount: 5 },
   { name: 'incomeTaxReturn', maxCount: 5 },
-  { name: 'goodBoyCertificate', maxCount: 5 },
+  { name: 'goodMoralCertificate', maxCount: 5 },
   { name: 'physicalCheckup', maxCount: 5 },
   { name: 'certificates', maxCount: 5 },
   { name: 'homeLocationSketch', maxCount: 5 }

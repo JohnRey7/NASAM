@@ -29,7 +29,7 @@ const DocumentController = {
         nbiClearance: [],
         gradeReport: [],
         incomeTaxReturn: [],
-        goodBoyCertificate: [],
+        goodMoralCertificate: [],
         physicalCheckup: [],
         certificates: [],
         homeLocationSketch: []
@@ -66,7 +66,7 @@ const DocumentController = {
           ...document.nbiClearance,
           ...document.gradeReport,
           ...document.incomeTaxReturn,
-          ...document.goodBoyCertificate,
+          ...document.goodMoralCertificate,
           ...document.physicalCheckup,
           ...document.certificates,
           ...document.homeLocationSketch
@@ -102,7 +102,7 @@ const DocumentController = {
           nbiClearance: document.nbiClearance,
           gradeReport: document.gradeReport,
           incomeTaxReturn: document.incomeTaxReturn,
-          goodBoyCertificate: document.goodBoyCertificate,
+          goodMoralCertificate: document.goodMoralCertificate,
           physicalCheckup: document.physicalCheckup,
           certificates: document.certificates,
           homeLocationSketch: document.homeLocationSketch
@@ -152,7 +152,7 @@ const DocumentController = {
           nbiClearance: document.nbiClearance,
           gradeReport: document.gradeReport,
           incomeTaxReturn: document.incomeTaxReturn,
-          goodBoyCertificate: document.goodBoyCertificate,
+          goodMoralCertificate: document.goodMoralCertificate,
           physicalCheckup: document.physicalCheckup,
           certificates: document.certificates,
           homeLocationSketch: document.homeLocationSketch,
@@ -188,7 +188,7 @@ const DocumentController = {
         ...document.nbiClearance,
         ...document.gradeReport,
         ...document.incomeTaxReturn,
-        ...document.goodBoyCertificate,
+        ...document.goodMoralCertificate,
         ...document.physicalCheckup,
         ...document.certificates,
         ...document.homeLocationSketch

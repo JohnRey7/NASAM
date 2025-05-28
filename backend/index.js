@@ -85,13 +85,18 @@ app.patch('/api/roles/:id', authenticate, checkPermission('role.update'), RoleCo
 app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleController.deleteRole);
 
 // Application routes
-app.post('/api/application', authenticate, checkPermission('application.create'), ApplicationController.createApplicationForm);
-app.get('/api/application', authenticate, checkPermission('application.readOwn'), ApplicationController.getMyApplicationForm);
-app.get('/api/application/all', authenticate, checkPermission('application.readAll'), ApplicationController.getAllApplicationForms);
-app.get('/api/application/:id', authenticate, checkPermission('application.read'), ApplicationController.getApplicationFormById);
-app.patch('/api/application/:id', authenticate, checkPermission('application.update'), ApplicationController.updateApplicationForm);
-app.delete('/api/application/:id', authenticate, checkPermission('application.delete'), ApplicationController.deleteApplicationForm);
-app.get('/api/application/all', authenticate, checkPermission('application.retrieve.all'), ApplicationController.getAllApplicationForms);
+app.post('/api/application', authenticate, checkPermission('applicationForm.create'), ApplicationController.createApplicationForm);
+app.get('/api/application', authenticate, checkPermission('applicationForm.readOwn'), ApplicationController.readMyApplicationForm);
+app.get('/api/application/all', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAllApplicationForms);
+app.get('/api/application/:id', authenticate, checkPermission('applicationForm.read'), ApplicationController.readApplicationFormById);
+app.get('/api/application/user/:userId', authenticate, checkPermission('applicationForm.read'), ApplicationController.readApplicationFormByUserId);
+app.patch('/api/application/:id', authenticate, checkPermission('applicationForm.update'), ApplicationController.updateApplicationFormById);
+app.patch('/api/application/user/:userId', authenticate, checkPermission('applicationForm.update'), ApplicationController.updateApplicationFormByUserId);
+app.patch('/api/application', authenticate, checkPermission('applicationForm.updateOwn'), ApplicationController.updateMyApplicationForm);
+app.delete('/api/application/:id', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormById);
+app.delete('/api/application/user/:userId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormByUserId);
+app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
+app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
 
 // Document routes
 app.put('/api/documents', authenticate, checkPermission('document.set'), checkApplicationAccess, uploadDocuments, DocumentController.uploadDocuments);
