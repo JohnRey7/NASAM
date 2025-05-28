@@ -28,7 +28,7 @@ const ApplicationController = {
 
       // Extract and validate required fields
       const {
-        firstName, lastName, typeOfScholarship, nameOfScholarshipSponsor,
+        firstName, lastName,
         programOfStudyAndYear, remainingUnitsIncludingThisTerm, remainingTermsToGraduate,
         citizenship, civilStatus, annualFamilyIncome, residingAt, permanentResidentialAddress,
         contactNumber, familyBackground, education, references,
@@ -36,7 +36,7 @@ const ApplicationController = {
       } = formData;
 
       // Validate required top-level fields
-      if (!firstName || !lastName || !typeOfScholarship || !nameOfScholarshipSponsor ||
+      if (!firstName || !lastName ||
           !programOfStudyAndYear || !remainingUnitsIncludingThisTerm || !remainingTermsToGraduate ||
           !citizenship || !civilStatus || !annualFamilyIncome || !residingAt ||
           !permanentResidentialAddress || !contactNumber) {
@@ -71,8 +71,6 @@ const ApplicationController = {
         middleName,
         lastName,
         suffix,
-        typeOfScholarship,
-        nameOfScholarshipSponsor,
         programOfStudyAndYear,
         existingScholarship,
         remainingUnitsIncludingThisTerm,
@@ -249,8 +247,7 @@ const ApplicationController = {
       const formData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
 
       const {
-        firstName, middleName, lastName, suffix, typeOfScholarship,
-        nameOfScholarshipSponsor, programOfStudyAndYear, existingScholarship,
+        firstName, middleName, lastName, suffix, programOfStudyAndYear, existingScholarship,
         remainingUnitsIncludingThisTerm, remainingTermsToGraduate, citizenship,
         civilStatus, annualFamilyIncome, currentResidenceAddress, residingAt,
         permanentResidentialAddress, contactNumber, familyBackground, education,
@@ -262,8 +259,6 @@ const ApplicationController = {
         middleName,
         lastName,
         suffix,
-        typeOfScholarship,
-        nameOfScholarshipSponsor,
         programOfStudyAndYear,
         existingScholarship,
         remainingUnitsIncludingThisTerm,
@@ -298,8 +293,7 @@ const ApplicationController = {
       const formData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
 
       const {
-        firstName, middleName, lastName, suffix, typeOfScholarship,
-        nameOfScholarshipSponsor, programOfStudyAndYear, existingScholarship,
+        firstName, middleName, lastName, suffix, programOfStudyAndYear, existingScholarship,
         remainingUnitsIncludingThisTerm, remainingTermsToGraduate, citizenship,
         civilStatus, annualFamilyIncome, currentResidenceAddress, residingAt,
         permanentResidentialAddress, contactNumber, familyBackground, education,
@@ -351,8 +345,6 @@ const ApplicationController = {
         middleName,
         lastName,
         suffix,
-        typeOfScholarship,
-        nameOfScholarshipSponsor,
         programOfStudyAndYear,
         existingScholarship,
         remainingUnitsIncludingThisTerm,

@@ -47,12 +47,14 @@ const upload = multer({
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 }).fields([
-  { name: 'studentPicture', maxCount: 1 }, // Single file for studentPicture
+  { name: 'studentPicture', maxCount: 1 },
   { name: 'nbiClearance', maxCount: 5 },
   { name: 'gradeReport', maxCount: 5 },
   { name: 'incomeTaxReturn', maxCount: 5 },
   { name: 'goodBoyCertificate', maxCount: 5 },
-  { name: 'physicalCheckup', maxCount: 5 }
+  { name: 'physicalCheckup', maxCount: 5 },
+  { name: 'certificates', maxCount: 5 },
+  { name: 'homeLocationSketch', maxCount: 5 }
 ]);
 
 // Middleware to check application access

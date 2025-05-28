@@ -30,7 +30,9 @@ const DocumentController = {
         gradeReport: [],
         incomeTaxReturn: [],
         goodBoyCertificate: [],
-        physicalCheckup: []
+        physicalCheckup: [],
+        certificates: [],
+        homeLocationSketch: []
       };
 
       // Process uploaded files
@@ -65,7 +67,9 @@ const DocumentController = {
           ...document.gradeReport,
           ...document.incomeTaxReturn,
           ...document.goodBoyCertificate,
-          ...document.physicalCheckup
+          ...document.physicalCheckup,
+          ...document.certificates,
+          ...document.homeLocationSketch
         ].map(doc => path.join(__dirname, '../', doc.filePath));
 
         for (const filePath of oldFiles) {
@@ -99,7 +103,9 @@ const DocumentController = {
           gradeReport: document.gradeReport,
           incomeTaxReturn: document.incomeTaxReturn,
           goodBoyCertificate: document.goodBoyCertificate,
-          physicalCheckup: document.physicalCheckup
+          physicalCheckup: document.physicalCheckup,
+          certificates: document.certificates,
+          homeLocationSketch: document.homeLocationSketch
         }
       });
     } catch (error) {
@@ -148,6 +154,8 @@ const DocumentController = {
           incomeTaxReturn: document.incomeTaxReturn,
           goodBoyCertificate: document.goodBoyCertificate,
           physicalCheckup: document.physicalCheckup,
+          certificates: document.certificates,
+          homeLocationSketch: document.homeLocationSketch,
           createdAt: document.createdAt,
           updatedAt: document.updatedAt
         }
@@ -181,7 +189,9 @@ const DocumentController = {
         ...document.gradeReport,
         ...document.incomeTaxReturn,
         ...document.goodBoyCertificate,
-        ...document.physicalCheckup
+        ...document.physicalCheckup,
+        ...document.certificates,
+        ...document.homeLocationSketch
       ].map(doc => path.join(__dirname, '../', doc.filePath));
 
       for (const filePath of filesToDelete) {

@@ -16,12 +16,6 @@ const applicationFormSchema = new mongoose.Schema({
   middleName: { type: String },
   lastName: { type: String, required: true },
   suffix: { type: String },
-  typeOfScholarship: {
-    type: String,
-    enum: ['Sponsored', 'Freshman Academic Scholarship'],
-    required: true
-  },
-  nameOfScholarshipSponsor: { type: String, required: true },
   programOfStudyAndYear: { type: String, required: true },
   existingScholarship: { type: String },
   remainingUnitsIncludingThisTerm: {

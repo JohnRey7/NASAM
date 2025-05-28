@@ -8,7 +8,9 @@ async function createDepartment(req, res) {
     if (!req.body || typeof req.body !== 'object') {
       return res.status(400).json({ message: 'Request body is required' });
     }
-    const { departmentCode, name } = req.body;
+    let { departmentCode, name } = req.body;
+
+    departmentCode = departmentCode.toUpperCase();
 
     // Validate required fields
     if (!departmentCode || !name) {
@@ -82,7 +84,9 @@ async function getAllDepartments(req, res) {
 // Get a department by departmentCode
 async function getDepartmentByCode(req, res) {
   try {
-    const { departmentCode } = req.params;
+    let { departmentCode } = req.params;
+
+    departmentCode = departmentCode.toUpperCase();
 
     // Validate departmentCode
     if (!departmentCode || !/^[A-Za-z0-9]{2,10}$/.test(departmentCode)) {
@@ -104,7 +108,9 @@ async function getDepartmentByCode(req, res) {
 // Update a department by departmentCode
 async function updateDepartment(req, res) {
   try {
-    const { departmentCode } = req.params;
+    let { departmentCode } = req.params;
+
+    departmentCode = departmentCode.toUpperCase();
 
     // Validate departmentCode
     if (!departmentCode || !/^[A-Za-z0-9]{2,10}$/.test(departmentCode)) {
@@ -150,7 +156,9 @@ async function updateDepartment(req, res) {
 // Delete a department by departmentCode
 async function deleteDepartment(req, res) {
   try {
-    const { departmentCode } = req.params;
+    let { departmentCode } = req.params;
+
+    departmentCode = departmentCode.toUpperCase();
 
     // Validate departmentCode
     if (!departmentCode || !/^[A-Za-z0-9]{2,10}$/.test(departmentCode)) {
