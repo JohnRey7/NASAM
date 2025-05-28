@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
   role: { type: mongoose.Schema.Types.ObjectId, ref: "Role", required: [true, 'Role is required'] },
+  department: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
   disabled: { type: Boolean, default: false },
   verified: { type: Boolean, default: false },
   emailVerification: {
