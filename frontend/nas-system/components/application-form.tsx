@@ -447,9 +447,9 @@ export function ApplicationForm() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast({
-        title: "PDF Generated",
-        description: "Your application has been exported as PDF.",
+    toast({
+      title: "PDF Generated",
+      description: "Your application has been exported as PDF.",
       });
     } catch (error) {
       toast({
@@ -971,8 +971,8 @@ export function ApplicationForm() {
                       </Button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                       <Label htmlFor={`sibling-name-${index}`}>Name</Label>
                       <Input
                         id={`sibling-name-${index}`}
@@ -980,8 +980,8 @@ export function ApplicationForm() {
                         onChange={(e) => updateSibling(index, "name", e.target.value)}
                         placeholder="Enter sibling's name"
                       />
-                    </div>
-                    <div className="space-y-2">
+                  </div>
+                  <div className="space-y-2">
                       <Label htmlFor={`sibling-age-${index}`}>Age</Label>
                       <Input
                         id={`sibling-age-${index}`}
@@ -991,8 +991,8 @@ export function ApplicationForm() {
                         onChange={(e) => updateSibling(index, "age", Number(e.target.value))}
                         placeholder="Enter age"
                       />
-                    </div>
                   </div>
+                </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor={`sibling-program-${index}`}>Program Currently Taking or Finished</Label>
@@ -1002,7 +1002,7 @@ export function ApplicationForm() {
                         onChange={(e) => updateSibling(index, "programCurrentlyTakingOrFinished", e.target.value)}
                         placeholder="Enter program"
                       />
-                    </div>
+              </div>
                     <div className="space-y-2">
                       <Label htmlFor={`sibling-school-${index}`}>School or Occupation</Label>
                       <Input
@@ -1097,8 +1097,8 @@ export function ApplicationForm() {
                       </Button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                       <Label htmlFor={`college-year-${index}`}>Year Level</Label>
                       <Input
                         id={`college-year-${index}`}
@@ -1108,8 +1108,8 @@ export function ApplicationForm() {
                         onChange={(e) => updateCollegeLevel(index, "yearLevel", Number(e.target.value))}
                         placeholder="Enter year level"
                       />
-                    </div>
-                    <div className="space-y-2">
+                  </div>
+                  <div className="space-y-2">
                       <Label htmlFor={`first-sem-grade-${index}`}>First Semester Average Final Grade</Label>
                       <Input
                         id={`first-sem-grade-${index}`}
@@ -1121,10 +1121,10 @@ export function ApplicationForm() {
                         onChange={(e) => updateCollegeLevel(index, "firstSemesterAverageFinalGrade", Number(e.target.value))}
                         placeholder="Enter grade"
                       />
-                    </div>
                   </div>
+                </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                <div className="space-y-2">
                       <Label htmlFor={`second-sem-grade-${index}`}>Second Semester Average Final Grade</Label>
                       <Input
                         id={`second-sem-grade-${index}`}
@@ -1136,7 +1136,7 @@ export function ApplicationForm() {
                         onChange={(e) => updateCollegeLevel(index, "secondSemesterAverageFinalGrade", Number(e.target.value))}
                         placeholder="Enter grade"
                       />
-                    </div>
+                </div>
                     <div className="space-y-2">
                       <Label htmlFor={`third-sem-grade-${index}`}>Third Semester Average Final Grade</Label>
                       <Input
@@ -1149,7 +1149,7 @@ export function ApplicationForm() {
                         onChange={(e) => updateCollegeLevel(index, "thirdSemesterAverageFinalGrade", Number(e.target.value))}
                         placeholder="Enter grade"
                       />
-                    </div>
+              </div>
                   </div>
                 </div>
               ))}
@@ -1175,8 +1175,8 @@ export function ApplicationForm() {
                       </Button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                       <Label htmlFor={`org-name-${index}`}>Name of Organization</Label>
                       <Input
                         id={`org-name-${index}`}
@@ -1184,8 +1184,8 @@ export function ApplicationForm() {
                         onChange={(e) => updateOrganization(index, "name", e.target.value)}
                         placeholder="Enter organization name"
                       />
-                    </div>
-                    <div className="space-y-2">
+                  </div>
+                  <div className="space-y-2">
                       <Label htmlFor={`org-position-${index}`}>Position</Label>
                       <Input
                         id={`org-position-${index}`}
@@ -1193,9 +1193,9 @@ export function ApplicationForm() {
                         onChange={(e) => updateOrganization(index, "position", e.target.value)}
                         placeholder="Enter your position"
                       />
-                    </div>
                   </div>
                 </div>
+              </div>
               ))}
               <Button variant="outline" className="w-full" onClick={addOrganization}>
                 Add Another Organization
@@ -1224,8 +1224,8 @@ export function ApplicationForm() {
                         </Button>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                         <Label htmlFor={`ref-name-${index}`}>Name</Label>
                         <Input
                           id={`ref-name-${index}`}
@@ -1233,8 +1233,8 @@ export function ApplicationForm() {
                           onChange={(e) => updateReference(index, "name", e.target.value)}
                           placeholder="Enter reference name"
                         />
-                      </div>
-                      <div className="space-y-2">
+                  </div>
+                  <div className="space-y-2">
                         <Label htmlFor={`ref-relationship-${index}`}>Relationship to the Applicant</Label>
                         <Input
                           id={`ref-relationship-${index}`}
@@ -1242,9 +1242,9 @@ export function ApplicationForm() {
                           onChange={(e) => updateReference(index, "relationshipToTheApplicant", e.target.value)}
                           placeholder="Enter relationship"
                         />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
+                  </div>
+                </div>
+                <div className="space-y-2">
                       <Label htmlFor={`ref-contact-${index}`}>Contact Number</Label>
                       <Input
                         id={`ref-contact-${index}`}
@@ -1252,7 +1252,7 @@ export function ApplicationForm() {
                         onChange={(e) => updateReference(index, "contactNumber", e.target.value)}
                         placeholder="Enter contact number"
                       />
-                    </div>
+                </div>
                   </div>
                 ))}
                 <Button variant="outline" className="w-full" onClick={addReference}>

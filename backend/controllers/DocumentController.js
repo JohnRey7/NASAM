@@ -120,6 +120,70 @@ const DocumentController = {
     }
   },
 
+  // Upload profile picture
+  async uploadProfilePicture(req, res) {
+    try {
+      const files = req.files;
+      const userId = req.user._id;
+
+      if (!files || !files.studentPicture || files.studentPicture.length === 0) {
+        return res.status(400).json({ message: 'No profile picture uploaded' });
+      }
+
+      // Get the uploaded file
+      const file = files.studentPicture[0];
+
+      // Prepare document data
+      const documentData = {
+        applicationId: userId, // Using userId as applicationId for profile pictures
+        studentPicture: {
+          filePath: path.relative(path.join(__dirname, '../'), file.path).replace(/\\/g, '/'),
+          originalName: file.originalname,
+          uploadedAt: new Date()
+        }
+      };
+
+      // Find existing document or create new
+      let document = await DocumentUpload.findOne({ applicationId: userId });
+      if (document) {
+        // Delete old profile picture if exists
+        if (document.studentPicture) {
+          try {
+            await fs.unlink(path.join(__dirname, '../', document.studentPicture.filePath));
+          } catch (error) {
+            console.warn(`Failed to delete old profile picture:`, error.message);
+          }
+        }
+        document.studentPicture = documentData.studentPicture;
+      } else {
+        document = new DocumentUpload(documentData);
+      }
+
+      await document.save();
+
+      res.status(201).json({
+        message: 'Profile picture uploaded successfully',
+        document: {
+          _id: document._id,
+          studentPicture: document.studentPicture
+        }
+      });
+    } catch (error) {
+      console.error('Error in uploadProfilePicture:', error);
+      // Clean up uploaded file on error
+      if (req.files && req.files.studentPicture) {
+        for (const file of req.files.studentPicture) {
+          try {
+            await fs.unlink(file.path);
+          } catch (unlinkError) {
+            console.warn(`Failed to clean up file ${file.path}:`, unlinkError.message);
+          }
+        }
+      }
+      res.status(400).json({ message: `Profile picture upload failed: ${error.message}` });
+    }
+  },
+
   // Get documents for an application
   async getDocuments(req, res) {
     try {
