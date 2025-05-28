@@ -120,7 +120,6 @@ const DocumentController = {
     }
   },
 
-  // Get documents for the authenticated user's application
   async getDocuments(req, res) {
     try {
       const userId = req.user.id;

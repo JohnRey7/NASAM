@@ -130,7 +130,7 @@ export function UserProfile() {
 
     try {
       // Make API call to save changes
-      const response = await fetch(`${API_URL}/users/profile`, {
+      const response = await fetch(`${API_URL}/auth/me`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -146,12 +146,16 @@ export function UserProfile() {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to update profile")
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "Failed to update profile");
       }
+
+      const data = await response.json();
+      console.log('Profile update response:', data);
 
       // Update the user's name in the auth context
       if (user) {
-        user.name = formData.fullName
+        user.name = formData.fullName;
       }
 
       toast({
@@ -162,7 +166,7 @@ export function UserProfile() {
       console.error("Update error:", error)
       toast({
         title: "Update Failed",
-        description: "Failed to update profile. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -170,14 +174,72 @@ export function UserProfile() {
     }
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setProfileImage(event.target?.result as string)
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload an image file.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please upload an image smaller than 5MB.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      console.log('Preparing to upload file...');
+      const formData = new FormData()
+      formData.append('studentPicture', file)
+
+      // Use the documents endpoint for profile picture upload
+      const uploadUrl = `${API_URL}/documents/upload-profile-picture`;
+      console.log('Sending request to:', uploadUrl);
+      
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('Upload failed:', errorData);
+        throw new Error(errorData?.message || 'Failed to upload profile picture');
       }
-      reader.readAsDataURL(file)
+
+      const data = await response.json()
+      console.log('Upload response:', data);
+      
+      if (data.document?.studentPicture?.filePath) {
+        const imageUrl = `${API_URL}/${data.document.studentPicture.filePath}`
+        console.log('Setting new image URL:', imageUrl);
+        setProfileImage(imageUrl)
+        toast({
+          title: "Photo Uploaded",
+          description: "Your profile photo has been updated successfully.",
+        })
+      } else {
+        throw new Error('No profile picture in response');
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error)
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload profile photo. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -297,12 +359,24 @@ export function UserProfile() {
                       accept="image/*"
                       onChange={handleImageChange}
                     />
-                    <label htmlFor="profile-image">
-                      <Button variant="outline" size="sm" className="cursor-pointer">
-                        <Camera className="mr-2 h-4 w-4" />
-                        Change Photo
-                      </Button>
-                    </label>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="cursor-pointer"
+                      onClick={() => {
+                        console.log('Button clicked');
+                        const input = document.getElementById('profile-image');
+                        if (input) {
+                          console.log('Input found, clicking...');
+                          input.click();
+                        } else {
+                          console.log('Input not found');
+                        }
+                      }}
+                    >
+                      <Camera className="mr-2 h-4 w-4" />
+                      Change Photo
+                    </Button>
                   </div>
                 </div>
 

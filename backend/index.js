@@ -98,6 +98,9 @@ app.put('/api/documents', authenticate, checkPermission('document.set'), checkAp
 app.get('/api/documents', authenticate, checkPermission('document.get'), checkApplicationAccess, DocumentController.getDocuments);
 app.delete('/api/documents', authenticate, checkPermission('document.delete'), checkApplicationAccess, DocumentController.deleteDocuments);
 
+// Profile picture route
+app.put('/api/documents/profile-picture', authenticate, checkPermission('document.set'), uploadDocuments, DocumentController.uploadProfilePicture);
+
 // Personality Test routes
 app.post('/api/personality-test/start', authenticate, checkPermission('personality_test.create'), PersonalityTestController.startPersonalityTest);
 app.post('/api/personality-test/answer', authenticate, checkPermission('personality_test.answer'), PersonalityTestController.answerPersonalityTest);

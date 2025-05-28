@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Camera, CheckCircle, Clock, Eye, EyeOff, Lock, Save, User } from "lucide-react"
+import axios from "axios"
 
 export function ProfileManagement() {
   const [profileTab, setProfileTab] = useState("personal")
@@ -16,6 +17,8 @@ export function ProfileManagement() {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [profileImage, setProfileImage] = useState("/placeholder.svg?height=96&width=96")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   const handleSavePersonal = () => {
@@ -46,10 +49,80 @@ export function ProfileManagement() {
   }
 
   const handleUploadPhoto = () => {
-    toast({
-      title: "Photo Uploaded",
-      description: "Your profile photo has been updated successfully.",
-    })
+    console.log('Upload photo button clicked');
+    if (fileInputRef.current) {
+      console.log('File input found, triggering click');
+      fileInputRef.current.click();
+    } else {
+      console.log('File input ref not found');
+    }
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File selected:', event.target.files?.[0]);
+    const file = event.target.files?.[0]
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      console.log('Invalid file type:', file.type);
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload an image file.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      console.log('File too large:', file.size);
+      toast({
+        title: "File Too Large",
+        description: "Please upload an image smaller than 5MB.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      console.log('Preparing to upload file');
+      const formData = new FormData()
+      formData.append('studentPicture', file)
+
+      console.log('Sending request to:', `${process.env.NEXT_PUBLIC_API_URL}/api/documents/profile-picture`);
+      const response = await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/documents/profile-picture`,
+        formData,
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      console.log('Upload response:', response.data);
+      if (response.data.document?.studentPicture?.filePath) {
+        const imageUrl = `${process.env.NEXT_PUBLIC_API_URL}/${response.data.document.studentPicture.filePath}`
+        console.log('Setting new image URL:', imageUrl);
+        setProfileImage(imageUrl)
+        toast({
+          title: "Photo Uploaded",
+          description: "Your profile photo has been updated successfully.",
+        })
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error)
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload profile photo. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -66,14 +139,22 @@ export function ProfileManagement() {
               <div className="flex flex-col items-center text-center">
                 <div className="relative mb-4">
                   <Avatar className="h-24 w-24 border-4 border-white shadow">
-                    <AvatarImage src="/placeholder.svg?height=96&width=96" alt="Profile" />
+                    <AvatarImage src={profileImage} alt="Profile" />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
                   <Button
                     variant="outline"
                     size="icon"
-                    className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-white"
+                    className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-white hover:bg-gray-100"
                     onClick={handleUploadPhoto}
+                    type="button"
                   >
                     <Camera className="h-4 w-4" />
                   </Button>
