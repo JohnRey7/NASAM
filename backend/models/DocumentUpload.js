@@ -5,7 +5,8 @@ const fileUploadSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ApplicationForm',
         required: true,
-        index: true
+        index: true,
+        unique: true
     },
     studentPicture: {
         filePath: { type: String }, 
