@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const Evaluation = require('../models/Evaluation');
 const User = require('../models/User');
-const Panelist = require('../models/Panelist');
 
 // Create a new evaluation (exclude timeKeepingRecord)
 async function createEvaluation(req, res) {
@@ -20,18 +19,6 @@ async function createEvaluation(req, res) {
       remarksCommentsByTheNAS,
       overallRating
     } = req.body;
-
-    // Check if logged-in user is a panelist
-    const currentUserId = req.user.id;
-    let panelist = await Panelist.findOne({ evaluatorUser: currentUserId });
-    if (!panelist) {
-      // Create a new panelist if none exists
-      panelist = new Panelist({
-        evaluatorUser: currentUserId,
-        evaluation: null
-      });
-      await panelist.save();
-    }
 
     // Validate evaluateeUser
     if (!evaluateeUser || !mongoose.Types.ObjectId.isValid(evaluateeUser)) {
@@ -59,10 +46,6 @@ async function createEvaluation(req, res) {
       overallRating
     });
     await evaluation.save();
-
-    // Update panelist with evaluation reference
-    panelist.evaluation = evaluation._id;
-    await panelist.save();
 
     // Populate and return
     const populatedEvaluation = await Evaluation.findById(evaluation._id)
