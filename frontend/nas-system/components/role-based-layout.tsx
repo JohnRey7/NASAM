@@ -34,7 +34,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 
-type UserRole = "applicant" | "oas-staff" | "panelist"
+type UserRole = "applicant" | "oas_staff" | "panelist"
 
 interface RoleBasedLayoutProps {
   children: React.ReactNode
@@ -72,12 +72,12 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
     if (userRole === "applicant") {
       return [
         ...commonItems,
-        { name: "Application", href: "/application", icon: <FileText className="h-5 w-5" /> },
-        { name: "Documents", href: "/documents", icon: <ClipboardList className="h-5 w-5" /> },
-        { name: "Personality Test", href: "/personality-test", icon: <BookOpen className="h-5 w-5" /> },
-        { name: "Interview", href: "/interview", icon: <Calendar className="h-5 w-5" /> },
+        { name: "Application", href: "/dashboard#application-form", icon: <FileText className="h-5 w-5" /> },
+        { name: "Documents", href: "/dashboard#documents", icon: <ClipboardList className="h-5 w-5" /> },
+        { name: "Personality Test", href: "/dashboard#personality-test", icon: <BookOpen className="h-5 w-5" /> },
+        { name: "Interview", href: "/dashboard#status", icon: <Calendar className="h-5 w-5" /> },
       ]
-    } else if (userRole === "oas-staff") {
+    } else if (userRole === "oas_staff") {
       return [
         ...commonItems,
         { name: "Applications", href: "/applications", icon: <ClipboardList className="h-5 w-5" /> },
@@ -99,6 +99,16 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
   }
 
   const navigationItems = getNavigationItems()
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") {
+      return pathname === "/dashboard" || pathname.startsWith("/dashboard/")
+    }
+    if (href === "/profile") {
+      return pathname === "/profile"
+    }
+    return pathname === href || (pathname === "/dashboard" && href.includes("#"))
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -123,7 +133,7 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
                         <Link
                           href={item.href}
                           className={`flex items-center p-2 rounded-md hover:bg-gray-100 ${
-                            pathname === item.href ? "bg-gray-100 font-medium" : ""
+                            isActive(item.href) ? "bg-gray-100 font-medium" : ""
                           }`}
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
@@ -196,28 +206,79 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
       {/* Main content */}
       <div className="flex flex-1">
         {/* Sidebar - desktop only */}
-        <aside className="hidden md:block w-64 bg-white border-r p-4">
-          <nav>
-            <ul className="space-y-2">
-              {navigationItems.map((item) => (
-                <li key={item.name}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center p-2 rounded-md hover:bg-gray-100 ${
-                      pathname === item.href ? "bg-gray-100 font-medium" : ""
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="ml-3">{item.name}</span>
-                  </Link>
-                </li>
-              ))}
+        <aside className="hidden md:block w-64 bg-white border-r">
+          <nav className="p-4">
+            <ul className="space-y-1">
+              {navigationItems.map((item) => {
+                const active = isActive(item.href)
+                return (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center p-3 rounded-md transition-colors relative ${
+                        item.name === "Profile"
+                          ? "text-[#800000] bg-gray-100 font-medium"
+                          : active
+                          ? "text-[#800000] bg-gray-100 font-medium"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-[#800000]"
+                      }`}
+                    >
+                      {(active || item.name === "Profile") && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#800000] rounded-r-md" />
+                      )}
+                      <div className={`${(active || item.name === "Profile") ? "text-[#800000]" : "text-gray-500"}`}>
+                        {item.icon}
+                      </div>
+                      <span className="ml-3">{item.name}</span>
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           </nav>
         </aside>
 
+        {/* Mobile menu */}
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+          <SheetContent side="left" className="w-64 p-0">
+            <div className="bg-[#800000] text-white p-4">
+              <h2 className="text-xl font-bold">CIT-U NAS</h2>
+            </div>
+            <nav className="p-4">
+              <ul className="space-y-1">
+                {navigationItems.map((item) => {
+                  const active = isActive(item.href)
+                  return (
+                    <li key={item.name}>
+                      <Link
+                        href={item.href}
+                        className={`flex items-center p-3 rounded-md transition-colors relative ${
+                          item.name === "Profile"
+                            ? "text-[#800000] bg-gray-100 font-medium"
+                            : active
+                            ? "text-[#800000] bg-gray-100 font-medium"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-[#800000]"
+                        }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {(active || item.name === "Profile") && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#800000] rounded-r-md" />
+                        )}
+                        <div className={`${(active || item.name === "Profile") ? "text-[#800000]" : "text-gray-500"}`}>
+                          {item.icon}
+                        </div>
+                        <span className="ml-3">{item.name}</span>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </nav>
+          </SheetContent>
+        </Sheet>
+
         {/* Main content */}
-        <main className="flex-1 p-4 bg-gray-50">{children}</main>
+        <main className="flex-1 p-8 bg-gray-50">{children}</main>
       </div>
     </div>
   )
