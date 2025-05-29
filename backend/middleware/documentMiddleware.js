@@ -47,42 +47,38 @@ const upload = multer({
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 }).fields([
-  { name: 'studentPicture', maxCount: 1 }, // Single file for studentPicture
+  { name: 'studentPicture', maxCount: 1 },
   { name: 'nbiClearance', maxCount: 5 },
   { name: 'gradeReport', maxCount: 5 },
   { name: 'incomeTaxReturn', maxCount: 5 },
-  { name: 'goodBoyCertificate', maxCount: 5 },
-  { name: 'physicalCheckup', maxCount: 5 }
+  { name: 'goodMoralCertificate', maxCount: 5 },
+  { name: 'physicalCheckup', maxCount: 5 },
+  { name: 'certificates', maxCount: 5 },
+  { name: 'homeLocationSketch', maxCount: 5 }
 ]);
 
 // Middleware to check application access
 const checkApplicationAccess = async (req, res, next) => {
   try {
-    const { applicationId } = req.params;
-
-    // Validate applicationId
-    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
-      return res.status(400).json({ message: `Invalid application ID: ${applicationId}` });
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Find application
-    const application = await ApplicationForm.findById(applicationId);
-    if (!application) {
-      return res.status(404).json({ message: 'Application not found' });
-    }
-
-    // Check if user is the owner or has admin permissions
     const userId = req.user.id;
-    const user = await require('../models/User').findById(userId);
-    if (application.user.toString() !== userId) {
-      return res.status(403).json({ message: 'Not authorized to access this application' });
+
+    // Find the user's application
+    const application = await ApplicationForm.findOne({ user: userId });
+    if (!application) {
+      return res.status(403).json({ message: 'No application found for this user' });
     }
 
     // Attach application to request for use in controller
     req.application = application;
+    req.applicationId = application._id; // For compatibility with other middleware
     next();
   } catch (error) {
-    console.error(error);
+    console.error('Error in checkApplicationAccess:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

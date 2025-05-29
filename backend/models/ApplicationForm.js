@@ -7,16 +7,15 @@ const applicationFormSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  emailAddress: {
+    type: String,
+    sparse: true,  // This allows multiple null values
+    index: true
+  },
   firstName: { type: String, required: true },
   middleName: { type: String },
   lastName: { type: String, required: true },
   suffix: { type: String },
-  typeOfScholarship: {
-    type: String,
-    enum: ['Sponsored', 'Freshman Academic Scholarship'],
-    required: true
-  },
-  nameOfScholarshipSponsor: { type: String, required: true },
   programOfStudyAndYear: { type: String, required: true },
   existingScholarship: { type: String },
   remainingUnitsIncludingThisTerm: {
@@ -145,12 +144,13 @@ const applicationFormSchema = new mongoose.Schema({
     relationshipToTheApplicant: { type: String, required: true },
     contactNumber: { type: String, required: true }
   }],
+  status: { type: String, enum: ['Pending', 'Approved', 'Document Verification', 'Interview Scheduled', 'Rejected'], default: 'Pending'},
   approvalsSummary: {
-    interviewedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     endorsedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }
 }, { timestamps: true });
+
 
 const ApplicationForm = mongoose.model('ApplicationForm', applicationFormSchema);
 

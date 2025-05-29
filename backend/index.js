@@ -4,11 +4,16 @@ const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const cors = require('cors');
+
 const AuthController = require('./controllers/AuthController');
 const ApplicationController = require('./controllers/ApplicationController');
 const DocumentController = require('./controllers/DocumentController');
 const RoleController = require('./controllers/RoleController');
+const EvaluationController = require('./controllers/EvaluationController');
 const PersonalityTestController = require('./controllers/PersonalityTestController');
+const DepartmentController = require("./controllers/DepartmentController");
+const InterviewController = require("./controllers/InterviewController");
+
 const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
 const checkPermission = require('./middleware/checkPermission');
@@ -17,6 +22,20 @@ const User = require('./models/User');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// CORS middleware for development
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3001');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Middleware
 app.use(helmet({
@@ -29,7 +48,7 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: process.env.CLIENT_URL || 'http://localhost:3001',
   credentials: true,
 }));
 app.use(express.json());
@@ -58,6 +77,8 @@ app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
+app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
+
 
 // Role routes
 app.post('/api/roles', authenticate, checkPermission('role.create'), RoleController.createRole);
@@ -67,18 +88,26 @@ app.patch('/api/roles/:id', authenticate, checkPermission('role.update'), RoleCo
 app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleController.deleteRole);
 
 // Application routes
-app.post('/api/application', authenticate, checkPermission('application.create'), ApplicationController.createApplicationForm);
-app.get('/api/application', authenticate, checkPermission('application.readOwn'), ApplicationController.getMyApplicationForm);
-app.get('/api/application/all', authenticate, checkPermission('application.retrieve.all'), ApplicationController.getAllApplicationForms);
-app.get('/api/application/:id', authenticate, checkPermission('application.read'), ApplicationController.getApplicationFormById);
-app.patch('/api/application', authenticate, checkPermission('application.updateOwn'), ApplicationController.updateMyApplicationForm);
-app.patch('/api/application/:id', authenticate, checkPermission('application.update'), ApplicationController.updateApplicationForm);
-app.delete('/api/application/:id', authenticate, checkPermission('application.delete'), ApplicationController.deleteApplicationForm);
+app.post('/api/application', authenticate, checkPermission('applicationForm.create'), ApplicationController.createApplicationForm);
+app.get('/api/application/:id/pdf', authenticate, checkPermission('application.read'), ApplicationController.exportApplicationFormAsPDFByUserId);
+app.get('/api/application/pdf', authenticate, ApplicationController.exportMyApplicationFormAsPDF);
+app.get('/api/application', authenticate, checkPermission('applicationForm.readOwn'), ApplicationController.readMyApplicationForm);
+app.get('/api/application/all', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAllApplicationForms);
+app.get('/api/application/:id', authenticate, checkPermission('applicationForm.read'), ApplicationController.readApplicationFormById);
+app.get('/api/application/user/:userId', authenticate, checkPermission('applicationForm.read'), ApplicationController.readApplicationFormByUserId);
+app.patch('/api/application/:id', authenticate, checkPermission('applicationForm.update'), ApplicationController.updateApplicationFormById);
+app.patch('/api/application/user/:userId', authenticate, checkPermission('applicationForm.update'), ApplicationController.updateApplicationFormByUserId);
+app.patch('/api/application', authenticate, checkPermission('applicationForm.updateOwn'), ApplicationController.updateMyApplicationForm);
+app.delete('/api/application/:id', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormById);
+app.delete('/api/application/user/:userId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormByUserId);
+app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
+app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
+
 
 // Document routes
-app.put('/api/documents/:applicationId', authenticate, checkPermission('document.set'), checkApplicationAccess, uploadDocuments, DocumentController.uploadDocuments);
-app.get('/api/documents/:applicationId', authenticate, checkPermission('document.get'), checkApplicationAccess, DocumentController.getDocuments);
-app.delete('/api/documents/:applicationId', authenticate, checkPermission('document.delete'), checkApplicationAccess, DocumentController.deleteDocuments);
+app.put('/api/documents', authenticate, checkPermission('document.set'), checkApplicationAccess, uploadDocuments, DocumentController.uploadDocuments);
+app.get('/api/documents', authenticate, checkPermission('document.get'), checkApplicationAccess, DocumentController.getDocuments);
+app.delete('/api/documents', authenticate, checkPermission('document.delete'), checkApplicationAccess, DocumentController.deleteDocuments);
 
 // Personality Test routes
 app.post('/api/personality-test/start', authenticate, checkPermission('personality_test.create'), PersonalityTestController.startPersonalityTest);
@@ -96,6 +125,35 @@ app.get('/api/personality-test/template', authenticate, checkPermission('persona
 app.get('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getTemplateById);
 app.patch('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.update'), PersonalityTestController.updateTemplate);
 app.delete('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.delete'), PersonalityTestController.deleteTemplate);
+
+// Interview Routes
+app.post('/api/interview', authenticate, checkPermission('interview.create'), InterviewController.createInterview);
+app.get('/api/interview/all', authenticate, checkPermission('interview.readAll'), InterviewController.getAllInterviews);
+app.get('/api/interview/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById);
+app.get('/api/interview/user/:userId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByUserId);
+app.get('/api/interview', authenticate, checkPermission('interview.readOwn'), InterviewController.getMyInterview);
+app.patch('/api/interview/:id', authenticate, checkPermission('interview.update'), InterviewController.updateInterviewById);
+app.patch('/api/interview/user/:userId', authenticate, checkPermission('interview.update'), InterviewController.updateInterviewByUserId);
+app.patch('/api/interview', authenticate, checkPermission('interview.updateOwn'), InterviewController.updateMyInterview);
+app.delete('/api/interview/:id', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewById);
+app.delete('/api/interview/user/:userId', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewByUserId);
+app.delete('/api/interview', authenticate, checkPermission('interview.deleteOwn'), InterviewController.deleteMyInterview);
+
+// Evaluation Routes
+app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
+app.get('/api/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluations);
+app.get('/api/evaluations/:id', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationById);
+app.patch('/api/evaluations/:id', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluation);
+app.delete('/api/evaluations/:id', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluation);
+app.patch('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeKeepingRecord);
+app.get('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.read_timekeeping'), EvaluationController.getTimeKeepingRecord);
+
+// Department Routes
+app.post('/api/departments', authenticate, checkPermission('department.create'), DepartmentController.createDepartment);
+app.get('/api/departments', authenticate, checkPermission('department.read'), DepartmentController.getAllDepartments);
+app.get('/api/departments/:departmentCode', authenticate, checkPermission('department.read'), DepartmentController.getDepartmentByCode);
+app.patch('/api/departments/:departmentCode', authenticate, checkPermission('department.update'), DepartmentController.updateDepartment);
+app.delete('/api/departments/:departmentCode', authenticate, checkPermission('department.delete'), DepartmentController.deleteDepartment);
 
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {

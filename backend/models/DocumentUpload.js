@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const fileUploadSchema = new mongoose.Schema({
-    applicationId: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'ApplicationForm',
+        ref: 'User',
         required: true,
         index: true
     },
@@ -27,7 +27,7 @@ const fileUploadSchema = new mongoose.Schema({
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
     }],
-    goodBoyCertificate: [{
+    goodMoralCertificate: [{
         filePath: { type: String, required: true },
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
@@ -36,7 +36,18 @@ const fileUploadSchema = new mongoose.Schema({
         filePath: { type: String, required: true },
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
-    }]
+    }],
+    certificates: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
+    homeLocationSketch: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
+
 }, { timestamps: true });
 
 const DocumentUpload = mongoose.model('DocumentUpload', fileUploadSchema);

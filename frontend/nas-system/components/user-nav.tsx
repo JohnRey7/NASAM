@@ -13,9 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { LogOut, Settings, User } from "lucide-react"
+import { authService } from "@/services/authService"
+import { useToast } from "@/components/ui/use-toast"
 
 export function UserNav() {
   const router = useRouter()
+  const { toast } = useToast()
 
   // In a real app, this would come from an auth context
   const user = {
@@ -24,6 +27,23 @@ export function UserNav() {
     role: "Applicant",
     image: "/placeholder.svg?height=32&width=32",
   }
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account.",
+      });
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -59,7 +79,7 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/")}>
+        <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>

@@ -1,18 +1,13 @@
 const DocumentUpload = require('../models/DocumentUpload');
-const ApplicationForm = require('../models/ApplicationForm');
 const path = require('path');
 const fs = require('fs').promises;
-const mime = require('mime-types');
 
 const DocumentController = {
-  // Upload or update documents for an application
+  // Upload or update documents for the authenticated user
   async uploadDocuments(req, res) {
     try {
-      const { applicationId } = req.params;
+      const userId = req.user.id;
       const files = req.files;
-
-      // Log received files for debugging
-      console.log('Received files:', files);
 
       // Validate that at least one file is uploaded
       if (!files || Object.keys(files).length === 0) {
@@ -21,13 +16,15 @@ const DocumentController = {
 
       // Prepare document data
       const documentData = {
-        applicationId,
+        user: userId,
         studentPicture: null,
         nbiClearance: [],
         gradeReport: [],
         incomeTaxReturn: [],
-        goodBoyCertificate: [],
-        physicalCheckup: []
+        goodMoralCertificate: [],
+        physicalCheckup: [],
+        certificates: [],
+        homeLocationSketch: []
       };
 
       // Process uploaded files
@@ -52,11 +49,8 @@ const DocumentController = {
         }
       }
 
-      // Log document data before saving
-      console.log('Document data to save:', documentData);
-
       // Find existing document or create new
-      let document = await DocumentUpload.findOne({ applicationId });
+      let document = await DocumentUpload.findOne({ user: userId });
       if (document) {
         // Delete old files from storage
         const oldFiles = [
@@ -64,8 +58,10 @@ const DocumentController = {
           ...document.nbiClearance,
           ...document.gradeReport,
           ...document.incomeTaxReturn,
-          ...document.goodBoyCertificate,
-          ...document.physicalCheckup
+          ...document.goodMoralCertificate,
+          ...document.physicalCheckup,
+          ...document.certificates,
+          ...document.homeLocationSketch
         ].map(doc => path.join(__dirname, '../', doc.filePath));
 
         for (const filePath of oldFiles) {
@@ -78,7 +74,7 @@ const DocumentController = {
 
         // Update document (only update fields with new data)
         Object.keys(documentData).forEach(key => {
-          if (documentData[key] !== null && (Array.isArray(documentData[key]) ? documentData[key].length > 0 : true)) {
+          if (key !== 'user' && documentData[key] !== null && (Array.isArray(documentData[key]) ? documentData[key].length > 0 : true)) {
             document[key] = documentData[key];
           }
         });
@@ -93,13 +89,17 @@ const DocumentController = {
         message: 'Documents uploaded successfully',
         document: {
           _id: document._id,
-          applicationId: document.applicationId,
+          user: document.user,
           studentPicture: document.studentPicture,
           nbiClearance: document.nbiClearance,
           gradeReport: document.gradeReport,
           incomeTaxReturn: document.incomeTaxReturn,
-          goodBoyCertificate: document.goodBoyCertificate,
-          physicalCheckup: document.physicalCheckup
+          goodMoralCertificate: document.goodMoralCertificate,
+          physicalCheckup: document.physicalCheckup,
+          certificates: document.certificates,
+          homeLocationSketch: document.homeLocationSketch,
+          createdAt: document.createdAt,
+          updatedAt: document.updatedAt
         }
       });
     } catch (error) {
@@ -120,46 +120,48 @@ const DocumentController = {
     }
   },
 
-  // Get documents for an application
+  // Get documents for the authenticated user
   async getDocuments(req, res) {
     try {
-      const { applicationId } = req.params;
+      const userId = req.user.id;
 
-      const document = await DocumentUpload.findOne({ applicationId })
-        .populate('applicationId', '_id');
+      const document = await DocumentUpload.findOne({ user: userId })
+        .populate('user', 'name email');
 
       if (!document) {
-        return res.status(404).json({ message: 'Documents not found for this application' });
+        return res.status(404).json({ message: 'Documents not found for this user' });
       }
 
       res.json({
         document: {
           _id: document._id,
-          applicationId: document.applicationId,
+          user: document.user,
           studentPicture: document.studentPicture,
           nbiClearance: document.nbiClearance,
           gradeReport: document.gradeReport,
           incomeTaxReturn: document.incomeTaxReturn,
-          goodBoyCertificate: document.goodBoyCertificate,
+          goodMoralCertificate: document.goodMoralCertificate,
           physicalCheckup: document.physicalCheckup,
+          certificates: document.certificates,
+          homeLocationSketch: document.homeLocationSketch,
           createdAt: document.createdAt,
           updatedAt: document.updatedAt
         }
       });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in getDocuments:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
-  // Delete documents for an application
+  // Delete documents for the authenticated user
   async deleteDocuments(req, res) {
     try {
-      const { applicationId } = req.params;
+      const userId = req.user.id;
 
-      const document = await DocumentUpload.findOne({ applicationId });
+      const document = await DocumentUpload.findOne({ user: userId });
       if (!document) {
-        return res.status(404).json({ message: 'Documents not found for this application' });
+        return res.status(404).json({ message: 'Documents not found for this user' });
       }
 
       // Delete files from storage
@@ -168,8 +170,10 @@ const DocumentController = {
         ...document.nbiClearance,
         ...document.gradeReport,
         ...document.incomeTaxReturn,
-        ...document.goodBoyCertificate,
-        ...document.physicalCheckup
+        ...document.goodMoralCertificate,
+        ...document.physicalCheckup,
+        ...document.certificates,
+        ...document.homeLocationSketch
       ].map(doc => path.join(__dirname, '../', doc.filePath));
 
       for (const filePath of filesToDelete) {
@@ -181,12 +185,12 @@ const DocumentController = {
       }
 
       // Delete document from MongoDB
-      await DocumentUpload.deleteOne({ applicationId });
+      await DocumentUpload.deleteOne({ user: userId });
 
       res.json({ message: 'Documents deleted successfully' });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in deleteDocuments:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   }
 };
