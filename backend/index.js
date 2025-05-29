@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const cors = require('cors');
+
 const AuthController = require('./controllers/AuthController');
 const ApplicationController = require('./controllers/ApplicationController');
 const DocumentController = require('./controllers/DocumentController');
@@ -11,6 +12,8 @@ const RoleController = require('./controllers/RoleController');
 const EvaluationController = require('./controllers/EvaluationController');
 const PersonalityTestController = require('./controllers/PersonalityTestController');
 const DepartmentController = require("./controllers/DepartmentController");
+const InterviewController = require("./controllers/InterviewController");
+
 const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
 const checkPermission = require('./middleware/checkPermission');
@@ -86,6 +89,8 @@ app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleC
 
 // Application routes
 app.post('/api/application', authenticate, checkPermission('applicationForm.create'), ApplicationController.createApplicationForm);
+app.get('/api/application/:id/pdf', authenticate, checkPermission('application.read'), ApplicationController.exportApplicationFormAsPDFByUserId);
+app.get('/api/application/pdf', authenticate, ApplicationController.exportMyApplicationFormAsPDF);
 app.get('/api/application', authenticate, checkPermission('applicationForm.readOwn'), ApplicationController.readMyApplicationForm);
 app.get('/api/application/all', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAllApplicationForms);
 app.get('/api/application/:id', authenticate, checkPermission('applicationForm.read'), ApplicationController.readApplicationFormById);
@@ -97,6 +102,7 @@ app.delete('/api/application/:id', authenticate, checkPermission('applicationFor
 app.delete('/api/application/user/:userId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormByUserId);
 app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
 app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
+
 
 // Document routes
 app.put('/api/documents', authenticate, checkPermission('document.set'), checkApplicationAccess, uploadDocuments, DocumentController.uploadDocuments);
@@ -119,6 +125,19 @@ app.get('/api/personality-test/template', authenticate, checkPermission('persona
 app.get('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getTemplateById);
 app.patch('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.update'), PersonalityTestController.updateTemplate);
 app.delete('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.delete'), PersonalityTestController.deleteTemplate);
+
+// Interview Routes
+app.post('/api/interview', authenticate, checkPermission('interview.create'), InterviewController.createInterview);
+app.get('/api/interview/all', authenticate, checkPermission('interview.readAll'), InterviewController.getAllInterviews);
+app.get('/api/interview/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById);
+app.get('/api/interview/user/:userId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByUserId);
+app.get('/api/interview', authenticate, checkPermission('interview.readOwn'), InterviewController.getMyInterview);
+app.patch('/api/interview/:id', authenticate, checkPermission('interview.update'), InterviewController.updateInterviewById);
+app.patch('/api/interview/user/:userId', authenticate, checkPermission('interview.update'), InterviewController.updateInterviewByUserId);
+app.patch('/api/interview', authenticate, checkPermission('interview.updateOwn'), InterviewController.updateMyInterview);
+app.delete('/api/interview/:id', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewById);
+app.delete('/api/interview/user/:userId', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewByUserId);
+app.delete('/api/interview', authenticate, checkPermission('interview.deleteOwn'), InterviewController.deleteMyInterview);
 
 // Evaluation Routes
 app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
