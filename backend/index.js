@@ -88,6 +88,7 @@ app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleC
 app.post('/api/application', authenticate, checkPermission('applicationForm.create'), ApplicationController.createApplicationForm);
 app.get('/api/application', authenticate, checkPermission('applicationForm.readOwn'), ApplicationController.readMyApplicationForm);
 app.get('/api/application/all', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAllApplicationForms);
+app.get('/api/users/applications', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAllUsersWithApplicationStatus);
 app.get('/api/application/:id', authenticate, checkPermission('applicationForm.read'), ApplicationController.readApplicationFormById);
 app.get('/api/application/user/:userId', authenticate, checkPermission('applicationForm.read'), ApplicationController.readApplicationFormByUserId);
 app.patch('/api/application/:id', authenticate, checkPermission('applicationForm.update'), ApplicationController.updateApplicationFormById);

@@ -1,4 +1,6 @@
 const ApplicationForm = require('../models/ApplicationForm');
+const User = require('../models/User');
+const Role = require('../models/Role');
 const mongoose = require('mongoose');
 
 const ApplicationController = {
@@ -385,6 +387,78 @@ const ApplicationController = {
     } catch (error) {
       console.error('Error in setStatus:', error);
       res.status(400).json({ message: `Failed to update status: ${error.message}` });
+    }
+  },
+
+  // GET: Retrieve all users with their application status
+  async getAllUsersWithApplicationStatus(req, res) {
+    try {
+      const { page = 1, limit = 10, status } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      // Find the applicant role
+      const applicantRole = await Role.findOne({ name: 'applicant' });
+      if (!applicantRole) {
+        return res.status(404).json({ message: 'Applicant role not found' });
+      }
+
+      // Get all users with applicant role
+      const query = { role: applicantRole._id };
+      const users = await User.find(query)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('course')
+        .sort({ createdAt: -1 });
+
+      // Get their applications
+      const userIds = users.map(user => user._id);
+      const applications = await ApplicationForm.find({ user: { $in: userIds } });
+      const applicationMap = applications.reduce((map, app) => {
+        map[app.user.toString()] = app;
+        return map;
+      }, {});
+
+      // Combine user and application data
+      const combinedData = users.map(user => {
+        const application = applicationMap[user._id.toString()];
+        return {
+          _id: application ? application._id : null,
+          user: {
+            _id: user._id,
+            name: user.name,
+            idNumber: user.idNumber,
+          },
+          firstName: user.name.split(' ')[0],
+          lastName: user.name.split(' ').slice(1).join(' '),
+          emailAddress: user.email,
+          programOfStudyAndYear: user.course ? user.course.name : 'N/A',
+          status: application ? application.status : 'Pending',
+          createdAt: application ? application.createdAt : user.createdAt,
+        };
+      });
+
+      // Filter by status if specified
+      const filteredData = status 
+        ? combinedData.filter(item => item.status === status)
+        : combinedData;
+
+      const totalDocs = await User.countDocuments(query);
+
+      res.json({
+        message: 'Users with application status retrieved successfully',
+        applications: filteredData,
+        pagination: {
+          totalDocs,
+          limit: parseInt(limit),
+          page: parseInt(page),
+          totalPages: Math.ceil(totalDocs / parseInt(limit)),
+          hasNextPage: skip + users.length < totalDocs,
+          hasPrevPage: page > 1
+        }
+      });
+    } catch (error) {
+      console.error('Error in getAllUsersWithApplicationStatus:', error);
+      res.status(500).json({ message: 'Server error' });
     }
   }
 };
