@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,10 @@ export function ProfileManagement() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg?height=96&width=96")
 
   const handleSavePersonal = () => {
     toast({
@@ -45,11 +49,44 @@ export function ProfileManagement() {
     setConfirmPassword("")
   }
 
-  const handleUploadPhoto = () => {
-    toast({
-      title: "Photo Uploaded",
-      description: "Your profile photo has been updated successfully.",
-    })
+  const handleUploadPhotoClick = () => {
+    if (fileInputRef.current) {
+      console.log("Opening file dialog")
+      fileInputRef.current.click()
+    } else {
+      console.log("fileInputRef is null")
+    }
+  }
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setSelectedPhoto(file)
+    setAvatarUrl(URL.createObjectURL(file))
+
+    const formData = new FormData()
+    formData.append("studentPicture", file)
+
+    try {
+      const res = await fetch("/api/documents", {
+        method: "PUT",
+        body: formData,
+        credentials: "include",
+      })
+      if (!res.ok) throw new Error("Upload failed")
+      toast({
+        title: "Photo Uploaded",
+        description: "Your profile photo has been updated successfully.",
+      })
+    } catch (err) {
+      toast({
+        title: "Upload Failed",
+        description: "There was a problem uploading your photo.",
+        variant: "destructive",
+      })
+      setAvatarUrl("/placeholder.svg?height=96&width=96")
+    }
   }
 
   return (
@@ -66,17 +103,23 @@ export function ProfileManagement() {
               <div className="flex flex-col items-center text-center">
                 <div className="relative mb-4">
                   <Avatar className="h-24 w-24 border-4 border-white shadow">
-                    <AvatarImage src="/placeholder.svg?height=96&width=96" alt="Profile" />
+                    <AvatarImage src={avatarUrl} alt="Profile" />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-white"
-                    onClick={handleUploadPhoto}
+                  <label
+                    htmlFor="profile-photo-upload"
+                    className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-white flex items-center justify-center cursor-pointer border border-gray-200"
+                    title="Upload Photo"
                   >
                     <Camera className="h-4 w-4" />
-                  </Button>
+                    <input
+                      id="profile-photo-upload"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={handlePhotoChange}
+                    />
+                  </label>
                 </div>
                 <h3 className="text-xl font-bold">Juan Dela Cruz</h3>
                 <p className="text-gray-500 mb-2">juan.delacruz@example.com</p>

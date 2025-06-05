@@ -15,6 +15,7 @@
   "description": "",
   "dependencies": {
     "argon2": "^0.41.1",
+    "backend_nasm": "file:",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

@@ -9,7 +9,22 @@ import { useToast } from "@/hooks/use-toast"
 import { FileUp, X, FileCheck, AlertCircle } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 
-type DocumentType = "grades" | "itr" | "certificate"
+type DocumentType =
+  | "grades"
+  | "itr"
+  | "nbi"
+  | "goodMoral"
+  | "physicalCheckup"
+  | "homeLocationSketch"
+
+const backendFieldMap: Record<DocumentType, string> = {
+  grades: "gradeReport",
+  itr: "incomeTaxReturn",
+  nbi: "nbiClearance",
+  goodMoral: "goodMoralCertificate",
+  physicalCheckup: "physicalCheckup",
+  homeLocationSketch: "homeLocationSketch",
+}
 
 interface Document {
   id: string
@@ -18,6 +33,7 @@ interface Document {
   size: number
   progress: number
   status: "uploading" | "complete" | "error"
+  file: File
 }
 
 const documentTypeInfo = {
@@ -31,9 +47,24 @@ const documentTypeInfo = {
     description: "Upload your parents' or guardian's latest ITR",
     acceptedFormats: ".pdf, .jpg, .png",
   },
-  certificate: {
-    title: "Certificates",
-    description: "Upload relevant certificates or awards",
+  nbi: {
+    title: "NBI Clearance",
+    description: "Upload your valid NBI Clearance",
+    acceptedFormats: ".pdf, .jpg, .png",
+  },
+  goodMoral: {
+    title: "Good Moral Certificate",
+    description: "Upload your Good Moral Certificate",
+    acceptedFormats: ".pdf, .jpg, .png",
+  },
+  physicalCheckup: {
+    title: "Physical Checkup",
+    description: "Upload your Physical Checkup results",
+    acceptedFormats: ".pdf, .jpg, .png",
+  },
+  homeLocationSketch: {
+    title: "Home Location Sketch",
+    description: "Upload a sketch or map of your home location",
     acceptedFormats: ".pdf, .jpg, .png",
   },
 }
@@ -54,9 +85,10 @@ export function DocumentUpload() {
       size: file.size,
       progress: 0,
       status: "uploading",
+      file,
     }
 
-    setDocuments([...documents, newDocument])
+    setDocuments((prev) => [...prev, newDocument])
 
     // Simulate upload progress
     const interval = setInterval(() => {
@@ -178,6 +210,40 @@ export function DocumentUpload() {
     )
   }
 
+  const handleSubmitAllDocuments = async () => {
+    const formData = new FormData()
+
+    // Group documents by type and append to FormData with correct backend field names
+    documents.forEach((doc) => {
+      const backendField = backendFieldMap[doc.type]
+      formData.append(backendField, doc.file)
+    })
+
+    try {
+      const res = await fetch("/api/documents", {
+        method: "PUT",
+        body: formData,
+        credentials: "include",
+      })
+
+      if (!res.ok) throw new Error("Upload failed")
+
+      toast({
+        title: "Documents submitted",
+        description: "Your documents have been submitted successfully.",
+      })
+
+      // Optionally, clear the documents state or refresh the list
+      setDocuments([])
+    } catch (err) {
+      toast({
+        title: "Upload Failed",
+        description: "There was a problem uploading your documents.",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
@@ -196,20 +262,15 @@ export function DocumentUpload() {
 
       {renderDocumentSection("grades")}
       {renderDocumentSection("itr")}
-      {renderDocumentSection("certificate")}
+      {renderDocumentSection("nbi")}
+      {renderDocumentSection("goodMoral")}
+      {renderDocumentSection("physicalCheckup")}
+      {renderDocumentSection("homeLocationSketch")}
 
       <div className="flex justify-end">
         <Button
           className="bg-[#800000] hover:bg-[#600000]"
-          onClick={() => {
-            toast({
-              title: "Documents submitted",
-              description: "Your documents have been submitted successfully.",
-            })
-
-            // Switch to status tab
-            document.querySelector('[data-value="status"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
-          }}
+          onClick={handleSubmitAllDocuments}
         >
           Submit All Documents
         </Button>
