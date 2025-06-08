@@ -67,12 +67,6 @@ const checkApplicationAccess = async (req, res, next) => {
 
     const userId = req.user.id;
 
-    // Find the user's application
-    const application = await ApplicationForm.findOne({ user: userId });
-    if (!application) {
-      return res.status(403).json({ message: 'No application found for this user' });
-    }
-
     // Attach application to request for use in controller
     req.application = application;
     req.applicationId = application._id; // For compatibility with other middleware
