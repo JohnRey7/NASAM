@@ -1,20 +1,12 @@
 const DocumentUpload = require('../models/DocumentUpload');
-const ApplicationForm = require('../models/ApplicationForm');
 const path = require('path');
 const fs = require('fs').promises;
 
 const DocumentController = {
-  // Upload or update documents for the authenticated user's application
+  // Upload or update documents for the authenticated user
   async uploadDocuments(req, res) {
     try {
       const userId = req.user.id;
-
-      // Find the user's application
-      const application = await ApplicationForm.findOne({ user: userId });
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
       const files = req.files;
 
       // Validate that at least one file is uploaded
@@ -24,7 +16,7 @@ const DocumentController = {
 
       // Prepare document data
       const documentData = {
-        applicationId: application._id,
+        user: userId,
         studentPicture: null,
         nbiClearance: [],
         gradeReport: [],
@@ -58,7 +50,7 @@ const DocumentController = {
       }
 
       // Find existing document or create new
-      let document = await DocumentUpload.findOne({ applicationId: application._id });
+      let document = await DocumentUpload.findOne({ user: userId });
       if (document) {
         // Delete old files from storage
         const oldFiles = [
@@ -82,7 +74,7 @@ const DocumentController = {
 
         // Update document (only update fields with new data)
         Object.keys(documentData).forEach(key => {
-          if (documentData[key] !== null && (Array.isArray(documentData[key]) ? documentData[key].length > 0 : true)) {
+          if (key !== 'user' && documentData[key] !== null && (Array.isArray(documentData[key]) ? documentData[key].length > 0 : true)) {
             document[key] = documentData[key];
           }
         });
@@ -97,7 +89,7 @@ const DocumentController = {
         message: 'Documents uploaded successfully',
         document: {
           _id: document._id,
-          applicationId: document.applicationId,
+          user: document.user,
           studentPicture: document.studentPicture,
           nbiClearance: document.nbiClearance,
           gradeReport: document.gradeReport,
@@ -105,7 +97,9 @@ const DocumentController = {
           goodMoralCertificate: document.goodMoralCertificate,
           physicalCheckup: document.physicalCheckup,
           certificates: document.certificates,
-          homeLocationSketch: document.homeLocationSketch
+          homeLocationSketch: document.homeLocationSketch,
+          createdAt: document.createdAt,
+          updatedAt: document.updatedAt
         }
       });
     } catch (error) {
@@ -126,28 +120,22 @@ const DocumentController = {
     }
   },
 
-  // Get documents for the authenticated user's application
+  // Get documents for the authenticated user
   async getDocuments(req, res) {
     try {
       const userId = req.user.id;
 
-      // Find the user's application
-      const application = await ApplicationForm.findOne({ user: userId });
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
-      const document = await DocumentUpload.findOne({ applicationId: application._id })
-        .populate('applicationId', '_id');
+      const document = await DocumentUpload.findOne({ user: userId })
+        .populate('user', 'name email');
 
       if (!document) {
-        return res.status(404).json({ message: 'Documents not found for this application' });
+        return res.status(404).json({ message: 'Documents not found for this user' });
       }
 
       res.json({
         document: {
           _id: document._id,
-          applicationId: document.applicationId,
+          user: document.user,
           studentPicture: document.studentPicture,
           nbiClearance: document.nbiClearance,
           gradeReport: document.gradeReport,
@@ -161,25 +149,19 @@ const DocumentController = {
         }
       });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in getDocuments:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
 
-  // Delete documents for the authenticated user's application
+  // Delete documents for the authenticated user
   async deleteDocuments(req, res) {
     try {
       const userId = req.user.id;
 
-      // Find the user's application
-      const application = await ApplicationForm.findOne({ user: userId });
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
-      const document = await DocumentUpload.findOne({ applicationId: application._id });
+      const document = await DocumentUpload.findOne({ user: userId });
       if (!document) {
-        return res.status(404).json({ message: 'Documents not found for this application' });
+        return res.status(404).json({ message: 'Documents not found for this user' });
       }
 
       // Delete files from storage
@@ -203,12 +185,12 @@ const DocumentController = {
       }
 
       // Delete document from MongoDB
-      await DocumentUpload.deleteOne({ applicationId: application._id });
+      await DocumentUpload.deleteOne({ user: userId });
 
       res.json({ message: 'Documents deleted successfully' });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error in deleteDocuments:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
     }
   }
 };
