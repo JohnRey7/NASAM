@@ -104,7 +104,11 @@ export function ProfileManagement() {
                 <div className="relative mb-4">
                   <Avatar className="h-24 w-24 border-4 border-white shadow">
                     <AvatarImage src={avatarUrl} alt="Profile" />
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarFallback>
+                      <span className="flex h-full w-full items-center justify-center rounded-full text-2xl bg-[#800000]/10 text-[#800000]">
+                        JD
+                      </span>
+                    </AvatarFallback>
                   </Avatar>
                   <label
                     htmlFor="profile-photo-upload"

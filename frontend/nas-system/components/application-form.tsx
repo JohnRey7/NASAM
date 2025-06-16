@@ -550,24 +550,22 @@ export function ApplicationForm() {
   };
 
   const handleExportPDF = async () => {
-    if (!formData._id) {
-      toast({
-        title: "Error",
-        description: "Cannot export PDF: Application not saved yet.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      const pdfBlob = await applicationService.exportToPDF(formData._id);
-      const url = window.URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
+      // Call your backend endpoint (authenticated)
+      const response = await axios.get(`${API_URL}/application/pdf`, {
+        responseType: "blob", // Important for binary data
+        withCredentials: true // Send cookies if using authentication
+      });
+
+      // Create a blob URL and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', 'application-form.pdf');
+      link.setAttribute("download", "application-form.pdf");
       document.body.appendChild(link);
       link.click();
       link.remove();
+
       toast({
         title: "PDF Generated",
         description: "Your application has been exported as PDF.",
