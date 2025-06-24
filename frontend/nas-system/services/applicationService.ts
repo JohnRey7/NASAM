@@ -4,13 +4,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export interface ApplicationFormData {
   _id?: string;
+  user?: string;
   emailAddress?: string;
   firstName: string;
   middleName?: string;
   lastName: string;
   suffix?: string;
-  typeOfScholarship: string;
-  nameOfScholarshipSponsor: string;
+  typeOfScholarship?: string;
+  nameOfScholarshipSponsor?: string;
   programOfStudyAndYear: string;
   existingScholarship?: string;
   remainingUnitsIncludingThisTerm: number;
@@ -89,36 +90,56 @@ export interface ApplicationFormData {
     relationshipToTheApplicant: string;
     contactNumber: string;
   }>;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
 }
 
 export const applicationService = {
-  // Simplified method to handle application submission
   async submitApplication(formData: ApplicationFormData) {
     try {
-      console.log('Creating new application');
+      console.log('Submitting application with data:', JSON.stringify(formData, null, 2));
       return await this.createApplication(formData);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error('Error submitting application:', {
           status: error.response?.status,
           data: error.response?.data,
-          message: error.message
+          message: error.message,
+          requestData: formData,
+          config: error.config,
         });
         throw new Error(error.response?.data?.message || 'Failed to submit application');
       }
+      console.error('Unexpected error submitting application:', error);
       throw error;
     }
   },
 
-  // Create a new application
   async createApplication(formData: ApplicationFormData) {
     try {
-      console.log('Sending application data:', formData);
-      const response = await axios.post(`${API_URL}/application`, formData, {
+      const cleanedFormData = {
+        ...formData,
+        education: {
+          ...formData.education,
+          currentMembershipInOrganizations:
+            Array.isArray(formData.education.currentMembershipInOrganizations)
+              ? formData.education.currentMembershipInOrganizations.filter(
+                  org =>
+                    typeof org.nameOfOrganization === 'string' &&
+                    org.nameOfOrganization.trim() &&
+                    typeof org.position === 'string' &&
+                    org.position.trim()
+                )
+              : [],
+        },
+      };
+      console.log('Sending application data:', JSON.stringify(cleanedFormData, null, 2));
+      const response = await axios.post(`${API_URL}/application`, cleanedFormData, {
         withCredentials: true,
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
       console.log('Application created successfully:', response.data);
       return response.data;
@@ -127,47 +148,71 @@ export const applicationService = {
         console.error('Error creating application:', {
           status: error.response?.status,
           data: error.response?.data,
-          message: error.message
+          message: error.message,
+          requestData: formData,
+          config: error.config,
         });
         throw new Error(error.response?.data?.message || 'Failed to create application');
       }
+      console.error('Unexpected error creating application:', error);
       throw error;
     }
   },
 
-  // Get the current user's application
   async getMyApplication() {
     try {
-      const response = await axios.get(`${API_URL}/application/me`, {
-        withCredentials: true
+      console.log('Fetching application from:', `${API_URL}/application`);
+      const response = await axios.get(`${API_URL}/application`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+      console.log('Fetched application:', response.data);
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        if (error.response?.status === 404) {
-          // No application found, return null so submitApplication can create one
-          return null;
-        }
         console.error('Error fetching application:', {
           status: error.response?.status,
           data: error.response?.data,
-          message: error.message
+          message: error.message,
+          config: error.config,
         });
+        if (error.response?.status === 400 || error.response?.status === 404) {
+          console.log('No application found or invalid request, returning null');
+          return null; // Handle no application or invalid request
+        }
         throw new Error(error.response?.data?.message || 'Failed to fetch application');
       }
+      console.error('Unexpected error fetching application:', error);
       throw error;
     }
   },
 
-  // Update the current user's application
   async updateApplication(formData: ApplicationFormData) {
     try {
-      console.log('Updating application with data:', JSON.stringify(formData, null, 2));
-      const response = await axios.patch(`${API_URL}/application/me`, formData, {
+      const cleanedFormData = {
+        ...formData,
+        education: {
+          ...formData.education,
+          currentMembershipInOrganizations:
+            Array.isArray(formData.education.currentMembershipInOrganizations)
+              ? formData.education.currentMembershipInOrganizations.filter(
+                  org =>
+                    typeof org.nameOfOrganization === 'string' &&
+                    org.nameOfOrganization.trim() &&
+                    typeof org.position === 'string' &&
+                    org.position.trim()
+              )
+              : [],
+        },
+      };
+      console.log('Updating application with data:', JSON.stringify(cleanedFormData, null, 2));
+      const response = await axios.patch(`${API_URL}/application/me`, cleanedFormData, {
         withCredentials: true,
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
       console.log('Update response:', response.data);
       return response.data;
@@ -178,45 +223,134 @@ export const applicationService = {
           data: error.response?.data,
           message: error.message,
           requestData: formData,
-          headers: error.config?.headers,
-          url: error.config?.url
+          config: error.config,
         });
         throw new Error(error.response?.data?.message || 'Failed to update application');
       }
+      console.error('Unexpected error updating application:', error);
       throw error;
     }
   },
 
-  // Get a specific application by ID (for admins)
   async getApplicationById(id: string) {
-    const response = await axios.get(`${API_URL}/application/${id}`, {
-      withCredentials: true
-    });
-    return response.data;
+    try {
+      console.log('Fetching application by ID:', id);
+      const response = await axios.get(`${API_URL}/application/${id}`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('Fetched application by ID:', response.data);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Error fetching application by ID:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message占有: error.message,
+          config: error.config,
+        });
+        throw new Error(error.response?.data?.message || 'Failed to fetch application');
+      }
+      console.error('Unexpected error fetching application by ID:', error);
+      throw error;
+    }
   },
 
-  // Update a specific application by ID (for admins)
   async updateApplicationById(id: string, formData: ApplicationFormData) {
-    const response = await axios.patch(`${API_URL}/application/${id}`, formData, {
-      withCredentials: true
-    });
-    return response.data;
+    try {
+      const cleanedFormData = {
+        ...formData,
+        education: {
+          ...formData.education,
+          currentMembershipInOrganizations:
+            Array.isArray(formData.education.currentMembershipInOrganizations)
+              ? formData.education.currentMembershipInOrganizations.filter(
+                  org =>
+                    typeof org.nameOfOrganization === 'string' &&
+                    org.nameOfOrganization.trim() &&
+                    typeof org.position === 'string' &&
+                    org.position.trim()
+              )
+              : [],
+        },
+      };
+      console.log('Updating application by ID with data:', JSON.stringify(cleanedFormData, null, 2));
+      const response = await axios.patch(`${API_URL}/application/${id}`, cleanedFormData, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('Updated application by ID:', response.data);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Error updating application by ID:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+          requestData: formData,
+          config: error.config,
+        });
+        throw new Error(error.response?.data?.message || 'Failed to update application');
+      }
+      console.error('Unexpected error updating application by ID:', error);
+      throw error;
+    }
   },
 
-  // Delete a specific application by ID (for admins)
   async deleteApplication(id: string) {
-    const response = await axios.delete(`${API_URL}/application/${id}`, {
-      withCredentials: true
-    });
-    return response.data;
-  },
+    try {
+      console.log('Deleting application with ID:', id);
+      const response = await axios.delete(`${API_URL}/application/${id}`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('Deleted application:', response.data);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Error deleting application:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+          config: error.config,
+        });
+        throw new Error(error.response?.data?.message || 'Failed to delete application');
+      }
+      console.error('Unexpected error deleting application:', error);
+      throw error;
+    }
+},
 
-  // Export application as PDF
   async exportToPDF(applicationId: string) {
-    const response = await axios.get(`${API_URL}/application/${applicationId}/pdf`, {
-      responseType: 'blob',
-      withCredentials: true
-    });
-    return response.data;
-  }
-}; 
+    try {
+      console.log('Exporting application ID:', applicationId);
+      const response = await axios.get(`${API_URL}/application/${applicationId}/pdf`, {
+        responseType: 'blob',
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('Exported application to PDF');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Error exporting application to PDF:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+          config: error.config,
+        });
+        throw new Error(error.response?.data?.message || 'Failed to export application to PDF');
+      }
+      console.error('Unexpected error exporting application to PDF:', error);
+      throw error;
+    }
+  },
+};

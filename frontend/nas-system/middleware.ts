@@ -6,7 +6,6 @@ const protectedRoutes = {
   '/dashboard': ['applicant'],
   '/oas-dashboard': ['oas_staff'],
   '/panel-dashboard': ['panelist'],
-  '/nas-dashboard': ['nas_supervisor'],
 }
 
 export function middleware(request: NextRequest) {
@@ -53,16 +52,14 @@ export function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/oas-dashboard', request.url))
           case 'panelist':
             return NextResponse.redirect(new URL('/panel-dashboard', request.url))
-          case 'nas_supervisor':
-            return NextResponse.redirect(new URL('/nas-dashboard', request.url))
           default:
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-  }
+            return NextResponse.redirect(new URL('/', request.url))
+        }
+      }
     } catch (error) {
       // Invalid authentication, redirect to login
       return NextResponse.redirect(new URL('/', request.url))
-}
+    }
   }
 
   return NextResponse.next()
@@ -74,6 +71,5 @@ export const config = {
     '/dashboard/:path*',
     '/oas-dashboard/:path*',
     '/panel-dashboard/:path*',
-    '/nas-dashboard/:path*',
   ],
 } 

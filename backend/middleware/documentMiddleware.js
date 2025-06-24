@@ -57,34 +57,8 @@ const upload = multer({
   { name: 'homeLocationSketch', maxCount: 5 }
 ]);
 
-// Middleware to check application access
-const checkApplicationAccess = async (req, res, next) => {
-  try {
-    // Ensure user is authenticated
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const userId = req.user.id;
-
-    // Find the user's application
-    const application = await ApplicationForm.findOne({ user: userId });
-    if (!application) {
-      return res.status(403).json({ message: 'No application found for this user' });
-    }
-
-    // Attach application to request for use in controller
-    req.application = application;
-    req.applicationId = application._id; // For compatibility with other middleware
-    next();
-  } catch (error) {
-    console.error('Error in checkApplicationAccess:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
 
 // Export middleware
 module.exports = {
-  uploadDocuments: upload,
-  checkApplicationAccess
+  uploadDocuments: upload
 };

@@ -12,64 +12,87 @@ import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, ArrowRight, Save, FileDown } from "lucide-react"
 import { applicationService, ApplicationFormData } from "@/services/applicationService"
 import { useRouter } from "next/navigation"
+import axios from "axios"
+
+const API_URL = "http://localhost:3000/api";
 
 interface Organization {
   name: string;
   position: string;
 }
 
+const defaultFormData: ApplicationFormData = {
+  firstName: "",
+  lastName: "",
+  typeOfScholarship: "",
+  nameOfScholarshipSponsor: "",
+  programOfStudyAndYear: "",
+  remainingUnitsIncludingThisTerm: 0,
+  remainingTermsToGraduate: 0,
+  citizenship: "",
+  civilStatus: "",
+  annualFamilyIncome: "",
+  residingAt: "",
+  permanentResidentialAddress: "",
+  contactNumber: "",
+  familyBackground: {
+    father: {
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      suffix: "",
+      age: 0,
+      occupation: "",
+      grossAnnualIncome: "",
+      companyName: "",
+      companyAddress: "",
+      homeAddress: "",
+      contactNumber: ""
+    },
+    mother: {
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      suffix: "",
+      age: 0,
+      occupation: "",
+      grossAnnualIncome: "",
+      companyName: "",
+      companyAddress: "",
+      homeAddress: "",
+      contactNumber: ""
+    },
+    siblings: []
+  },
+  education: {
+    elementary: {
+      nameAndAddressOfSchool: "",
+      honorOrAwardsReceived: "",
+      nameOfOrganizationAndPositionHeld: "",
+      generalAverage: 0,
+      rankAmongGraduates: "",
+      contestTrainingsConferencesParticipated: ""
+    },
+    secondary: {
+      nameAndAddressOfSchool: "",
+      honorOrAwardsReceived: "",
+      nameOfOrganizationAndPositionHeld: "",
+      generalAverage: 0,
+      rankAmongGraduates: "",
+      contestTrainingsConferencesParticipated: ""
+    },
+    collegeLevel: [],
+    currentMembershipInOrganizations: []
+  },
+  references: []
+};
+
 export function ApplicationForm() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSaving, setIsSaving] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [formData, setFormData] = useState<ApplicationFormData>({
-    firstName: "",
-    lastName: "",
-    typeOfScholarship: "",
-    nameOfScholarshipSponsor: "",
-    programOfStudyAndYear: "",
-    remainingUnitsIncludingThisTerm: 0,
-    remainingTermsToGraduate: 0,
-    citizenship: "",
-    civilStatus: "",
-    annualFamilyIncome: "",
-    residingAt: "",
-    permanentResidentialAddress: "",
-    contactNumber: "",
-    familyBackground: {
-      father: {
-        firstName: "",
-        lastName: "",
-        age: 0,
-        occupation: "",
-        grossAnnualIncome: "",
-        contactNumber: ""
-      },
-      mother: {
-        firstName: "",
-        lastName: "",
-        age: 0,
-        occupation: "",
-        grossAnnualIncome: "",
-        contactNumber: ""
-      },
-      siblings: []
-    },
-    education: {
-      elementary: {
-        nameAndAddressOfSchool: "",
-        generalAverage: 0
-      },
-      secondary: {
-        nameAndAddressOfSchool: "",
-        generalAverage: 0
-      },
-      collegeLevel: [],
-      currentMembershipInOrganizations: []
-    },
-    references: []
-  })
+  const [formData, setFormData] = useState<ApplicationFormData>(defaultFormData)
   const [siblings, setSiblings] = useState([{ 
     name: "", 
     age: 0, 
@@ -100,16 +123,75 @@ export function ApplicationForm() {
 
   const loadExistingApplication = async () => {
     try {
-      const existingApplication = await applicationService.getMyApplication()
+      const existingApplication = await applicationService.getMyApplication();
       if (existingApplication) {
-        setFormData(existingApplication)
-        setSiblings(existingApplication.familyBackground.siblings)
-        setOrganizations(existingApplication.education.currentMembershipInOrganizations)
-        setCollegeLevels(existingApplication.education.collegeLevel)
-        setReferences(existingApplication.references)
+        // Deep merge with defaults to ensure all fields exist
+        const merged = {
+          ...defaultFormData,
+          ...existingApplication,
+          familyBackground: {
+            ...defaultFormData.familyBackground,
+            ...(existingApplication.familyBackground || {}),
+            father: {
+              ...defaultFormData.familyBackground.father,
+              ...(existingApplication.familyBackground?.father || {})
+            },
+            mother: {
+              ...defaultFormData.familyBackground.mother,
+              ...(existingApplication.familyBackground?.mother || {})
+            },
+            siblings: existingApplication.familyBackground?.siblings || []
+          },
+          education: {
+            ...defaultFormData.education,
+            ...(existingApplication.education || {}),
+            elementary: {
+              ...defaultFormData.education.elementary,
+              ...(existingApplication.education?.elementary || {})
+            },
+            secondary: {
+              ...defaultFormData.education.secondary,
+              ...(existingApplication.education?.secondary || {})
+            },
+            collegeLevel: existingApplication.education?.collegeLevel || [],
+            currentMembershipInOrganizations: existingApplication.education?.currentMembershipInOrganizations || []
+          },
+          references: existingApplication.references || []
+        };
+        setFormData(merged);
+        setSiblings(
+          Array.isArray(merged.familyBackground.siblings) && merged.familyBackground.siblings.length > 0
+            ? merged.familyBackground.siblings
+            : [{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]
+        );
+        setCollegeLevels(
+          Array.isArray(merged.education.collegeLevel) && merged.education.collegeLevel.length > 0
+            ? merged.education.collegeLevel
+            : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]
+        );
+        setOrganizations(
+          Array.isArray(merged.education.currentMembershipInOrganizations) && merged.education.currentMembershipInOrganizations.length > 0
+            ? merged.education.currentMembershipInOrganizations.map((org: any) => ({
+                name: org.nameOfOrganization || "",
+                position: org.position || ""
+              }))
+            : [{ name: "", position: "" }]
+        );
+        setReferences(
+          Array.isArray(merged.references) && merged.references.length > 0
+            ? merged.references
+            : [{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]
+        );
+      } else {
+        // No application found, keep defaults
+        setFormData(defaultFormData);
+        setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
+        setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+        setOrganizations([{ name: "", position: "" }]);
+        setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
       }
-    } catch (error) {
-      console.error('Error loading application:', error)
+    } catch (error: any) {
+      console.error('Error loading application:', error);
     }
   }
 
@@ -405,15 +487,54 @@ export function ApplicationForm() {
       // Optionally refresh the form data
       const updatedApplication = await applicationService.getMyApplication();
       if (updatedApplication) {
-        setFormData(updatedApplication);
-        // Update other state variables
-        setSiblings(updatedApplication.familyBackground.siblings || []);
-        setOrganizations((updatedApplication.education.currentMembershipInOrganizations || []).map((org: { nameOfOrganization: string; position: string }) => ({
-          name: org.nameOfOrganization,
-          position: org.position
-        })));
-        setCollegeLevels(updatedApplication.education.collegeLevel || []);
-        setReferences(updatedApplication.references || []);
+        const merged = {
+          ...defaultFormData,
+          ...updatedApplication,
+          familyBackground: {
+            ...defaultFormData.familyBackground,
+            ...(updatedApplication.familyBackground || {}),
+            father: {
+              ...defaultFormData.familyBackground.father,
+              ...(updatedApplication.familyBackground?.father || {})
+            },
+            mother: {
+              ...defaultFormData.familyBackground.mother,
+              ...(updatedApplication.familyBackground?.mother || {})
+            },
+            siblings: updatedApplication.familyBackground?.siblings || []
+          },
+          education: {
+            ...defaultFormData.education,
+            ...(updatedApplication.education || {}),
+            elementary: {
+              ...defaultFormData.education.elementary,
+              ...(updatedApplication.education?.elementary || {})
+            },
+            secondary: {
+              ...defaultFormData.education.secondary,
+              ...(updatedApplication.education?.secondary || {})
+            },
+            collegeLevel: updatedApplication.education?.collegeLevel || [],
+            currentMembershipInOrganizations: updatedApplication.education?.currentMembershipInOrganizations || []
+          },
+          references: updatedApplication.references || []
+        };
+        setFormData(merged);
+        setSiblings(merged.familyBackground.siblings);
+        setOrganizations(
+          (merged.education.currentMembershipInOrganizations || []).map((org: { nameOfOrganization: string; position: string }) => ({
+            name: org.nameOfOrganization,
+            position: org.position
+          }))
+        );
+        setCollegeLevels(merged.education.collegeLevel);
+        setReferences(merged.references);
+      } else {
+        setFormData(defaultFormData);
+        setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
+        setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+        setOrganizations([{ name: "", position: "" }]);
+        setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
       }
 
     } catch (error) {
@@ -429,24 +550,22 @@ export function ApplicationForm() {
   };
 
   const handleExportPDF = async () => {
-    if (!formData._id) {
-      toast({
-        title: "Error",
-        description: "Cannot export PDF: Application not saved yet.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      const pdfBlob = await applicationService.exportToPDF(formData._id);
-      const url = window.URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
+      // Call your backend endpoint (authenticated)
+      const response = await axios.get(`${API_URL}/application/pdf`, {
+        responseType: "blob", // Important for binary data
+        withCredentials: true // Send cookies if using authentication
+      });
+
+      // Create a blob URL and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', 'application-form.pdf');
+      link.setAttribute("download", "application-form.pdf");
       document.body.appendChild(link);
       link.click();
       link.remove();
+
       toast({
         title: "PDF Generated",
         description: "Your application has been exported as PDF.",
@@ -1032,8 +1151,40 @@ export function ApplicationForm() {
                   <Input
                     id="elementary-school"
                     value={formData.education.elementary.nameAndAddressOfSchool}
-                    onChange={(e) => setFormData({...formData, education: {...formData.education, elementary: {...formData.education.elementary, nameAndAddressOfSchool: e.target.value}}})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        education: {
+                          ...formData.education,
+                          elementary: {
+                            ...formData.education.elementary,
+                            nameAndAddressOfSchool: e.target.value,
+                          },
+                        },
+                      })
+                    }
                     placeholder="Enter school name and address"
+                  />
+                </div>
+                {/* Elementary Honors/Awards Received */}
+                <div className="space-y-2">
+                  <Label htmlFor="elementary-honors">Honors/Awards Received</Label>
+                  <Input
+                    id="elementary-honors"
+                    value={formData.education.elementary.honorOrAwardsReceived || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        education: {
+                          ...formData.education,
+                          elementary: {
+                            ...formData.education.elementary,
+                            honorOrAwardsReceived: e.target.value,
+                          },
+                        },
+                      })
+                    }
+                    placeholder="e.g., With Honors, Best in Math"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1045,7 +1196,18 @@ export function ApplicationForm() {
                     max="100"
                     step="0.01"
                     value={formData.education.elementary.generalAverage}
-                    onChange={(e) => setFormData({...formData, education: {...formData.education, elementary: {...formData.education.elementary, generalAverage: Number(e.target.value)}}})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        education: {
+                          ...formData.education,
+                          elementary: {
+                            ...formData.education.elementary,
+                            generalAverage: Number(e.target.value),
+                          },
+                        },
+                      })
+                    }
                     placeholder="Enter average"
                   />
                 </div>
@@ -1060,8 +1222,40 @@ export function ApplicationForm() {
                   <Input
                     id="secondary-school"
                     value={formData.education.secondary.nameAndAddressOfSchool}
-                    onChange={(e) => setFormData({...formData, education: {...formData.education, secondary: {...formData.education.secondary, nameAndAddressOfSchool: e.target.value}}})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        education: {
+                          ...formData.education,
+                          secondary: {
+                            ...formData.education.secondary,
+                            nameAndAddressOfSchool: e.target.value,
+                          },
+                        },
+                      })
+                    }
                     placeholder="Enter school name and address"
+                  />
+                </div>
+                {/* Secondary Honors/Awards Received */}
+                <div className="space-y-2">
+                  <Label htmlFor="secondary-honors">Honors/Awards Received</Label>
+                  <Input
+                    id="secondary-honors"
+                    value={formData.education.secondary.honorOrAwardsReceived || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        education: {
+                          ...formData.education,
+                          secondary: {
+                            ...formData.education.secondary,
+                            honorOrAwardsReceived: e.target.value,
+                          },
+                        },
+                      })
+                    }
+                    placeholder="e.g., With High Honors, Leadership Award"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1073,7 +1267,18 @@ export function ApplicationForm() {
                     max="100"
                     step="0.01"
                     value={formData.education.secondary.generalAverage}
-                    onChange={(e) => setFormData({...formData, education: {...formData.education, secondary: {...formData.education.secondary, generalAverage: Number(e.target.value)}}})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        education: {
+                          ...formData.education,
+                          secondary: {
+                            ...formData.education.secondary,
+                            generalAverage: Number(e.target.value),
+                          },
+                        },
+                      })
+                    }
                     placeholder="Enter average"
                   />
                 </div>
@@ -1312,4 +1517,10 @@ export function ApplicationForm() {
       </CardFooter>
     </Card>
   )
+}
+
+// services/applicationService.ts
+async function getMyApplication() {
+  const response = await axios.get(`${API_URL}/application`, { withCredentials: true });
+  return response.data;
 }

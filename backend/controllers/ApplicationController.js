@@ -646,7 +646,6 @@ const ApplicationController = {
       const application = await ApplicationForm.findOne({ user: userId })
         .populate('user', 'name email')
         .lean();
-      console.log(application._id)
       if (!application) {
         return res.status(404).json({ message: 'Application not found for this user' });
       }

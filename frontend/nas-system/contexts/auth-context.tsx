@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
-type UserRole = "applicant" | "oas_staff" | "panelist" | "nas_supervisor" | null
+type UserRole = "applicant" | "oas_staff" | "panelist" | null
 type AuthStatus = "loading" | "authenticated" | "unauthenticated"
 
 interface User {
@@ -18,7 +18,7 @@ interface AuthContextType {
   user: User | null
   status: AuthStatus
   login: (idNumber: string, password: string, remember: boolean) => Promise<void>
-  logout: () => Promise<void>
+  logout: () => void
   register: (email: string, idNumber: string, password: string, course: string, name?: string) => Promise<{
     success: boolean
     message: string
@@ -44,8 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser);
           
-          // Special handling for admin, panelist, and nas_supervisor users (they don't need backend validation)
-          if (parsedUser.role === "oas_staff" || parsedUser.role === "panelist" || parsedUser.role === "nas_supervisor") {
+          // Special handling for admin and panelist users (they don't need backend validation)
+          if (parsedUser.role === "oas_staff" || parsedUser.role === "panelist") {
             setUser(parsedUser)
             setStatus("authenticated")
             return
@@ -99,70 +99,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuthStatus()
   }, [])
 
-  const logout = async () => {
-    try {
-      // Set loading state
-    setStatus("loading")
-
-      // For regular users (applicants), call the backend logout endpoint
-      if (user?.role === "applicant") {
-    try {
-          await fetch(`${API_URL}/auth/logout`, {
-        method: "POST",
-            credentials: "include",
-          })
-        } catch (error) {
-          console.error("Backend logout error:", error)
-          // Continue with logout even if backend call fails
-        }
-      }
-      
-      // Clear all authentication data
-      localStorage.removeItem("nas_user")
-      
-      // Clear all cookies
-      document.cookie = "nas_user=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT"
-      document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT"
-      document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT"
-      
-      // Clear session storage as well
-      sessionStorage.clear()
-      
-      // Reset user state
-      setUser(null)
-      setStatus("unauthenticated")
-      
-      // Force redirect to home page
-      window.location.href = "/"
-    } catch (error) {
-      console.error("Logout error:", error)
-      
-      // Even if there's an error, force logout
-      localStorage.removeItem("nas_user")
-      document.cookie = "nas_user=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT"
-      document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT"
-      sessionStorage.clear()
-      
-      setUser(null)
-      setStatus("unauthenticated")
-      window.location.href = "/"
-    }
-  }
-
   const login = async (idNumber: string, password: string, remember: boolean) => {
     setStatus("loading")
-
+    
     try {
-      // Special cases for OAS, panelist, and NAS supervisor roles (hardcoded credentials)
-      if (idNumber === "ADMIN001" && password === "Welcome1!") {
+      // Special cases for OAS and panelist roles (hardcoded credentials)
+      if (idNumber === "admin123" && password === "admin123") {
         // OAS staff hardcoded login
         const oasUser: User = {
           id: "admin-1",
           name: "OAS Administrator",
           email: "oas@example.com",
           role: "oas_staff",
-}
-
+        }
+        
         setUser(oasUser)
         setStatus("authenticated")
         
@@ -172,8 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         router.push("/oas-dashboard")
         return
-  }
-
+      } 
+      
       if (idNumber === "panel123" && password === "panel123") {
         // Panelist hardcoded login
         const panelistUser: User = {
@@ -181,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: "Panel Member",
           email: "panel@example.com",
           role: "panelist",
-}
+        }
         
         setUser(panelistUser)
         setStatus("authenticated")
@@ -193,27 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push("/panel-dashboard")
         return
       }
-
-      if (idNumber === "nas123" && password === "nas123") {
-        // NAS Supervisor hardcoded login
-        const nasSupervisorUser: User = {
-          id: "nas-1",
-          name: "NAS Supervisor",
-          email: "nas@example.com",
-          role: "nas_supervisor",
-        }
-        
-        setUser(nasSupervisorUser)
-        setStatus("authenticated")
-        
-        // Set both localStorage and cookie
-        localStorage.setItem("nas_user", JSON.stringify(nasSupervisorUser))
-        document.cookie = `nas_user=${JSON.stringify(nasSupervisorUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
-        
-        router.push("/nas-dashboard")
-        return
-      }
-
+      
       // For regular users, use the API
       const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
@@ -227,15 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           rememberMe: remember
         }),
       })
-
+      
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || "Login failed")
       }
-
+      
       const data = await response.json()
       console.log("Login response data:", data) // Debug log
-
+      
       // Map backend user data to frontend user format
       const loggedInUser: User = {
         id: data.user.id,
@@ -244,21 +174,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: data.user.email || "",
         role: "applicant", // Regular users are always applicants
       }
-
+      
       console.log("Logged in user data:", loggedInUser) // Debug log
-
       setUser(loggedInUser)
       setStatus("authenticated")
-
+      
       // Set both localStorage and cookie
       localStorage.setItem("nas_user", JSON.stringify(loggedInUser))
       document.cookie = `nas_user=${JSON.stringify(loggedInUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
-
+      
       router.push("/dashboard")
     } catch (error) {
       console.error("Login error:", error)
       setStatus("unauthenticated")
       throw error
+    }
+  }
+
+  const logout = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include", // Include cookies
+      })
+      
+      if (!response.ok) {
+        console.error("Logout failed on server, but proceeding with client logout")
+      }
+    } catch (error) {
+      console.error("Logout error:", error)
+    } finally {
+      // Always clear local state regardless of server response
+      setUser(null)
+      setStatus("unauthenticated")
+      localStorage.removeItem("nas_user")
+      // Clear the cookie
+      document.cookie = "nas_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+      router.push("/")
     }
   }
 
@@ -278,7 +230,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email,
           password,
           courseId,
-          roleId: "683490a6e02b1d61dbb4bf0e", // Applicant role ID from the seeded roles
           rememberMe: false, // Don't remember by default until email is verified
         }),
       })
