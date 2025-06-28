@@ -8,154 +8,22 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { Clock, AlertTriangle } from "lucide-react"
-
-interface Question {
-  id: number
-  text: string
-  options: {
-    id: string
-    text: string
-    value: number
-  }[]
-  trait: string
-}
-
-// Sample personality test questions
-const personalityQuestions: Question[] = [
-  {
-    id: 1,
-    text: "I enjoy being the center of attention at social gatherings.",
-    options: [
-      { id: "1-1", text: "Strongly Disagree", value: 1 },
-      { id: "1-2", text: "Disagree", value: 2 },
-      { id: "1-3", text: "Neutral", value: 3 },
-      { id: "1-4", text: "Agree", value: 4 },
-      { id: "1-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "extraversion",
-  },
-  {
-    id: 2,
-    text: "I prefer to plan my day rather than go with the flow.",
-    options: [
-      { id: "2-1", text: "Strongly Disagree", value: 1 },
-      { id: "2-2", text: "Disagree", value: 2 },
-      { id: "2-3", text: "Neutral", value: 3 },
-      { id: "2-4", text: "Agree", value: 4 },
-      { id: "2-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "conscientiousness",
-  },
-  {
-    id: 3,
-    text: "I find it easy to empathize with others' feelings.",
-    options: [
-      { id: "3-1", text: "Strongly Disagree", value: 1 },
-      { id: "3-2", text: "Disagree", value: 2 },
-      { id: "3-3", text: "Neutral", value: 3 },
-      { id: "3-4", text: "Agree", value: 4 },
-      { id: "3-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "agreeableness",
-  },
-  {
-    id: 4,
-    text: "I often worry about things that might go wrong.",
-    options: [
-      { id: "4-1", text: "Strongly Disagree", value: 1 },
-      { id: "4-2", text: "Disagree", value: 2 },
-      { id: "4-3", text: "Neutral", value: 3 },
-      { id: "4-4", text: "Agree", value: 4 },
-      { id: "4-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "neuroticism",
-  },
-  {
-    id: 5,
-    text: "I enjoy exploring new ideas and concepts.",
-    options: [
-      { id: "5-1", text: "Strongly Disagree", value: 1 },
-      { id: "5-2", text: "Disagree", value: 2 },
-      { id: "5-3", text: "Neutral", value: 3 },
-      { id: "5-4", text: "Agree", value: 4 },
-      { id: "5-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "openness",
-  },
-  {
-    id: 6,
-    text: "I find it energizing to be around other people.",
-    options: [
-      { id: "6-1", text: "Strongly Disagree", value: 1 },
-      { id: "6-2", text: "Disagree", value: 2 },
-      { id: "6-3", text: "Neutral", value: 3 },
-      { id: "6-4", text: "Agree", value: 4 },
-      { id: "6-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "extraversion",
-  },
-  {
-    id: 7,
-    text: "I keep my belongings neat and organized.",
-    options: [
-      { id: "7-1", text: "Strongly Disagree", value: 1 },
-      { id: "7-2", text: "Disagree", value: 2 },
-      { id: "7-3", text: "Neutral", value: 3 },
-      { id: "7-4", text: "Agree", value: 4 },
-      { id: "7-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "conscientiousness",
-  },
-  {
-    id: 8,
-    text: "I try to be kind and considerate to everyone I meet.",
-    options: [
-      { id: "8-1", text: "Strongly Disagree", value: 1 },
-      { id: "8-2", text: "Disagree", value: 2 },
-      { id: "8-3", text: "Neutral", value: 3 },
-      { id: "8-4", text: "Agree", value: 4 },
-      { id: "8-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "agreeableness",
-  },
-  {
-    id: 9,
-    text: "I remain calm under pressure.",
-    options: [
-      { id: "9-1", text: "Strongly Disagree", value: 1 },
-      { id: "9-2", text: "Disagree", value: 2 },
-      { id: "9-3", text: "Neutral", value: 3 },
-      { id: "9-4", text: "Agree", value: 4 },
-      { id: "9-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "neuroticism",
-  },
-  {
-    id: 10,
-    text: "I enjoy trying new activities and experiences.",
-    options: [
-      { id: "10-1", text: "Strongly Disagree", value: 1 },
-      { id: "10-2", text: "Disagree", value: 2 },
-      { id: "10-3", text: "Neutral", value: 3 },
-      { id: "10-4", text: "Agree", value: 4 },
-      { id: "10-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "openness",
-  },
-]
+import { startPersonalityTest, answerPersonalityTest, stopPersonalityTest } from "@/lib/personalityTestApi"
 
 export function PersonalityTest() {
+  const [testId, setTestId] = useState<string | null>(null)
+  const [questions, setQuestions] = useState<any[]>([])
   const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [timeLeft, setTimeLeft] = useState(1200) // 20 minutes in seconds
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(false)
   const [testCompleted, setTestCompleted] = useState(false)
   const [testStarted, setTestStarted] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(900) // 15 minutes in seconds
   const { toast } = useToast()
 
   // Timer effect
   useEffect(() => {
     if (!testStarted || testCompleted) return
-
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -166,28 +34,44 @@ export function PersonalityTest() {
         return prev - 1
       })
     }, 1000)
-
     return () => clearInterval(timer)
   }, [testStarted, testCompleted])
 
-  const handleStartTest = () => {
-    setTestStarted(true)
-    toast({
-      title: "Test Started",
-      description: "You have 20 minutes to complete the personality test.",
-    })
+  const handleStartTest = async () => {
+    setLoading(true)
+    try {
+      const data = await startPersonalityTest()
+      setTestId(data.testId)
+      setQuestions(data.questions)
+      setTestStarted(true)
+      setTimeLeft(data.timeLimitSeconds || 900)
+      toast({ title: "Test Started", description: "You have 15 minutes to complete the personality test." })
+    } catch (e) {
+      toast({ title: "Error", description: "Could not start test." })
+    }
+    setLoading(false)
   }
 
   const handleAnswer = (value: string) => {
-    setAnswers({ ...answers, [personalityQuestions[currentQuestion].id]: value })
+    setAnswers({ ...answers, [questions[currentQuestion]._id]: value })
   }
 
-  const handleNext = () => {
-    if (currentQuestion < personalityQuestions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1)
-    } else {
-      handleTestCompletion()
+  const handleNext = async () => {
+    const qid = questions[currentQuestion]._id
+    const answer = answers[qid]
+    if (!answer) return
+    setLoading(true)
+    try {
+      await answerPersonalityTest([{ questionId: qid, answer }])
+      if (currentQuestion < questions.length - 1) {
+        setCurrentQuestion(currentQuestion + 1)
+      } else {
+        await handleTestCompletion()
+      }
+    } catch (e) {
+      toast({ title: "Error", description: "Could not submit answer." })
     }
+    setLoading(false)
   }
 
   const handlePrevious = () => {
@@ -196,12 +80,16 @@ export function PersonalityTest() {
     }
   }
 
-  const handleTestCompletion = () => {
-    setTestCompleted(true)
-    toast({
-      title: "Test Completed",
-      description: "Your personality test has been submitted successfully.",
-    })
+  const handleTestCompletion = async () => {
+    setLoading(true)
+    try {
+      await stopPersonalityTest()
+      setTestCompleted(true)
+      toast({ title: "Test Completed", description: "Your personality test has been submitted successfully." })
+    } catch (e) {
+      toast({ title: "Error", description: "Could not complete test." })
+    }
+    setLoading(false)
   }
 
   const formatTime = (seconds: number) => {
@@ -210,7 +98,7 @@ export function PersonalityTest() {
     return `${minutes}:${remainingSeconds < 10 ? "0" : ""}${remainingSeconds}`
   }
 
-  const progress = (Object.keys(answers).length / personalityQuestions.length) * 100
+  const progress = questions.length > 0 ? (Object.keys(answers).length / questions.length) * 100 : 0
 
   if (!testStarted) {
     return (
@@ -230,17 +118,16 @@ export function PersonalityTest() {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-yellow-700">
-                    <strong>Important:</strong> Once you start the test, you will have 20 minutes to complete it. Please
+                    <strong>Important:</strong> Once you start the test, you will have 15 minutes to complete it. Please
                     ensure you have a quiet environment and won't be interrupted.
                   </p>
                 </div>
               </div>
             </div>
-
             <div>
               <h3 className="text-lg font-medium">Instructions:</h3>
               <ul className="list-disc pl-5 mt-2 space-y-1">
-                <li>The test consists of {personalityQuestions.length} questions.</li>
+                <li>The test consists of randomly selected questions.</li>
                 <li>Answer each question honestly based on how you typically think, feel, and behave.</li>
                 <li>There are no right or wrong answers.</li>
                 <li>You can navigate between questions using the Previous and Next buttons.</li>
@@ -251,8 +138,8 @@ export function PersonalityTest() {
           </div>
         </CardContent>
         <CardFooter className="border-t pt-6 flex justify-end">
-          <Button onClick={handleStartTest} className="bg-[#800000] hover:bg-[#600000]">
-            Start Test
+          <Button onClick={handleStartTest} className="bg-[#800000] hover:bg-[#600000]" disabled={loading}>
+            {loading ? "Starting..." : "Start Test"}
           </Button>
         </CardFooter>
       </Card>
@@ -285,14 +172,16 @@ export function PersonalityTest() {
               scholarship committee as part of your application.
             </p>
             <p className="text-sm text-gray-500">
-              You answered {Object.keys(answers).length} out of {personalityQuestions.length} questions.
+              You answered {Object.keys(answers).length} out of {questions.length} questions.
             </p>
           </div>
         </CardContent>
         <CardFooter className="border-t pt-6 flex justify-center">
-          <Button asChild className="bg-[#800000] hover:bg-[#600000]">
-            <a href="/dashboard">Return to Dashboard</a>
-          </Button>
+          <a href="/dashboard">
+            <Button className="bg-[#800000] hover:bg-[#600000]">
+              Return to Dashboard
+            </Button>
+          </a>
         </CardFooter>
       </Card>
     )
@@ -305,14 +194,12 @@ export function PersonalityTest() {
           <div>
             <CardTitle className="text-[#800000]">Personality Assessment</CardTitle>
             <CardDescription>
-              Question {currentQuestion + 1} of {personalityQuestions.length}
+              Question {currentQuestion + 1} of {questions.length}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
             <Clock className="h-4 w-4 text-[#800000]" />
-            <span className={`font-mono ${timeLeft < 300 ? "text-red-500 font-bold" : ""}`}>
-              {formatTime(timeLeft)}
-            </span>
+            <span className={`font-mono ${timeLeft < 120 ? "text-red-500 font-bold" : ""}`}>{formatTime(timeLeft)}</span>
           </div>
         </div>
       </CardHeader>
@@ -323,23 +210,26 @@ export function PersonalityTest() {
             <div className="flex justify-between mt-1 text-xs text-gray-500">
               <span>Progress: {Math.round(progress)}%</span>
               <span>
-                {Object.keys(answers).length} of {personalityQuestions.length} answered
+                {Object.keys(answers).length} of {questions.length} answered
               </span>
             </div>
           </div>
-
           <div>
-            <h3 className="text-lg font-medium mb-4">{personalityQuestions[currentQuestion].text}</h3>
+            <h3 className="text-lg font-medium mb-4">{questions[currentQuestion]?.question}</h3>
             <RadioGroup
-              value={answers[personalityQuestions[currentQuestion].id] || ""}
+              value={answers[questions[currentQuestion]?._id] || ""}
               onValueChange={handleAnswer}
               className="space-y-3"
             >
-              {personalityQuestions[currentQuestion].options.map((option) => (
-                <div key={option.id} className="flex items-center space-x-2 border p-3 rounded-md hover:bg-gray-50">
-                  <RadioGroupItem value={option.id} id={option.id} />
-                  <Label htmlFor={option.id} className="flex-1 cursor-pointer">
-                    {option.text}
+              {[1,2,3,4,5].map((val) => (
+                <div key={val} className="flex items-center space-x-2 border p-3 rounded-md hover:bg-gray-50">
+                  <RadioGroupItem value={val.toString()} id={`q${questions[currentQuestion]?._id}-opt${val}`} />
+                  <Label htmlFor={`q${questions[currentQuestion]?._id}-opt${val}`} className="flex-1 cursor-pointer">
+                    {val === 1 && "Strongly Disagree"}
+                    {val === 2 && "Disagree"}
+                    {val === 3 && "Neutral"}
+                    {val === 4 && "Agree"}
+                    {val === 5 && "Strongly Agree"}
                   </Label>
                 </div>
               ))}
@@ -348,15 +238,15 @@ export function PersonalityTest() {
         </div>
       </CardContent>
       <CardFooter className="border-t pt-6 flex justify-between">
-        <Button variant="outline" onClick={handlePrevious} disabled={currentQuestion === 0}>
+        <Button variant="outline" onClick={handlePrevious} disabled={currentQuestion === 0 || loading}>
           Previous
         </Button>
         <Button
           onClick={handleNext}
           className="bg-[#800000] hover:bg-[#600000]"
-          disabled={!answers[personalityQuestions[currentQuestion].id]}
+          disabled={!answers[questions[currentQuestion]?._id] || loading}
         >
-          {currentQuestion === personalityQuestions.length - 1 ? "Complete Test" : "Next"}
+          {currentQuestion === questions.length - 1 ? "Complete Test" : "Next"}
         </Button>
       </CardFooter>
     </Card>
