@@ -16,11 +16,6 @@ import axios from "axios"
 
 const API_URL = "http://localhost:3000/api";
 
-interface Organization {
-  name: string;
-  position: string;
-}
-
 const defaultFormData: ApplicationFormData = {
   firstName: "",
   lastName: "",
@@ -87,6 +82,11 @@ const defaultFormData: ApplicationFormData = {
   references: []
 };
 
+type Organization = {
+  name: string;
+  position: string;
+}
+
 export function ApplicationForm() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSaving, setIsSaving] = useState(false)
@@ -114,6 +114,8 @@ export function ApplicationForm() {
   const { toast } = useToast()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
+  const [organizationName, setOrganizationName] = useState("")
+  const [position, setPosition] = useState("")
 
   const totalSteps = 4
 
@@ -234,34 +236,34 @@ export function ApplicationForm() {
   };
 
   const addOrganization = () => {
-    const newOrg = { name: "", position: "" };
-    setOrganizations([...organizations, newOrg]);
-    setFormData(prev => ({
-      ...prev,
-      education: {
-        ...prev.education,
-        currentMembershipInOrganizations: [
-          ...(prev.education.currentMembershipInOrganizations || []),
-          { nameOfOrganization: "", position: "" }
-        ]
-      }
-    }));
+    if (organizationName.trim() && position.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        education: {
+          ...prev.education,
+          currentMembershipInOrganizations: [
+            ...prev.education.currentMembershipInOrganizations,
+            {
+              name: organizationName,  // ✅ Use 'name' not 'nameOfOrganization'
+              position: position
+            }
+          ]
+        }
+      }))
+      setOrganizationName("")
+      setPosition("")
+    }
   };
 
   const removeOrganization = (index: number) => {
-    const newOrganizations = organizations.filter((_, i) => i !== index);
-    setOrganizations(newOrganizations);
     setFormData(prev => ({
       ...prev,
       education: {
         ...prev.education,
-        currentMembershipInOrganizations: newOrganizations.map(org => ({
-          nameOfOrganization: org.name,
-          position: org.position
-        }))
+        currentMembershipInOrganizations: prev.education.currentMembershipInOrganizations.filter((_, i) => i !== index)
       }
-    }));
-  };
+    }))
+  }
 
   const updateOrganization = (index: number, field: "name" | "position", value: string) => {
     const newOrganizations = [...organizations]
@@ -381,7 +383,7 @@ export function ApplicationForm() {
             thirdSemesterAverageFinalGrade: level.thirdSemesterAverageFinalGrade || 0
           })),
           currentMembershipInOrganizations: organizations.map(org => ({
-            nameOfOrganization: org.name,
+            name: org.name,
             position: org.position
           }))
         },
@@ -461,7 +463,7 @@ export function ApplicationForm() {
             thirdSemesterAverageFinalGrade: level.thirdSemesterAverageFinalGrade || 0
           })),
           currentMembershipInOrganizations: organizations.map(org => ({
-            nameOfOrganization: org.name,
+            name: org.name,
             position: org.position
           }))
         },
@@ -476,7 +478,7 @@ export function ApplicationForm() {
 
       // Use the new submitApplication method
       const result = await applicationService.submitApplication(completeFormData);
-      
+        
       console.log('Submit response:', result);
 
       toast({
@@ -1480,14 +1482,7 @@ export function ApplicationForm() {
               Previous
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {isSaving ? "Saving..." : "Save Progress"}
-          </Button>
+          {/* Save Progress button removed */}
         </div>
         <div className="flex gap-2">
           <Button

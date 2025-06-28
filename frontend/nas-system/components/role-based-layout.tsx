@@ -1,10 +1,8 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
-import Link from "next/link"
+import React, { useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -34,11 +32,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 
-type UserRole = "applicant" | "oas_staff" | "panelist"
-
 interface RoleBasedLayoutProps {
   children: React.ReactNode
-  userRole: UserRole
+  userRole: string
   userName: string
 }
 
@@ -111,7 +107,7 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-[#800000] text-white py-2 px-4 shadow-md sticky top-0 z-10">
         <div className="container mx-auto flex justify-between items-center">

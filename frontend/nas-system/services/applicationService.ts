@@ -13,6 +13,7 @@ export interface ApplicationFormData {
   typeOfScholarship?: string;
   nameOfScholarshipSponsor?: string;
   programOfStudyAndYear: string;
+  
   existingScholarship?: string;
   remainingUnitsIncludingThisTerm: number;
   remainingTermsToGraduate: number;
@@ -81,7 +82,7 @@ export interface ApplicationFormData {
       thirdSemesterAverageFinalGrade?: number;
     }>;
     currentMembershipInOrganizations: Array<{
-      nameOfOrganization: string;
+      name: string; // Changed to 'name'
       position: string;
     }>;
   };
@@ -126,8 +127,8 @@ export const applicationService = {
             Array.isArray(formData.education.currentMembershipInOrganizations)
               ? formData.education.currentMembershipInOrganizations.filter(
                   org =>
-                    typeof org.nameOfOrganization === 'string' &&
-                    org.nameOfOrganization.trim() &&
+                    typeof org.name === 'string' &&
+                    org.name.trim() &&
                     typeof org.position === 'string' &&
                     org.position.trim()
                 )
@@ -199,11 +200,11 @@ export const applicationService = {
             Array.isArray(formData.education.currentMembershipInOrganizations)
               ? formData.education.currentMembershipInOrganizations.filter(
                   org =>
-                    typeof org.nameOfOrganization === 'string' &&
-                    org.nameOfOrganization.trim() &&
+                    typeof org.name === 'string' &&
+                    org.name.trim() &&
                     typeof org.position === 'string' &&
                     org.position.trim()
-              )
+                )
               : [],
         },
       };
@@ -268,8 +269,8 @@ export const applicationService = {
             Array.isArray(formData.education.currentMembershipInOrganizations)
               ? formData.education.currentMembershipInOrganizations.filter(
                   org =>
-                    typeof org.nameOfOrganization === 'string' &&
-                    org.nameOfOrganization.trim() &&
+                    typeof org.name === 'string' &&
+                    org.name.trim() &&
                     typeof org.position === 'string' &&
                     org.position.trim()
               )

@@ -35,6 +35,24 @@ interface Course {
   name: string
 }
 
+interface ApplicationHistoryItem {
+  id: string
+  title: string
+  description: string
+  date: string
+  status: "completed" | "current" | "pending"
+  type: "submission" | "verification" | "test" | "interview" | "decision" | "review"
+}
+
+interface Application {
+  _id: string
+  typeOfScholarship: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  userId: string
+}
+
 export function UserProfile() {
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
@@ -42,6 +60,7 @@ export function UserProfile() {
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const { toast } = useToast()
   const [courses, setCourses] = useState<Course[]>([])
+  const [applicationHistory, setApplicationHistory] = useState<ApplicationHistoryItem[]>([])
   
   // Add state for password change
   const [passwordData, setPasswordData] = useState({
@@ -257,6 +276,86 @@ export function UserProfile() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // In your user-profile.tsx, create mock history based on real application data
+  const generateHistoryFromApplication = (application: Application) => {
+    const history: ApplicationHistoryItem[] = []
+    
+    // Always show submission
+    history.push({
+      id: `${application._id}-submitted`,
+      title: "Application Submitted",
+      description: `You submitted your application for the ${application.typeOfScholarship} program.`,
+      date: application.createdAt,
+      status: "completed",
+      type: "submission"
+    })
+    
+    // Add more events based on status
+    if (application.status !== "pending") {
+      history.push({
+        id: `${application._id}-review`,
+        title: "Under Review",
+        description: "Your application is being reviewed by OAS staff.",
+        date: application.updatedAt,
+        status: application.status === "reviewing" ? "current" : "completed",
+        type: "review"
+      })
+    }
+    
+    if (application.status === "approved" || application.status === "rejected") {
+      history.push({
+        id: `${application._id}-decision`,
+        title: application.status === "approved" ? "Application Approved" : "Application Not Approved",
+        description: application.status === "approved" 
+          ? "Congratulations! Your application has been approved."
+          : "Your application was not approved at this time.",
+        date: application.updatedAt,
+        status: "completed",
+        type: "decision"
+      })
+    }
+    
+    // Fix the date sorting
+    return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }
+
+  // Fetch application history
+  useEffect(() => {
+    const fetchApplicationHistory = async () => {
+      try {
+        const response = await fetch(`${API_URL}/applications/history`, {
+          method: "GET",
+          credentials: "include",
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setApplicationHistory(data.history || [])
+        }
+      } catch (error) {
+        console.error("Error fetching application history:", error)
+      }
+    }
+
+    if (!isInitialLoading) {
+      fetchApplicationHistory()
+    }
+  }, [isInitialLoading])
+
+  // Helper function to get status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-[#800000]"
+      case "current":
+        return "bg-blue-500"
+      case "pending":
+        return "bg-gray-400"
+      default:
+        return "bg-gray-400"
     }
   }
 
@@ -487,62 +586,36 @@ export function UserProfile() {
 
             <TabsContent value="history" className="space-y-6">
               <div className="space-y-6">
-                <div className="relative">
-                  <div className="absolute h-full w-0.5 bg-gray-200 left-2.5 top-0"></div>
-                  <div className="space-y-8">
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-1 h-5 w-5 rounded-full bg-[#800000]"></div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium">Application Submitted</h3>
-                          <span className="text-sm text-gray-500">June 15, 2023</span>
+                {applicationHistory.length > 0 ? (
+                  <div className="relative">
+                    <div className="absolute h-full w-0.5 bg-gray-200 left-2.5 top-0"></div>
+                    <div className="space-y-8">
+                      {applicationHistory.map((item: ApplicationHistoryItem, index: number) => (
+                        <div key={item.id} className="relative pl-10">
+                          <div className={`absolute left-0 top-1 h-5 w-5 rounded-full ${getStatusColor(item.status)}`}></div>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-medium">{item.title}</h3>
+                              <span className="text-sm text-gray-500">
+                                {new Date(item.date).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {item.description}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-600">
-                          You submitted your application for the Non-Academic Scholarship program.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-1 h-5 w-5 rounded-full bg-[#800000]"></div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium">Documents Verified</h3>
-                          <span className="text-sm text-gray-500">June 18, 2023</span>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          Your submitted documents were verified by the OAS staff.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-1 h-5 w-5 rounded-full bg-[#800000]"></div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium">Personality Test Completed</h3>
-                          <span className="text-sm text-gray-500">June 20, 2023</span>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          You completed the required personality assessment test.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-1 h-5 w-5 rounded-full bg-blue-500"></div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium">Interview Scheduled</h3>
-                          <span className="text-sm text-gray-500">June 22, 2023</span>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          Your interview has been scheduled for June 25, 2023 at 10:00 AM.
-                        </p>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No application history available yet.</p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Your application progress will appear here once you submit an application.
+                    </p>
+                  </div>
+                )}
               </div>
             </TabsContent>
 

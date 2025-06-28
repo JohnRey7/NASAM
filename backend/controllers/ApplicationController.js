@@ -1,9 +1,9 @@
 const ApplicationForm = require('../models/ApplicationForm');
+const ApplicationHistory = require('../models/ApplicationHistory');
 const mongoose = require('mongoose');
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 const path = require('path');
-
 
 // Helper function to format yearLevel for display
 const formatYearLevel = (yearLevel) => {
@@ -17,7 +17,6 @@ const formatYearLevel = (yearLevel) => {
 async function generateApplicationPDF(application, templatePath) {
   let browser = null;
   try {
-    // Read HTML template
     let template;
     try {
       template = await fs.readFile(templatePath, 'utf-8');
@@ -25,7 +24,6 @@ async function generateApplicationPDF(application, templatePath) {
       throw new Error(`Failed to load PDF template: ${error.message}`);
     }
 
-    // Prepare data for template
     const data = {
       firstName: application.firstName || '',
       middleName: application.middleName || 'N/A',
@@ -101,10 +99,8 @@ async function generateApplicationPDF(application, templatePath) {
       references: application.references || []
     };
 
-    // Replace placeholders in template
     let html = template;
 
-    // Escape HTML special characters
     const escapeHtml = (str) => {
       const value = str ?? 'N/A';
       return String(value).replace(/[&<>"']/g, m => ({
@@ -116,34 +112,29 @@ async function generateApplicationPDF(application, templatePath) {
       })[m]);
     };
 
-    // Replace scalar fields
     const replaceScalar = (key, value) => {
       html = html.replace(new RegExp(`{{${key}}}`, 'g'), escapeHtml(value));
       html = html.replace(new RegExp(`{{{${key}}}}`, 'g'), String(value ?? 'N/A'));
     };
 
-    // Top-level fields
     for (const key in data) {
       if (typeof data[key] === 'string' || typeof data[key] === 'number') {
         replaceScalar(key, data[key]);
       }
     }
 
-    // Family fields
     for (const parent of ['father', 'mother']) {
       for (const field in data.family[parent]) {
         replaceScalar(`family.${parent}.${field}`, data.family[parent][field]);
       }
     }
 
-    // Education fields
     for (const level of ['elementary', 'secondary']) {
       for (const field in data.education[level]) {
         replaceScalar(`education.${level}.${field}`, data.education[level][field]);
       }
     }
 
-    // Handle arrays
     const arraySections = [
       {
         key: 'family.siblings',
@@ -189,14 +180,12 @@ async function generateApplicationPDF(application, templatePath) {
       }
     }
 
-    // Handle conditional blocks
     html = html.replace(/{{#if ([^}]+)}}([\s\S]*?){{else}}([\s\S]*?){{\/if}}/g, (match, condition, ifContent, elseContent) => {
       const path = condition.split('.');
       const value = path.reduce((obj, k) => obj?.[k], data);
       return value && (Array.isArray(value) ? value.length : value) ? ifContent : elseContent;
     });
 
-    // Generate PDF with Puppeteer
     browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -221,17 +210,14 @@ const ApplicationController = {
       const userId = req.user.id;
       const data = { ...req.body };
 
-      // Exclude status and approvalsSummary
       delete data.status;
       delete data.approvalsSummary;
 
-      // Check for existing application
       const existingApplication = await ApplicationForm.findOne({ user: userId });
       if (existingApplication) {
         return res.status(400).json({ message: 'User already has an application' });
       }
 
-      // Create application
       const application = new ApplicationForm({
         user: userId,
         ...data
@@ -239,7 +225,6 @@ const ApplicationController = {
 
       await application.save();
 
-      // Exclude status and approvalsSummary from response
       const applicationResponse = await ApplicationForm.findById(application._id)
         .select('-status -approvalsSummary');
 
@@ -309,7 +294,7 @@ const ApplicationController = {
     }
   },
 
-  // GET: Read the authenticated user's application (excluding status and approvalsSummary)
+  // GET: Read the authenticated user's application
   async readMyApplicationForm(req, res) {
     try {
       const userId = req.user.id;
@@ -375,7 +360,6 @@ const ApplicationController = {
         return res.status(400).json({ message: 'Invalid application ID' });
       }
 
-      // Exclude status and approvalsSummary
       delete data.status;
       delete data.approvalsSummary;
 
@@ -383,19 +367,25 @@ const ApplicationController = {
         return res.status(400).json({ message: 'No valid fields provided for update' });
       }
 
-      const application = await ApplicationForm.findByIdAndUpdate(
+      const currentApplication = await ApplicationForm.findById(id);
+      if (!currentApplication) {
+        return res.status(404).json({ message: 'Application not found' });
+      }
+
+      const historyData = currentApplication.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      const updatedApplication = await ApplicationForm.findByIdAndUpdate(
         id,
         { $set: data },
         { new: true, runValidators: true }
       ).select('-status -approvalsSummary');
 
-      if (!application) {
-        return res.status(404).json({ message: 'Application not found' });
-      }
-
       res.json({
         message: 'Application updated successfully',
-        application
+        application: updatedApplication
       });
     } catch (error) {
       console.error('Error in updateApplicationFormById:', error);
@@ -413,7 +403,6 @@ const ApplicationController = {
         return res.status(400).json({ message: 'Invalid user ID' });
       }
 
-      // Exclude status and approvalsSummary
       delete data.status;
       delete data.approvalsSummary;
 
@@ -421,19 +410,25 @@ const ApplicationController = {
         return res.status(400).json({ message: 'No valid fields provided for update' });
       }
 
-      const application = await ApplicationForm.findOneAndUpdate(
+      const currentApplication = await ApplicationForm.findOne({ user: userId });
+      if (!currentApplication) {
+        return res.status(404).json({ message: 'No application found for this user' });
+      }
+
+      const historyData = currentApplication.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      const updatedApplication = await ApplicationForm.findOneAndUpdate(
         { user: userId },
         { $set: data },
         { new: true, runValidators: true }
       ).select('-status -approvalsSummary');
 
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
       res.json({
         message: 'Application updated successfully',
-        application
+        application: updatedApplication
       });
     } catch (error) {
       console.error('Error in updateApplicationFormByUserId:', error);
@@ -447,7 +442,6 @@ const ApplicationController = {
       const userId = req.user.id;
       const data = { ...req.body };
 
-      // Exclude status and approvalsSummary
       delete data.status;
       delete data.approvalsSummary;
 
@@ -455,19 +449,25 @@ const ApplicationController = {
         return res.status(400).json({ message: 'No valid fields provided for update' });
       }
 
-      const application = await ApplicationForm.findOneAndUpdate(
+      const currentApplication = await ApplicationForm.findOne({ user: userId });
+      if (!currentApplication) {
+        return res.status(404).json({ message: 'No application found for this user' });
+      } 
+
+      const historyData = currentApplication.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      const updatedApplication = await ApplicationForm.findOneAndUpdate(
         { user: userId },
         { $set: data },
         { new: true, runValidators: true }
       ).select('-status -approvalsSummary');
 
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
       res.json({
         message: 'Application updated successfully',
-        application
+        application: updatedApplication
       });
     } catch (error) {
       console.error('Error in updateMyApplicationForm:', error);
@@ -484,11 +484,17 @@ const ApplicationController = {
         return res.status(400).json({ message: 'Invalid application ID' });
       }
 
-      const application = await ApplicationForm.findByIdAndDelete(id);
-
+      const application = await ApplicationForm.findById(id);
       if (!application) {
         return res.status(404).json({ message: 'Application not found' });
       }
+
+      const historyData = application.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      await ApplicationForm.findByIdAndDelete(id);
 
       res.json({ message: 'Application deleted successfully' });
     } catch (error) {
@@ -506,11 +512,17 @@ const ApplicationController = {
         return res.status(400).json({ message: 'Invalid user ID' });
       }
 
-      const application = await ApplicationForm.findOneAndDelete({ user: userId });
-
+      const application = await ApplicationForm.findOne({ user: userId });
       if (!application) {
         return res.status(404).json({ message: 'No application found for this user' });
       }
+
+      const historyData = application.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      await ApplicationForm.findOneAndDelete({ user: userId });
 
       res.json({ message: 'Application deleted successfully' });
     } catch (error) {
@@ -525,7 +537,6 @@ const ApplicationController = {
       const userId = req.user.id;
       const { endorsedBy, approvedBy } = req.body;
 
-      // Validate input
       if (!endorsedBy && !approvedBy) {
         return res.status(400).json({ message: 'At least one of endorsedBy or approvedBy must be provided' });
       }
@@ -544,7 +555,17 @@ const ApplicationController = {
         approvalsSummary.approvedBy = approvedBy;
       }
 
-      const application = await ApplicationForm.findOneAndUpdate(
+      const currentApplication = await ApplicationForm.findOne({ user: userId });
+      if (!currentApplication) {
+        return res.status(404).json({ message: 'No application found for this user' });
+      }
+
+      const historyData = currentApplication.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      const updatedApplication = await ApplicationForm.findOneAndUpdate(
         { user: userId },
         { $set: { approvalsSummary } },
         { new: true, runValidators: true }
@@ -552,13 +573,9 @@ const ApplicationController = {
         .populate('approvalsSummary.endorsedBy', 'name _id')
         .populate('approvalsSummary.approvedBy', 'name _id');
 
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
       res.json({
         message: 'Approvals summary updated successfully',
-        approvalsSummary: application.approvalsSummary
+        approvalsSummary: updatedApplication.approvalsSummary
       });
     } catch (error) {
       console.error('Error in setApprovalSummary:', error);
@@ -572,7 +589,6 @@ const ApplicationController = {
       const userId = req.user.id;
       const { status } = req.body;
 
-      // Validate input
       if (!status) {
         return res.status(400).json({ message: 'Status is required' });
       }
@@ -581,23 +597,96 @@ const ApplicationController = {
         return res.status(400).json({ message: 'Invalid status value' });
       }
 
-      const application = await ApplicationForm.findOneAndUpdate(
+      const currentApplication = await ApplicationForm.findOne({ user: userId });
+      if (!currentApplication) {
+        return res.status(404).json({ message: 'No application found for this user' });
+      }
+
+      const historyData = currentApplication.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      const updatedApplication = await ApplicationForm.findOneAndUpdate(
         { user: userId },
         { $set: { status } },
         { new: true, runValidators: true }
       ).select('status');
 
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
       res.json({
         message: 'Status updated successfully',
-        status: application.status
+        status: updatedApplication.status
       });
     } catch (error) {
       console.error('Error in setStatus:', error);
       res.status(400).json({ message: `Failed to update status: ${error.message}` });
+    }
+  },
+
+  // GET: Retrieve application history by user ID (admin)
+  async getApplicationHistoryByUserId(req, res) {
+    try {
+      const { userId } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+
+      const history = await ApplicationHistory.find({ user: userId })
+        .sort({ createdAt: -1 })
+        .populate('user', 'name idNumber _id');
+
+      res.json({
+        message: 'Application history retrieved successfully',
+        history
+      });
+    } catch (error) {
+      console.error('Error in getApplicationHistoryByUserId:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // GET: Retrieve application history by history ID (admin)
+  async getApplicationHistoryById(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid history ID' });
+      }
+
+      const historyEntry = await ApplicationHistory.findById(id)
+        .populate('user', 'name idNumber _id');
+
+      if (!historyEntry) {
+        return res.status(404).json({ message: 'History entry not found' });
+      }
+
+      res.json({
+        message: 'History entry retrieved successfully',
+        historyEntry
+      });
+    } catch (error) {
+      console.error('Error in getApplicationHistoryById:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // GET: Retrieve the authenticated user's application history
+  async getMyApplicationHistory(req, res) {
+    try {
+      const userId = req.user.id;
+
+      const history = await ApplicationHistory.find({ user: userId })
+        .sort({ createdAt: -1 });
+
+      res.json({
+        message: 'Your application history retrieved successfully',
+        history
+      });
+    } catch (error) {
+      console.error('Error in getMyApplicationHistory:', error);
+      res.status(500).json({ message: 'Server error' });
     }
   },
 
@@ -606,12 +695,10 @@ const ApplicationController = {
     try {
       const { id } = req.params;
 
-      // Validate ObjectId
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ message: 'Invalid user ID' });
       }
 
-      // Fetch application
       const application = await ApplicationForm.findOne({ user: id })
         .populate('user', 'name email')
         .lean();
@@ -620,11 +707,9 @@ const ApplicationController = {
         return res.status(404).json({ message: 'Application not found for this user' });
       }
 
-      // Generate PDF
       const templatePath = path.join(__dirname, '../pdf-templates/application-form.html');
       const pdfBuffer = await generateApplicationPDF(application, templatePath);
 
-      // Send PDF as download
       res.set({
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename=application-form-${application._id}.pdf`,
@@ -642,7 +727,6 @@ const ApplicationController = {
     try {
       const userId = req.user.id;
 
-      // Fetch application
       const application = await ApplicationForm.findOne({ user: userId })
         .populate('user', 'name email')
         .lean();
@@ -650,11 +734,9 @@ const ApplicationController = {
         return res.status(404).json({ message: 'Application not found for this user' });
       }
 
-      // Generate PDF
       const templatePath = path.join(__dirname, '../pdf-templates/application-form.html');
       const pdfBuffer = await generateApplicationPDF(application, templatePath);
 
-      // Send PDF as download
       res.set({
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename=application-form-${application._id}.pdf`,
@@ -666,7 +748,6 @@ const ApplicationController = {
       res.status(500).json({ message: `Failed to generate PDF: ${error.message}` });
     }
   }
-
 };
 
 module.exports = ApplicationController;
