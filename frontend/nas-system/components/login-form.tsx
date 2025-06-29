@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -16,14 +16,31 @@ export function LoginForm() {
   const { toast } = useToast()
   const { login } = useAuth()
   const [rememberMe, setRememberMe] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{ idNumber?: string; password?: string }>({})
+  const passwordRef = useRef<HTMLInputElement>(null)
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsLoading(true)
+    setFieldErrors({})
 
     const formData = new FormData(event.currentTarget)
     const idNumber = formData.get("id-number") as string
     const password = formData.get("password") as string
+
+    // Frontend validation
+    const errors: { idNumber?: string; password?: string } = {}
+    if (!idNumber || idNumber.trim() === "") {
+      errors.idNumber = "ID Number is required."
+    }
+    if (!password || password.trim() === "") {
+      errors.password = "Password is required."
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setIsLoading(false)
+      return
+    }
 
     try {
       await login(idNumber, password, rememberMe)
@@ -38,6 +55,8 @@ export function LoginForm() {
         variant: "destructive",
       })
       setIsLoading(false)
+      // Clear password field on error
+      if (passwordRef.current) passwordRef.current.value = ""
     }
   }
 
@@ -45,7 +64,8 @@ export function LoginForm() {
     <form onSubmit={onSubmit} className="space-y-4 pt-2">
       <div className="space-y-2">
         <Label htmlFor="id-number">ID Number</Label>
-        <Input id="id-number" name="id-number" placeholder="Enter your student ID" required type="text" />
+        <Input id="id-number" name="id-number" placeholder="Enter your student ID" required type="text" autoComplete="username" aria-invalid={!!fieldErrors.idNumber} />
+        {fieldErrors.idNumber && <div className="text-red-500 text-xs mt-1">{fieldErrors.idNumber}</div>}
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -54,7 +74,8 @@ export function LoginForm() {
             Forgot password?
           </Link>
         </div>
-        <Input id="password" name="password" required type="password" />
+        <Input id="password" name="password" required type="password" autoComplete="current-password" aria-invalid={!!fieldErrors.password} ref={passwordRef} />
+        {fieldErrors.password && <div className="text-red-500 text-xs mt-1">{fieldErrors.password}</div>}
       </div>
       <div className="flex items-center space-x-2">
         <Checkbox

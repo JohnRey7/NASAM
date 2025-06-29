@@ -101,11 +101,11 @@ export function RegisterForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="id-number-reg">ID Number</Label>
-        <Input id="id-number-reg" name="id-number" placeholder="Enter your student ID" required type="text" />
+        <Input id="id-number-reg" name="id-number" placeholder="Enter your student ID" required type="text" autoComplete="username" />
       </div>
       <div className="space-y-2">
         <Label htmlFor="password-reg">Password</Label>
-        <Input id="password-reg" name="password" required type="password" placeholder="Create a strong password" />
+        <Input id="password-reg" name="password" required type="password" placeholder="Create a strong password" autoComplete="new-password" />
       </div>
       <div className="space-y-2">
         <Label htmlFor="course">Course</Label>
