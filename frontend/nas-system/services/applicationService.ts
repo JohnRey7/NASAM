@@ -3,17 +3,13 @@ import axios from 'axios';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export interface ApplicationFormData {
-  _id?: string;
   user?: string;
   emailAddress?: string;
   firstName: string;
   middleName?: string;
   lastName: string;
   suffix?: string;
-  typeOfScholarship?: string;
-  nameOfScholarshipSponsor?: string;
   programOfStudyAndYear: string;
-  
   existingScholarship?: string;
   remainingUnitsIncludingThisTerm: number;
   remainingTermsToGraduate: number;
@@ -91,9 +87,6 @@ export interface ApplicationFormData {
     relationshipToTheApplicant: string;
     contactNumber: string;
   }>;
-  createdAt?: string;
-  updatedAt?: string;
-  __v?: number;
 }
 
 export const applicationService = {

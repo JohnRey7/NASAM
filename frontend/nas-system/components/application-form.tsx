@@ -17,64 +17,68 @@ import axios from "axios"
 const API_URL = "http://localhost:3000/api";
 
 const defaultFormData: ApplicationFormData = {
-  firstName: "",
-  lastName: "",
-  typeOfScholarship: "",
-  nameOfScholarshipSponsor: "",
-  programOfStudyAndYear: "",
+  user: undefined,
+  emailAddress: '',
+  firstName: '',
+  middleName: '',
+  lastName: '',
+  suffix: '',
+  programOfStudyAndYear: '',
+  existingScholarship: '',
   remainingUnitsIncludingThisTerm: 0,
   remainingTermsToGraduate: 0,
-  citizenship: "",
-  civilStatus: "",
-  annualFamilyIncome: "",
-  residingAt: "",
-  permanentResidentialAddress: "",
-  contactNumber: "",
+  citizenship: '',
+  civilStatus: '',
+  annualFamilyIncome: '',
+  currentResidenceAddress: '',
+  residingAt: '',
+  permanentResidentialAddress: '',
+  contactNumber: '',
   familyBackground: {
     father: {
-      firstName: "",
-      middleName: "",
-      lastName: "",
-      suffix: "",
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      suffix: '',
       age: 0,
-      occupation: "",
-      grossAnnualIncome: "",
-      companyName: "",
-      companyAddress: "",
-      homeAddress: "",
-      contactNumber: ""
+      occupation: '',
+      grossAnnualIncome: '',
+      companyName: '',
+      companyAddress: '',
+      homeAddress: '',
+      contactNumber: ''
     },
     mother: {
-      firstName: "",
-      middleName: "",
-      lastName: "",
-      suffix: "",
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      suffix: '',
       age: 0,
-      occupation: "",
-      grossAnnualIncome: "",
-      companyName: "",
-      companyAddress: "",
-      homeAddress: "",
-      contactNumber: ""
+      occupation: '',
+      grossAnnualIncome: '',
+      companyName: '',
+      companyAddress: '',
+      homeAddress: '',
+      contactNumber: ''
     },
     siblings: []
   },
   education: {
     elementary: {
-      nameAndAddressOfSchool: "",
-      honorOrAwardsReceived: "",
-      nameOfOrganizationAndPositionHeld: "",
+      nameAndAddressOfSchool: '',
+      honorOrAwardsReceived: '',
+      nameOfOrganizationAndPositionHeld: '',
       generalAverage: 0,
-      rankAmongGraduates: "",
-      contestTrainingsConferencesParticipated: ""
+      rankAmongGraduates: '',
+      contestTrainingsConferencesParticipated: ''
     },
     secondary: {
-      nameAndAddressOfSchool: "",
-      honorOrAwardsReceived: "",
-      nameOfOrganizationAndPositionHeld: "",
+      nameAndAddressOfSchool: '',
+      honorOrAwardsReceived: '',
+      nameOfOrganizationAndPositionHeld: '',
       generalAverage: 0,
-      rankAmongGraduates: "",
-      contestTrainingsConferencesParticipated: ""
+      rankAmongGraduates: '',
+      contestTrainingsConferencesParticipated: ''
     },
     collegeLevel: [],
     currentMembershipInOrganizations: []
@@ -91,26 +95,12 @@ export function ApplicationForm() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSaving, setIsSaving] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
+  const [isReadOnly, setIsReadOnly] = useState(false)
   const [formData, setFormData] = useState<ApplicationFormData>(defaultFormData)
-  const [siblings, setSiblings] = useState([{ 
-    name: "", 
-    age: 0, 
-    programCurrentlyTakingOrFinished: "", 
-    schoolOrOccupation: "" 
-  }])
-  const [organizations, setOrganizations] = useState<Organization[]>([{ nameOfOrganization: "", position: "" }])
-  const [collegeLevels, setCollegeLevels] = useState([{
-    yearLevel: 1,
-    firstSemesterAverageFinalGrade: 0,
-    secondSemesterAverageFinalGrade: 0,
-    thirdSemesterAverageFinalGrade: 0
-  }])
-  const [references, setReferences] = useState([{
-    name: "",
-    relationshipToTheApplicant: "",
-    contactNumber: ""
-  }])
+  const [siblings, setSiblings] = useState([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }])
+  const [organizations, setOrganizations] = useState([{ nameOfOrganization: "", position: "" }])
+  const [collegeLevels, setCollegeLevels] = useState([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }])
+  const [references, setReferences] = useState([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }])
   const { toast } = useToast()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -127,84 +117,77 @@ export function ApplicationForm() {
   const loadExistingApplication = async () => {
     try {
       const existingApplication = await applicationService.getMyApplication();
-      if (existingApplication) {
-        // Deep merge with defaults to ensure all fields exist
-        const merged = {
+      console.log('Loaded application:', existingApplication);
+      const appData = existingApplication?.application || existingApplication;
+      if (appData && appData.firstName) {
+        setIsReadOnly(true);
+        setFormData({
           ...defaultFormData,
-          ...existingApplication,
+          ...appData,
           familyBackground: {
             ...defaultFormData.familyBackground,
-            ...(existingApplication.familyBackground || {}),
+            ...appData.familyBackground,
             father: {
               ...defaultFormData.familyBackground.father,
-              ...(existingApplication.familyBackground?.father || {})
+              ...appData.familyBackground?.father
             },
             mother: {
               ...defaultFormData.familyBackground.mother,
-              ...(existingApplication.familyBackground?.mother || {})
+              ...appData.familyBackground?.mother
             },
-            siblings: existingApplication.familyBackground?.siblings || []
+            siblings: appData.familyBackground?.siblings?.length > 0
+              ? appData.familyBackground.siblings
+              : [{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]
           },
           education: {
             ...defaultFormData.education,
-            ...(existingApplication.education || {}),
+            ...appData.education,
             elementary: {
               ...defaultFormData.education.elementary,
-              ...(existingApplication.education?.elementary || {})
+              ...appData.education?.elementary
             },
             secondary: {
               ...defaultFormData.education.secondary,
-              ...(existingApplication.education?.secondary || {})
+              ...appData.education?.secondary
             },
-            collegeLevel: existingApplication.education?.collegeLevel || [],
-            currentMembershipInOrganizations: existingApplication.education?.currentMembershipInOrganizations || []
+            collegeLevel: appData.education?.collegeLevel?.length > 0
+              ? appData.education.collegeLevel
+              : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }],
+            currentMembershipInOrganizations: appData.education?.currentMembershipInOrganizations?.length > 0
+              ? appData.education.currentMembershipInOrganizations
+              : [{ nameOfOrganization: "", position: "" }]
           },
-          references: existingApplication.references || []
-        };
-        setFormData(merged);
-        setSiblings(
-          Array.isArray(merged.familyBackground.siblings) && merged.familyBackground.siblings.length > 0
-            ? merged.familyBackground.siblings
-            : [{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]
-        );
-        setCollegeLevels(
-          Array.isArray(merged.education.collegeLevel) && merged.education.collegeLevel.length > 0
-            ? merged.education.collegeLevel
-            : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]
-        );
-        setOrganizations(
-          Array.isArray(merged.education.currentMembershipInOrganizations) && merged.education.currentMembershipInOrganizations.length > 0
-            ? merged.education.currentMembershipInOrganizations.map((org: any) => ({
-                nameOfOrganization: org.nameOfOrganization || org.name || "",
-                position: org.position || ""
-              }))
-            : [{ nameOfOrganization: "", position: "" }]
-        );
-        setReferences(
-          Array.isArray(merged.references) && merged.references.length > 0
-            ? merged.references
+          references: appData.references?.length > 0
+            ? appData.references
             : [{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]
-        );
+        });
+        setSiblings(appData.familyBackground?.siblings?.length > 0
+          ? appData.familyBackground.siblings
+          : [{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
+        setCollegeLevels(appData.education?.collegeLevel?.length > 0
+          ? appData.education.collegeLevel
+          : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+        setOrganizations(appData.education?.currentMembershipInOrganizations?.length > 0
+          ? appData.education.currentMembershipInOrganizations
+          : [{ nameOfOrganization: "", position: "" }]);
+        setReferences(appData.references?.length > 0
+          ? appData.references
+          : [{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
       } else {
-        // No application found, keep defaults
         setFormData(defaultFormData);
         setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
         setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
         setOrganizations([{ nameOfOrganization: "", position: "" }]);
         setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
+        setIsReadOnly(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading application:', error);
     }
   }
 
   const addSibling = () => {
-    const newSibling = { 
-      name: "", 
-      age: 0, 
-      programCurrentlyTakingOrFinished: "", 
-      schoolOrOccupation: "" 
-    };
+    const newSibling = { name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" };
     setSiblings([...siblings, newSibling]);
     setFormData(prev => ({
       ...prev,
@@ -234,6 +217,13 @@ export function ApplicationForm() {
       [field]: value
     };
     setSiblings(newSiblings);
+    setFormData(prev => ({
+      ...prev,
+      familyBackground: {
+        ...prev.familyBackground,
+        siblings: newSiblings
+      }
+    }));
   };
 
   const addOrganization = () => {
@@ -270,6 +260,13 @@ export function ApplicationForm() {
     const newOrganizations = [...organizations]
     newOrganizations[index][field] = value
     setOrganizations(newOrganizations)
+    setFormData(prev => ({
+      ...prev,
+      education: {
+        ...prev.education,
+        currentMembershipInOrganizations: newOrganizations
+      }
+    }))
   }
 
   const addCollegeLevel = () => {
@@ -305,6 +302,13 @@ export function ApplicationForm() {
     const newCollegeLevels = [...collegeLevels]
     newCollegeLevels[index][field] = value
     setCollegeLevels(newCollegeLevels)
+    setFormData(prev => ({
+      ...prev,
+      education: {
+        ...prev.education,
+        collegeLevel: newCollegeLevels
+      }
+    }))
   }
 
   const addReference = () => {
@@ -333,6 +337,10 @@ export function ApplicationForm() {
     const newReferences = [...references]
     newReferences[index][field] = value
     setReferences(newReferences)
+    setFormData(prev => ({
+      ...prev,
+      references: newReferences
+    }))
   }
 
   const updateFatherField = (field: keyof ApplicationFormData['familyBackground']['father'], value: string | number) => {
@@ -368,25 +376,11 @@ export function ApplicationForm() {
         ...formData,
         familyBackground: {
           ...formData.familyBackground,
-          siblings: siblings.map(sibling => ({
-            name: sibling.name,
-            age: sibling.age,
-            programCurrentlyTakingOrFinished: sibling.programCurrentlyTakingOrFinished || '',
-            schoolOrOccupation: sibling.schoolOrOccupation || ''
-          }))
+          siblings: siblings.map(sibling => ({ name: sibling.name, age: sibling.age }))
         },
         education: {
           ...formData.education,
-          collegeLevel: collegeLevels.map(level => ({
-            yearLevel: level.yearLevel,
-            firstSemesterAverageFinalGrade: level.firstSemesterAverageFinalGrade,
-            secondSemesterAverageFinalGrade: level.secondSemesterAverageFinalGrade,
-            thirdSemesterAverageFinalGrade: level.thirdSemesterAverageFinalGrade || 0
-          })),
-          currentMembershipInOrganizations: organizations.map(org => ({
-            nameOfOrganization: org.nameOfOrganization,
-            position: org.position
-          }))
+          collegeLevel: collegeLevels.map(level => ({ yearLevel: level.yearLevel, firstSemesterAverageFinalGrade: level.firstSemesterAverageFinalGrade, secondSemesterAverageFinalGrade: level.secondSemesterAverageFinalGrade }))
         },
         references: references.map(ref => ({
           name: ref.name,
@@ -453,8 +447,7 @@ export function ApplicationForm() {
     try {
       // Validate required fields
       const requiredFields = [
-        'firstName', 'lastName', 'typeOfScholarship', 'nameOfScholarshipSponsor',
-        'programOfStudyAndYear', 'remainingUnitsIncludingThisTerm', 'remainingTermsToGraduate',
+        'firstName', 'lastName', 'programOfStudyAndYear', 'remainingUnitsIncludingThisTerm', 'remainingTermsToGraduate',
         'citizenship', 'civilStatus', 'annualFamilyIncome', 'residingAt',
         'permanentResidentialAddress', 'contactNumber'
       ] as const;
@@ -480,27 +473,11 @@ export function ApplicationForm() {
         ...formData,
         familyBackground: {
           ...formData.familyBackground,
-          siblings: siblings.map(sibling => ({
-            name: sibling.name,
-            age: sibling.age,
-            programCurrentlyTakingOrFinished: sibling.programCurrentlyTakingOrFinished || '',
-            schoolOrOccupation: sibling.schoolOrOccupation || ''
-          }))
+          siblings: siblings.map(sibling => ({ name: sibling.name, age: sibling.age }))
         },
         education: {
           ...formData.education,
-          collegeLevel: collegeLevels.map(level => ({
-            yearLevel: level.yearLevel,
-            firstSemesterAverageFinalGrade: level.firstSemesterAverageFinalGrade,
-            secondSemesterAverageFinalGrade: level.secondSemesterAverageFinalGrade,
-            thirdSemesterAverageFinalGrade: level.thirdSemesterAverageFinalGrade || 0
-          })),
-          currentMembershipInOrganizations: organizations
-            .filter(org => org.nameOfOrganization.trim() !== "")
-            .map(org => ({
-              nameOfOrganization: org.nameOfOrganization,
-              position: org.position
-            }))
+          collegeLevel: collegeLevels.map(level => ({ yearLevel: level.yearLevel, firstSemesterAverageFinalGrade: level.firstSemesterAverageFinalGrade, secondSemesterAverageFinalGrade: level.secondSemesterAverageFinalGrade }))
         },
         references: references.map(ref => ({
           name: ref.name,
@@ -618,8 +595,7 @@ export function ApplicationForm() {
 
   const validateStep1 = () => {
     const requiredFields = [
-      'firstName', 'lastName', 'typeOfScholarship', 'nameOfScholarshipSponsor',
-      'programOfStudyAndYear', 'remainingUnitsIncludingThisTerm', 'remainingTermsToGraduate',
+      'firstName', 'lastName', 'programOfStudyAndYear', 'remainingUnitsIncludingThisTerm', 'remainingTermsToGraduate',
       'citizenship', 'civilStatus', 'annualFamilyIncome', 'residingAt',
       'permanentResidentialAddress', 'contactNumber'
     ] as const;
@@ -762,6 +738,10 @@ export function ApplicationForm() {
   };
 
   const handleNext = () => {
+    if (isReadOnly) {
+      setCurrentStep(currentStep + 1);
+      return;
+    }
     let isValid = false;
     switch (currentStep) {
       case 1:
@@ -777,46 +757,64 @@ export function ApplicationForm() {
         isValid = validateStep4();
         break;
     }
-
     if (isValid) {
       setCurrentStep(currentStep + 1);
     }
   };
 
+  // Defensive fallback for education fields
+  const safeEducation = formData.education || { elementary: {}, secondary: {}, collegeLevel: [], currentMembershipInOrganizations: [] };
+  const safeElementary = safeEducation.elementary || { nameAndAddressOfSchool: '', honorOrAwardsReceived: '', nameOfOrganizationAndPositionHeld: '', generalAverage: 0, rankAmongGraduates: '', contestTrainingsConferencesParticipated: '' };
+  const safeSecondary = safeEducation.secondary || { nameAndAddressOfSchool: '', honorOrAwardsReceived: '', nameOfOrganizationAndPositionHeld: '', generalAverage: 0, rankAmongGraduates: '', contestTrainingsConferencesParticipated: '' };
+  const safeCollegeLevels = safeEducation.collegeLevel || [];
+  const safeOrganizations = safeEducation.currentMembershipInOrganizations || [];
+
+  // Defensive fallback for nested objects to prevent undefined errors
+  const safeFamilyBackground = formData.familyBackground || { father: {}, mother: {}, siblings: [] };
+  const safeFather = safeFamilyBackground.father || { firstName: '', middleName: '', lastName: '', suffix: '', age: 0, occupation: '', grossAnnualIncome: '', companyName: '', companyAddress: '', homeAddress: '', contactNumber: '' };
+  const safeMother = safeFamilyBackground.mother || { firstName: '', middleName: '', lastName: '', suffix: '', age: 0, occupation: '', grossAnnualIncome: '', companyName: '', companyAddress: '', homeAddress: '', contactNumber: '' };
+  const safeSiblings = safeFamilyBackground.siblings || [];
+
   return (
     <Card>
-      <CardHeader className="bg-[#800000]/10 border-b border-[#800000]/20">
-        <CardTitle className="text-[#800000]">Scholarship Application Form</CardTitle>
+      <CardHeader>
+        <CardTitle>Scholarship Application Form</CardTitle>
         <CardDescription>Complete all sections to submit your application</CardDescription>
       </CardHeader>
-      <CardContent className="pt-6">
-        <div className="mb-6">
-          <div className="flex justify-between mb-2">
-            {Array.from({ length: totalSteps }).map((_, index) => (
-              <div
-                key={index}
-                className={`flex-1 h-2 rounded-full mx-1 ${index + 1 <= currentStep ? "bg-[#800000]" : "bg-gray-200"}`}
-              />
-            ))}
-          </div>
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Personal Information</span>
-            <span>Family Background</span>
-            <span>Education</span>
-            <span>References</span>
-          </div>
-        </div>
-
+      <CardContent className="pt-6 space-y-10">
+        {/* --- Personal Information Section --- */}
         {currentStep === 1 && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email-address">Email Address (optional)</Label>
+                <Input
+                  id="email-address"
+                  value={formData.emailAddress}
+                  onChange={(e) => setFormData({ ...formData, emailAddress: e.target.value })}
+                  placeholder="Enter your email address"
+                  disabled={isReadOnly}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="first-name">First Name</Label>
                 <Input
                   id="first-name"
                   value={formData.firstName}
-                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   placeholder="Enter your first name"
+                  disabled={isReadOnly}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="middle-name">Middle Name (optional)</Label>
+                <Input
+                  id="middle-name"
+                  value={formData.middleName}
+                  onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
+                  placeholder="Enter your middle name"
+                  disabled={isReadOnly}
                 />
               </div>
               <div className="space-y-2">
@@ -824,48 +822,41 @@ export function ApplicationForm() {
                 <Input
                   id="last-name"
                   value={formData.lastName}
-                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   placeholder="Enter your last name"
+                  disabled={isReadOnly}
+                  required
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="type-of-scholarship">Type of Scholarship</Label>
-                <Select
-                  value={formData.typeOfScholarship}
-                  onValueChange={(value) => setFormData({...formData, typeOfScholarship: value})}
-                >
-                  <SelectTrigger id="type-of-scholarship">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Sponsored">Sponsored</SelectItem>
-                    <SelectItem value="Merit">Merit</SelectItem>
-                    <SelectItem value="Need-based">Need-based</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="scholarship-sponsor">Name of Scholarship Sponsor</Label>
+                <Label htmlFor="suffix">Suffix (optional)</Label>
                 <Input
-                  id="scholarship-sponsor"
-                  value={formData.nameOfScholarshipSponsor}
-                  onChange={(e) => setFormData({...formData, nameOfScholarshipSponsor: e.target.value})}
-                  placeholder="Enter sponsor name"
+                  id="suffix"
+                  value={formData.suffix}
+                  onChange={(e) => setFormData({ ...formData, suffix: e.target.value })}
+                  placeholder="e.g., Jr., III"
+                  disabled={isReadOnly}
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="program-study">Program of Study and Year</Label>
                 <Input
                   id="program-study"
                   value={formData.programOfStudyAndYear}
-                  onChange={(e) => setFormData({...formData, programOfStudyAndYear: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, programOfStudyAndYear: e.target.value })}
                   placeholder="e.g., BSIT 3rd Year"
+                  disabled={isReadOnly}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="existing-scholarship">Existing Scholarship (optional)</Label>
+                <Input
+                  id="existing-scholarship"
+                  value={formData.existingScholarship}
+                  onChange={(e) => setFormData({ ...formData, existingScholarship: e.target.value })}
+                  placeholder="Enter existing scholarship"
+                  disabled={isReadOnly}
                 />
               </div>
               <div className="space-y-2">
@@ -875,13 +866,12 @@ export function ApplicationForm() {
                   type="number"
                   min="0"
                   value={formData.remainingUnitsIncludingThisTerm}
-                  onChange={(e) => setFormData({...formData, remainingUnitsIncludingThisTerm: Number(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, remainingUnitsIncludingThisTerm: Number(e.target.value) })}
                   placeholder="Enter remaining units"
+                  disabled={isReadOnly}
+                  required
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="remaining-terms">Remaining Terms to Graduate</Label>
                 <Input
@@ -889,8 +879,10 @@ export function ApplicationForm() {
                   type="number"
                   min="0"
                   value={formData.remainingTermsToGraduate}
-                  onChange={(e) => setFormData({...formData, remainingTermsToGraduate: Number(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, remainingTermsToGraduate: Number(e.target.value) })}
                   placeholder="Enter remaining terms"
+                  disabled={isReadOnly}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -898,18 +890,19 @@ export function ApplicationForm() {
                 <Input
                   id="citizenship"
                   value={formData.citizenship}
-                  onChange={(e) => setFormData({...formData, citizenship: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, citizenship: e.target.value })}
                   placeholder="Enter your citizenship"
+                  disabled={isReadOnly}
+                  required
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="civil-status">Civil Status</Label>
                 <Select
                   value={formData.civilStatus}
-                  onValueChange={(value) => setFormData({...formData, civilStatus: value})}
+                  onValueChange={(value) => setFormData({ ...formData, civilStatus: value })}
+                  disabled={isReadOnly}
+                  required
                 >
                   <SelectTrigger id="civil-status">
                     <SelectValue placeholder="Select status" />
@@ -926,56 +919,78 @@ export function ApplicationForm() {
                 <Label htmlFor="annual-income">Annual Family Income</Label>
                 <Select
                   value={formData.annualFamilyIncome}
-                  onValueChange={(value) => setFormData({...formData, annualFamilyIncome: value})}
+                  onValueChange={(value) => setFormData({ ...formData, annualFamilyIncome: value })}
+                  disabled={isReadOnly}
+                  required
                 >
                   <SelectTrigger id="annual-income">
                     <SelectValue placeholder="Select income range" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="below-100k">Below ₱100,000</SelectItem>
+                    <SelectItem value="<100k">Below ₱100,000</SelectItem>
                     <SelectItem value="100k-200k">₱100,000 - ₱200,000</SelectItem>
                     <SelectItem value="200k-300k">₱200,000 - ₱300,000</SelectItem>
                     <SelectItem value="300k-400k">₱300,000 - ₱400,000</SelectItem>
                     <SelectItem value="400k-500k">₱400,000 - ₱500,000</SelectItem>
-                    <SelectItem value="above-500k">Above ₱500,000</SelectItem>
+                    <SelectItem value=">500k">Above ₱500,000</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-residence-address">Current Residence Address (optional)</Label>
+                <Input
+                  id="current-residence-address"
+                  value={formData.currentResidenceAddress}
+                  onChange={(e) => setFormData({ ...formData, currentResidenceAddress: e.target.value })}
+                  placeholder="Enter your current residence address"
+                  disabled={isReadOnly}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="residing-at">Residing At</Label>
-                <Input
-                  id="residing-at"
+                <Select
                   value={formData.residingAt}
-                  onChange={(e) => setFormData({...formData, residingAt: e.target.value})}
-                  placeholder="e.g., Parent's House"
-                />
+                  onValueChange={(value) => setFormData({ ...formData, residingAt: value })}
+                  disabled={isReadOnly}
+                  required
+                >
+                  <SelectTrigger id="residing-at">
+                    <SelectValue placeholder="Select residence" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Boarding House">Boarding House</SelectItem>
+                    <SelectItem value="Parent's House">Parent's House</SelectItem>
+                    <SelectItem value="Relative's House">Relative's House</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="permanent-address">Permanent Residential Address</Label>
                 <Input
                   id="permanent-address"
                   value={formData.permanentResidentialAddress}
-                  onChange={(e) => setFormData({...formData, permanentResidentialAddress: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, permanentResidentialAddress: e.target.value })}
                   placeholder="Enter permanent address"
+                  disabled={isReadOnly}
+                  required
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="contact-number">Contact Number</Label>
-              <Input
-                id="contact-number"
-                value={formData.contactNumber}
-                onChange={(e) => setFormData({...formData, contactNumber: e.target.value})}
-                placeholder="Enter your contact number"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="contact-number">Contact Number</Label>
+                <Input
+                  id="contact-number"
+                  value={formData.contactNumber}
+                  onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                  placeholder="Enter your contact number"
+                  disabled={isReadOnly}
+                  required
+                />
+              </div>
             </div>
           </div>
         )}
 
+        {/* --- Family Background Section --- */}
         {currentStep === 2 && (
           <div className="space-y-6">
             <div className="space-y-4">
@@ -985,18 +1000,20 @@ export function ApplicationForm() {
                   <Label htmlFor="father-first-name">First Name</Label>
                   <Input
                     id="father-first-name"
-                    value={formData.familyBackground.father.firstName}
+                    value={safeFather.firstName}
                     onChange={(e) => updateFatherField('firstName', e.target.value)}
                     placeholder="Enter father's first name"
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="father-last-name">Last Name</Label>
                   <Input
                     id="father-last-name"
-                    value={formData.familyBackground.father.lastName}
+                    value={safeFather.lastName}
                     onChange={(e) => updateFatherField('lastName', e.target.value)}
                     placeholder="Enter father's last name"
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -1007,18 +1024,20 @@ export function ApplicationForm() {
                     id="father-age"
                     type="number"
                     min="0"
-                    value={formData.familyBackground.father.age}
+                    value={safeFather.age}
                     onChange={(e) => updateFatherField('age', Number(e.target.value))}
                     placeholder="Enter age"
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="father-occupation">Occupation</Label>
                   <Input
                     id="father-occupation"
-                    value={formData.familyBackground.father.occupation}
+                    value={safeFather.occupation}
                     onChange={(e) => updateFatherField('occupation', e.target.value)}
                     placeholder="Enter occupation"
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -1027,18 +1046,20 @@ export function ApplicationForm() {
                   <Label htmlFor="father-income">Gross Annual Income</Label>
                   <Input
                     id="father-income"
-                    value={formData.familyBackground.father.grossAnnualIncome}
+                    value={safeFather.grossAnnualIncome}
                     onChange={(e) => updateFatherField('grossAnnualIncome', e.target.value)}
                     placeholder="Enter annual income"
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="father-contact">Contact Number</Label>
                   <Input
                     id="father-contact"
-                    value={formData.familyBackground.father.contactNumber}
+                    value={safeFather.contactNumber}
                     onChange={(e) => updateFatherField('contactNumber', e.target.value)}
                     placeholder="Enter contact number"
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -1051,18 +1072,20 @@ export function ApplicationForm() {
                   <Label htmlFor="mother-first-name">First Name</Label>
                   <Input
                     id="mother-first-name"
-                    value={formData.familyBackground.mother.firstName}
+                    value={safeMother.firstName}
                     onChange={(e) => updateMotherField('firstName', e.target.value)}
                     placeholder="Enter mother's first name"
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mother-last-name">Last Name</Label>
                   <Input
                     id="mother-last-name"
-                    value={formData.familyBackground.mother.lastName}
+                    value={safeMother.lastName}
                     onChange={(e) => updateMotherField('lastName', e.target.value)}
                     placeholder="Enter mother's last name"
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -1073,18 +1096,20 @@ export function ApplicationForm() {
                     id="mother-age"
                     type="number"
                     min="0"
-                    value={formData.familyBackground.mother.age}
+                    value={safeMother.age}
                     onChange={(e) => updateMotherField('age', Number(e.target.value))}
                     placeholder="Enter age"
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mother-occupation">Occupation</Label>
                   <Input
                     id="mother-occupation"
-                    value={formData.familyBackground.mother.occupation}
+                    value={safeMother.occupation}
                     onChange={(e) => updateMotherField('occupation', e.target.value)}
                     placeholder="Enter occupation"
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -1093,18 +1118,20 @@ export function ApplicationForm() {
                   <Label htmlFor="mother-income">Gross Annual Income</Label>
                   <Input
                     id="mother-income"
-                    value={formData.familyBackground.mother.grossAnnualIncome}
+                    value={safeMother.grossAnnualIncome}
                     onChange={(e) => updateMotherField('grossAnnualIncome', e.target.value)}
                     placeholder="Enter annual income"
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mother-contact">Contact Number</Label>
                   <Input
                     id="mother-contact"
-                    value={formData.familyBackground.mother.contactNumber}
+                    value={safeMother.contactNumber}
                     onChange={(e) => updateMotherField('contactNumber', e.target.value)}
                     placeholder="Enter contact number"
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -1112,7 +1139,7 @@ export function ApplicationForm() {
 
             <div className="space-y-4">
               <h3 className="font-medium">Siblings Information</h3>
-              {siblings.map((sibling, index) => (
+              {safeSiblings.map((sibling, index) => (
                 <div key={index} className="space-y-4 p-4 border rounded-lg">
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-medium">Sibling {index + 1}</h4>
@@ -1122,6 +1149,7 @@ export function ApplicationForm() {
                         size="sm"
                         onClick={() => removeSibling(index)}
                         className="text-red-500 hover:text-red-700"
+                        disabled={isReadOnly}
                       >
                         Remove
                       </Button>
@@ -1135,6 +1163,7 @@ export function ApplicationForm() {
                         value={sibling.name}
                         onChange={(e) => updateSibling(index, "name", e.target.value)}
                         placeholder="Enter sibling's name"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1146,185 +1175,295 @@ export function ApplicationForm() {
                         value={sibling.age}
                         onChange={(e) => updateSibling(index, "age", Number(e.target.value))}
                         placeholder="Enter age"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor={`sibling-program-${index}`}>Program Currently Taking or Finished</Label>
-                      <Input
-                        id={`sibling-program-${index}`}
-                        value={sibling.programCurrentlyTakingOrFinished}
-                        onChange={(e) => updateSibling(index, "programCurrentlyTakingOrFinished", e.target.value)}
-                        placeholder="Enter program"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`sibling-school-${index}`}>School or Occupation</Label>
-                      <Input
-                        id={`sibling-school-${index}`}
-                        value={sibling.schoolOrOccupation}
-                        onChange={(e) => updateSibling(index, "schoolOrOccupation", e.target.value)}
-                        placeholder="Enter school or occupation"
+                        disabled={isReadOnly}
                       />
                     </div>
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full" onClick={addSibling}>
+              <Button variant="outline" className="w-full" onClick={addSibling} disabled={isReadOnly}>
                 Add Another Sibling
               </Button>
             </div>
           </div>
         )}
 
+        {/* --- Education Section --- */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            <div className="space-y-4">
+            <div className="space-y-6">
               <h3 className="font-medium">Elementary Education</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="elementary-school">Name and Address of School</Label>
-                  <Input
-                    id="elementary-school"
-                    value={formData.education.elementary.nameAndAddressOfSchool}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        education: {
-                          ...formData.education,
-                          elementary: {
-                            ...formData.education.elementary,
-                            nameAndAddressOfSchool: e.target.value,
-                          },
+              <div className="space-y-2">
+                <Label htmlFor="elementary-school">Name and Address of School</Label>
+                <Input
+                  id="elementary-school"
+                  value={safeElementary.nameAndAddressOfSchool}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        elementary: {
+                          ...formData.education.elementary,
+                          nameAndAddressOfSchool: e.target.value,
                         },
-                      })
-                    }
-                    placeholder="Enter school name and address"
-                  />
-                </div>
-                {/* Elementary Honors/Awards Received */}
-                <div className="space-y-2">
-                  <Label htmlFor="elementary-honors">Honors/Awards Received</Label>
-                  <Input
-                    id="elementary-honors"
-                    value={formData.education.elementary.honorOrAwardsReceived || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        education: {
-                          ...formData.education,
-                          elementary: {
-                            ...formData.education.elementary,
-                            honorOrAwardsReceived: e.target.value,
-                          },
-                        },
-                      })
-                    }
-                    placeholder="e.g., With Honors, Best in Math"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="elementary-average">General Average</Label>
-                  <Input
-                    id="elementary-average"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.education.elementary.generalAverage}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        education: {
-                          ...formData.education,
-                          elementary: {
-                            ...formData.education.elementary,
-                            generalAverage: Number(e.target.value),
-                          },
-                        },
-                      })
-                    }
-                    placeholder="Enter average"
-                  />
-                </div>
+                      },
+                    })
+                  }
+                  placeholder="Enter school name and address"
+                  disabled={isReadOnly}
+                  required
+                />
               </div>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="elementary-honors">Honors/Awards Received (optional)</Label>
+                <Input
+                  id="elementary-honors"
+                  value={safeElementary.honorOrAwardsReceived || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        elementary: {
+                          ...formData.education.elementary,
+                          honorOrAwardsReceived: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="e.g., With Honors, Best in Math"
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="elementary-org">Name of Organization and Position Held (optional)</Label>
+                <Input
+                  id="elementary-org"
+                  value={safeElementary.nameOfOrganizationAndPositionHeld || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        elementary: {
+                          ...formData.education.elementary,
+                          nameOfOrganizationAndPositionHeld: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="e.g., Science Club President"
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="elementary-average">General Average</Label>
+                <Input
+                  id="elementary-average"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={safeElementary.generalAverage}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        elementary: {
+                          ...formData.education.elementary,
+                          generalAverage: Number(e.target.value),
+                        },
+                      },
+                    })
+                  }
+                  placeholder="Enter average"
+                  disabled={isReadOnly}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="elementary-rank">Rank Among Graduates (optional)</Label>
+                <Input
+                  id="elementary-rank"
+                  value={safeElementary.rankAmongGraduates || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        elementary: {
+                          ...formData.education.elementary,
+                          rankAmongGraduates: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="e.g., Top 5"
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="elementary-contest">Contest/Trainings/Conferences Participated (optional)</Label>
+                <Input
+                  id="elementary-contest"
+                  value={safeElementary.contestTrainingsConferencesParticipated || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        elementary: {
+                          ...formData.education.elementary,
+                          contestTrainingsConferencesParticipated: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="e.g., Math Olympiad"
+                  disabled={isReadOnly}
+                />
+              </div>
 
-            <div className="space-y-4">
               <h3 className="font-medium">Secondary Education</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="secondary-school">Name and Address of School</Label>
-                  <Input
-                    id="secondary-school"
-                    value={formData.education.secondary.nameAndAddressOfSchool}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        education: {
-                          ...formData.education,
-                          secondary: {
-                            ...formData.education.secondary,
-                            nameAndAddressOfSchool: e.target.value,
-                          },
+              <div className="space-y-2">
+                <Label htmlFor="secondary-school">Name and Address of School</Label>
+                <Input
+                  id="secondary-school"
+                  value={safeSecondary.nameAndAddressOfSchool}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        secondary: {
+                          ...formData.education.secondary,
+                          nameAndAddressOfSchool: e.target.value,
                         },
-                      })
-                    }
-                    placeholder="Enter school name and address"
-                  />
-                </div>
-                {/* Secondary Honors/Awards Received */}
-                <div className="space-y-2">
-                  <Label htmlFor="secondary-honors">Honors/Awards Received</Label>
-                  <Input
-                    id="secondary-honors"
-                    value={formData.education.secondary.honorOrAwardsReceived || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        education: {
-                          ...formData.education,
-                          secondary: {
-                            ...formData.education.secondary,
-                            honorOrAwardsReceived: e.target.value,
-                          },
+                      },
+                    })
+                  }
+                  placeholder="Enter school name and address"
+                  disabled={isReadOnly}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="secondary-honors">Honors/Awards Received (optional)</Label>
+                <Input
+                  id="secondary-honors"
+                  value={safeSecondary.honorOrAwardsReceived || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        secondary: {
+                          ...formData.education.secondary,
+                          honorOrAwardsReceived: e.target.value,
                         },
-                      })
-                    }
-                    placeholder="e.g., With High Honors, Leadership Award"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="secondary-average">General Average</Label>
-                  <Input
-                    id="secondary-average"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.education.secondary.generalAverage}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        education: {
-                          ...formData.education,
-                          secondary: {
-                            ...formData.education.secondary,
-                            generalAverage: Number(e.target.value),
-                          },
+                      },
+                    })
+                  }
+                  placeholder="e.g., With High Honors"
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="secondary-org">Name of Organization and Position Held (optional)</Label>
+                <Input
+                  id="secondary-org"
+                  value={safeSecondary.nameOfOrganizationAndPositionHeld || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        secondary: {
+                          ...formData.education.secondary,
+                          nameOfOrganizationAndPositionHeld: e.target.value,
                         },
-                      })
-                    }
-                    placeholder="Enter average"
-                  />
-                </div>
+                      },
+                    })
+                  }
+                  placeholder="e.g., Student Council"
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="secondary-average">General Average</Label>
+                <Input
+                  id="secondary-average"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={safeSecondary.generalAverage}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        secondary: {
+                          ...formData.education.secondary,
+                          generalAverage: Number(e.target.value),
+                        },
+                      },
+                    })
+                  }
+                  placeholder="Enter average"
+                  disabled={isReadOnly}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="secondary-rank">Rank Among Graduates (optional)</Label>
+                <Input
+                  id="secondary-rank"
+                  value={safeSecondary.rankAmongGraduates || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        secondary: {
+                          ...formData.education.secondary,
+                          rankAmongGraduates: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="e.g., Top 10"
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="secondary-contest">Contest/Trainings/Conferences Participated (optional)</Label>
+                <Input
+                  id="secondary-contest"
+                  value={safeSecondary.contestTrainingsConferencesParticipated || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      education: {
+                        ...formData.education,
+                        secondary: {
+                          ...formData.education.secondary,
+                          contestTrainingsConferencesParticipated: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="e.g., Debate Competition"
+                  disabled={isReadOnly}
+                />
               </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="font-medium">College Education</h3>
-              {collegeLevels.map((level, index) => (
+              {safeCollegeLevels.map((level, index) => (
                 <div key={index} className="space-y-4 p-4 border rounded-lg">
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-medium">Year {index + 1}</h4>
@@ -1334,6 +1473,7 @@ export function ApplicationForm() {
                         size="sm"
                         onClick={() => removeCollegeLevel(index)}
                         className="text-red-500 hover:text-red-700"
+                        disabled={isReadOnly}
                       >
                         Remove
                       </Button>
@@ -1349,6 +1489,7 @@ export function ApplicationForm() {
                         value={level.yearLevel}
                         onChange={(e) => updateCollegeLevel(index, "yearLevel", Number(e.target.value))}
                         placeholder="Enter year level"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1362,6 +1503,7 @@ export function ApplicationForm() {
                         value={level.firstSemesterAverageFinalGrade}
                         onChange={(e) => updateCollegeLevel(index, "firstSemesterAverageFinalGrade", Number(e.target.value))}
                         placeholder="Enter grade"
+                        disabled={isReadOnly}
                       />
                     </div>
                   </div>
@@ -1377,32 +1519,20 @@ export function ApplicationForm() {
                         value={level.secondSemesterAverageFinalGrade}
                         onChange={(e) => updateCollegeLevel(index, "secondSemesterAverageFinalGrade", Number(e.target.value))}
                         placeholder="Enter grade"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`third-sem-grade-${index}`}>Third Semester Average Final Grade</Label>
-                      <Input
-                        id={`third-sem-grade-${index}`}
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={level.thirdSemesterAverageFinalGrade}
-                        onChange={(e) => updateCollegeLevel(index, "thirdSemesterAverageFinalGrade", Number(e.target.value))}
-                        placeholder="Enter grade"
+                        disabled={isReadOnly}
                       />
                     </div>
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full" onClick={addCollegeLevel}>
+              <Button variant="outline" className="w-full" onClick={addCollegeLevel} disabled={isReadOnly}>
                 Add Another Year
               </Button>
             </div>
 
             <div className="space-y-4">
               <h3 className="font-medium">Current Membership in Organizations</h3>
-              {organizations.map((org, index) => (
+              {safeOrganizations.map((org, index) => (
                 <div key={index} className="space-y-4 p-4 border rounded-lg">
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-medium">Organization {index + 1}</h4>
@@ -1412,6 +1542,7 @@ export function ApplicationForm() {
                         size="sm"
                         onClick={() => removeOrganization(index)}
                         className="text-red-500 hover:text-red-700"
+                        disabled={isReadOnly}
                       >
                         Remove
                       </Button>
@@ -1425,6 +1556,7 @@ export function ApplicationForm() {
                         value={org.nameOfOrganization}
                         onChange={(e) => updateOrganization(index, "nameOfOrganization", e.target.value)}
                         placeholder="Enter organization name"
+                        disabled={isReadOnly}
                       />
                       {organizationErrors[index] && organizationErrors[index] !== "" && (
                         <p className="text-red-500 text-xs mt-1">{organizationErrors[index]}</p>
@@ -1437,74 +1569,84 @@ export function ApplicationForm() {
                         value={org.position}
                         onChange={(e) => updateOrganization(index, "position", e.target.value)}
                         placeholder="Enter your position"
+                        disabled={isReadOnly}
                       />
                     </div>
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full" onClick={addOrganization}>
+              <Button variant="outline" className="w-full" onClick={addOrganization} disabled={isReadOnly}>
                 Add Another Organization
               </Button>
             </div>
           </div>
         )}
 
+        {/* --- References Section --- */}
         {currentStep === 4 && (
           <div className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="font-medium">References</h3>
-              <div className="space-y-4">
-                {references.map((ref, index) => (
-                  <div key={index} className="space-y-4 p-4 border rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-sm font-medium">Reference {index + 1}</h4>
-                      {index > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeReference(index)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={`ref-name-${index}`}>Name</Label>
-                        <Input
-                          id={`ref-name-${index}`}
-                          value={ref.name}
-                          onChange={(e) => updateReference(index, "name", e.target.value)}
-                          placeholder="Enter reference name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`ref-relationship-${index}`}>Relationship to the Applicant</Label>
-                        <Input
-                          id={`ref-relationship-${index}`}
-                          value={ref.relationshipToTheApplicant}
-                          onChange={(e) => updateReference(index, "relationshipToTheApplicant", e.target.value)}
-                          placeholder="Enter relationship"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`ref-contact-${index}`}>Contact Number</Label>
-                      <Input
-                        id={`ref-contact-${index}`}
-                        value={ref.contactNumber}
-                        onChange={(e) => updateReference(index, "contactNumber", e.target.value)}
-                        placeholder="Enter contact number"
-                      />
-                    </div>
+            <h3 className="font-medium">References</h3>
+            {references.map((ref, index) => (
+              <div key={index} className="space-y-4 p-4 border rounded-lg">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-sm font-medium">Reference {index + 1}</h4>
+                  {!isReadOnly && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => removeReference(index)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`reference-name-${index}`}>Name</Label>
+                    <Input
+                      id={`reference-name-${index}`}
+                      value={ref.name}
+                      onChange={e => updateReference(index, 'name', e.target.value)}
+                      placeholder="Enter reference's name"
+                      disabled={isReadOnly}
+                      required
+                    />
                   </div>
-                ))}
-                <Button variant="outline" className="w-full" onClick={addReference}>
-                  Add Another Reference
-                </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor={`reference-relationship-${index}`}>Relationship to Applicant</Label>
+                    <Input
+                      id={`reference-relationship-${index}`}
+                      value={ref.relationshipToTheApplicant}
+                      onChange={e => updateReference(index, 'relationshipToTheApplicant', e.target.value)}
+                      placeholder="Enter relationship"
+                      disabled={isReadOnly}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor={`reference-contact-${index}`}>Contact Number</Label>
+                    <Input
+                      id={`reference-contact-${index}`}
+                      value={ref.contactNumber}
+                      onChange={e => updateReference(index, 'contactNumber', e.target.value)}
+                      placeholder="Enter contact number"
+                      disabled={isReadOnly}
+                      required
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
+            {!isReadOnly && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addReference}
+                className="mt-2"
+              >
+                Add Reference
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
@@ -1520,31 +1662,34 @@ export function ApplicationForm() {
               Previous
             </Button>
           )}
-          {/* Save Progress button removed */}
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleExportPDF}
-          >
-            <FileDown className="h-4 w-4 mr-2" />
-            Export PDF
-          </Button>
           {currentStep < totalSteps ? (
-            <Button
-              onClick={handleNext}
-            >
+            <Button onClick={handleNext}>
               Next
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="bg-[#800000] hover:bg-[#600000]"
-            >
-              {isSubmitting ? "Submitting..." : "Submit Application"}
-            </Button>
+            <>
+              {isReadOnly ? (
+                <>
+                  <Button disabled className="bg-[#800000]">
+                    Application Submitted
+                  </Button>
+                  <Button onClick={handleExportPDF} variant="outline" className="ml-2">
+                    Export to PDF
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="bg-[#800000] hover:bg-[#600000]"
+                >
+                  {isSubmitting ? "Submitting..." : "Submit Application"}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </CardFooter>
