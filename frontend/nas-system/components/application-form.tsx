@@ -83,9 +83,9 @@ const defaultFormData: ApplicationFormData = {
 };
 
 type Organization = {
-  name: string;
+  nameOfOrganization: string;
   position: string;
-}
+};
 
 export function ApplicationForm() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -99,7 +99,7 @@ export function ApplicationForm() {
     programCurrentlyTakingOrFinished: "", 
     schoolOrOccupation: "" 
   }])
-  const [organizations, setOrganizations] = useState<Organization[]>([{ name: "", position: "" }])
+  const [organizations, setOrganizations] = useState<Organization[]>([{ nameOfOrganization: "", position: "" }])
   const [collegeLevels, setCollegeLevels] = useState([{
     yearLevel: 1,
     firstSemesterAverageFinalGrade: 0,
@@ -116,6 +116,7 @@ export function ApplicationForm() {
   const [error, setError] = useState<string | null>(null)
   const [organizationName, setOrganizationName] = useState("")
   const [position, setPosition] = useState("")
+  const [organizationErrors, setOrganizationErrors] = useState<string[]>([])
 
   const totalSteps = 4
 
@@ -174,10 +175,10 @@ export function ApplicationForm() {
         setOrganizations(
           Array.isArray(merged.education.currentMembershipInOrganizations) && merged.education.currentMembershipInOrganizations.length > 0
             ? merged.education.currentMembershipInOrganizations.map((org: any) => ({
-                name: org.nameOfOrganization || "",
+                nameOfOrganization: org.nameOfOrganization || org.name || "",
                 position: org.position || ""
               }))
-            : [{ name: "", position: "" }]
+            : [{ nameOfOrganization: "", position: "" }]
         );
         setReferences(
           Array.isArray(merged.references) && merged.references.length > 0
@@ -189,7 +190,7 @@ export function ApplicationForm() {
         setFormData(defaultFormData);
         setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
         setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
-        setOrganizations([{ name: "", position: "" }]);
+        setOrganizations([{ nameOfOrganization: "", position: "" }]);
         setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
       }
     } catch (error: any) {
@@ -244,7 +245,7 @@ export function ApplicationForm() {
           currentMembershipInOrganizations: [
             ...prev.education.currentMembershipInOrganizations,
             {
-              name: organizationName,  // ✅ Use 'name' not 'nameOfOrganization'
+              nameOfOrganization: organizationName,
               position: position
             }
           ]
@@ -265,7 +266,7 @@ export function ApplicationForm() {
     }))
   }
 
-  const updateOrganization = (index: number, field: "name" | "position", value: string) => {
+  const updateOrganization = (index: number, field: "nameOfOrganization" | "position", value: string) => {
     const newOrganizations = [...organizations]
     newOrganizations[index][field] = value
     setOrganizations(newOrganizations)
@@ -383,7 +384,7 @@ export function ApplicationForm() {
             thirdSemesterAverageFinalGrade: level.thirdSemesterAverageFinalGrade || 0
           })),
           currentMembershipInOrganizations: organizations.map(org => ({
-            name: org.name,
+            nameOfOrganization: org.nameOfOrganization,
             position: org.position
           }))
         },
@@ -413,9 +414,41 @@ export function ApplicationForm() {
     }
   };
 
+  const validateOrganizations = () => {
+    // Only validate if there are any organizations (other than a single empty one)
+    if (
+      organizations.length === 1 &&
+      organizations[0].nameOfOrganization.trim() === "" &&
+      organizations[0].position.trim() === ""
+    ) {
+      setOrganizationErrors([]);
+      return true;
+    }
+    const errors = organizations.map((org, idx) => {
+      if (!org.nameOfOrganization.trim()) {
+        return `Organization ${idx + 1}: Name of Organization is required.`;
+      }
+      return "";
+    });
+    setOrganizationErrors(errors);
+    // If any error exists, return false
+    return errors.every((err) => err === "");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    // Validate organizations before proceeding
+    if (!validateOrganizations()) {
+      setIsSubmitting(false);
+      toast({
+        title: "Validation Error",
+        description: "Please fill in the name of all organizations or remove empty entries.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       // Validate required fields
@@ -462,10 +495,12 @@ export function ApplicationForm() {
             secondSemesterAverageFinalGrade: level.secondSemesterAverageFinalGrade,
             thirdSemesterAverageFinalGrade: level.thirdSemesterAverageFinalGrade || 0
           })),
-          currentMembershipInOrganizations: organizations.map(org => ({
-            name: org.name,
-            position: org.position
-          }))
+          currentMembershipInOrganizations: organizations
+            .filter(org => org.nameOfOrganization.trim() !== "")
+            .map(org => ({
+              nameOfOrganization: org.nameOfOrganization,
+              position: org.position
+            }))
         },
         references: references.map(ref => ({
           name: ref.name,
@@ -525,7 +560,7 @@ export function ApplicationForm() {
         setSiblings(merged.familyBackground.siblings);
         setOrganizations(
           (merged.education.currentMembershipInOrganizations || []).map((org: { nameOfOrganization: string; position: string }) => ({
-            name: org.nameOfOrganization,
+            nameOfOrganization: org.nameOfOrganization,
             position: org.position
           }))
         );
@@ -535,7 +570,7 @@ export function ApplicationForm() {
         setFormData(defaultFormData);
         setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
         setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
-        setOrganizations([{ name: "", position: "" }]);
+        setOrganizations([{ nameOfOrganization: "", position: "" }]);
         setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
       }
 
@@ -1387,10 +1422,13 @@ export function ApplicationForm() {
                       <Label htmlFor={`org-name-${index}`}>Name of Organization</Label>
                       <Input
                         id={`org-name-${index}`}
-                        value={org.name}
-                        onChange={(e) => updateOrganization(index, "name", e.target.value)}
+                        value={org.nameOfOrganization}
+                        onChange={(e) => updateOrganization(index, "nameOfOrganization", e.target.value)}
                         placeholder="Enter organization name"
                       />
+                      {organizationErrors[index] && organizationErrors[index] !== "" && (
+                        <p className="text-red-500 text-xs mt-1">{organizationErrors[index]}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={`org-position-${index}`}>Position</Label>

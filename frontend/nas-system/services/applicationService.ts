@@ -82,7 +82,7 @@ export interface ApplicationFormData {
       thirdSemesterAverageFinalGrade?: number;
     }>;
     currentMembershipInOrganizations: Array<{
-      name: string; // Changed to 'name'
+      nameOfOrganization: string;
       position: string;
     }>;
   };
@@ -127,8 +127,8 @@ export const applicationService = {
             Array.isArray(formData.education.currentMembershipInOrganizations)
               ? formData.education.currentMembershipInOrganizations.filter(
                   org =>
-                    typeof org.name === 'string' &&
-                    org.name.trim() &&
+                    typeof org.nameOfOrganization === 'string' &&
+                    org.nameOfOrganization.trim() &&
                     typeof org.position === 'string' &&
                     org.position.trim()
                 )
@@ -200,8 +200,8 @@ export const applicationService = {
             Array.isArray(formData.education.currentMembershipInOrganizations)
               ? formData.education.currentMembershipInOrganizations.filter(
                   org =>
-                    typeof org.name === 'string' &&
-                    org.name.trim() &&
+                    typeof org.nameOfOrganization === 'string' &&
+                    org.nameOfOrganization.trim() &&
                     typeof org.position === 'string' &&
                     org.position.trim()
                 )
@@ -269,8 +269,8 @@ export const applicationService = {
             Array.isArray(formData.education.currentMembershipInOrganizations)
               ? formData.education.currentMembershipInOrganizations.filter(
                   org =>
-                    typeof org.name === 'string' &&
-                    org.name.trim() &&
+                    typeof org.nameOfOrganization === 'string' &&
+                    org.nameOfOrganization.trim() &&
                     typeof org.position === 'string' &&
                     org.position.trim()
               )

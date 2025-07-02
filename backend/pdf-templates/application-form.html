@@ -4,286 +4,701 @@
   <meta charset="UTF-8">
   <title>Application Form</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-    font-family: 'Calibri', serif;
-    background: #f9f9fb;
-    margin: 0;
-    padding: 40px;
-    color: #2a2a2a;
-    font-size: 13px;
-    line-height: 1.6;
+      font-family: 'Source Sans Pro', Arial, sans-serif;
+      background: #f8f9fa;
+      color: #2c3e50;
+      font-size: 11px;
+      line-height: 1.4;
+      margin: 0;
+      padding: 15px;
     }
 
     .page {
-    max-width: 800px;
-    margin: auto;
-    background: #ffffff;
-    padding: 40px 50px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
-    border: 1px solid #e0e0e0;
+      width: 8.5in;
+      min-height: 13in;
+      max-width: none;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 0.75in 0.75in 0.5in 0.75in;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      border: 1px solid #e1e8ed;
+      position: relative;
+    }
+
+    /* Professional Header */
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 3px double #2c3e50;
+      position: relative;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 2px;
+      background: linear-gradient(90deg, #2c3e50, #34495e);
     }
 
     h1 {
-    text-align: center;
-    font-size: 26px;
-    color: #003366;
-    text-transform: uppercase;
-    margin-bottom: 30px;
-    letter-spacing: 1px;
-    border-bottom: 2px solid #003366;
-    padding-bottom: 10px;
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #2c3e50;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #7f8c8d;
+      font-weight: 400;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Two-column layout */
+    .content-wrapper {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+      margin-top: 20px;
+    }
+
+    .left-column, .right-column {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
     }
 
     h2 {
-    font-size: 18px;
-    margin: 30px 0 15px;
-    color: #003366;
-    border-bottom: 1px solid #ccc;
-    padding-bottom: 5px;
-    text-transform: uppercase;
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #2c3e50;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin: 20px 0 12px 0;
+      padding: 8px 0;
+      border-bottom: 2px solid #2c3e50;
+      position: relative;
+    }
+
+    h2::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -2px;
+      width: 30px;
+      height: 2px;
+      background: #34495e;
     }
 
     h3 {
-    font-size: 16px;
-    color: #444;
-    margin-top: 20px;
-    margin-bottom: 10px;
-    border-left: 4px solid #ccc;
-    padding-left: 10px;
+      font-family: 'Source Sans Pro', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: #34495e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 15px 0 8px 0;
+      padding-left: 12px;
+      border-left: 3px solid #bdc3c7;
+      background: #f8f9fa;
+      padding: 6px 12px;
     }
 
     .section {
-    margin-bottom: 25px;
+      margin-bottom: 20px;
+      background: #ffffff;
+    }
+
+    .field-group {
+      background: #fdfdfd;
+      border: 1px solid #ecf0f1;
+      margin-bottom: 8px;
+      border-radius: 2px;
     }
 
     .field {
-    display: flex;
-    margin: 6px 0;
-    border-bottom: 1px dotted #ddd;
-    padding: 4px 0;
+      display: flex;
+      padding: 6px 12px;
+      border-bottom: 1px solid #f4f6f7;
+      align-items: flex-start;
+    }
+
+    .field:last-child {
+      border-bottom: none;
+    }
+
+    .field:nth-child(even) {
+      background: #fafbfc;
     }
 
     .label {
-    font-weight: bold;
-    width: 220px;
-    color: #333;
+      font-weight: 600;
+      width: 140px;
+      color: #2c3e50;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      padding-right: 8px;
+      flex-shrink: 0;
     }
 
     .value {
-    flex: 1;
-    color: #555;
+      flex: 1;
+      color: #34495e;
+      font-size: 11px;
+      font-weight: 400;
+      word-wrap: break-word;
+    }
+
+    /* Professional Tables */
+    .table-container {
+      margin: 12px 0;
+      background: #ffffff;
+      border: 1px solid #bdc3c7;
+      border-radius: 2px;
+      overflow: hidden;
     }
 
     table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    background: #fff;
-    border-radius: 6px;
-    overflow: hidden;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    }
-
-    th, td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #ddd;
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
     }
 
     th {
-    background: linear-gradient(to right, #f0f4f8, #dbe5ef);
-    font-weight: bold;
-    color: #333;
-    text-transform: uppercase;
-    font-size: 12px;
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      color: #ffffff;
+      font-weight: 600;
+      padding: 8px 6px;
+      text-align: left;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-right: 1px solid #415061;
+    }
+
+    th:last-child {
+      border-right: none;
     }
 
     td {
-    background: #fafafa;
-    font-size: 13px;
+      padding: 6px;
+      border-right: 1px solid #ecf0f1;
+      border-bottom: 1px solid #ecf0f1;
+      background: #ffffff;
+      font-size: 10px;
+      vertical-align: top;
+    }
+
+    td:last-child {
+      border-right: none;
     }
 
     tr:last-child td {
-    border-bottom: none;
+      border-bottom: none;
+    }
+
+    tr:nth-child(even) td {
+      background: #f8f9fa;
     }
 
     .no-data {
-    font-style: italic;
-    color: #999;
-    margin: 10px 0;
+      font-style: italic;
+      color: #7f8c8d;
+      text-align: center;
+      padding: 15px;
+      background: #f8f9fa;
+      border: 1px dashed #bdc3c7;
+      font-size: 10px;
+      border-radius: 2px;
     }
 
+    /* Education section special styling */
+    .education-subsection {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      margin: 8px 0;
+      border-radius: 2px;
+    }
+
+    .education-subsection h3 {
+      background: #e9ecef;
+      margin: 0;
+      border-left: none;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .education-fields {
+      padding: 8px;
+    }
+
+    /* Family section styling */
+    .family-member {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      margin: 8px 0;
+      border-radius: 2px;
+    }
+
+    .family-member h3 {
+      background: #e9ecef;
+      margin: 0;
+      border-left: none;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .family-fields {
+      padding: 8px;
+    }
+
+    /* Watermark */
+    .page::before {
+      content: 'CONFIDENTIAL';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 48px;
+      color: rgba(44, 62, 80, 0.03);
+      font-weight: 700;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Print optimizations */
     @media print {
-    body {
-        padding: 0;
+      body {
         background: white;
-    }
+        padding: 0;
+      }
 
-    .page {
+      .page {
         box-shadow: none;
-        padding: 20px;
         border: none;
+        margin: 0;
+        padding: 0.5in;
+        width: 8.5in;
+        min-height: 11in;
+      }
+
+      .page::before {
+        display: none;
+      }
+
+      h1, h2, h3 {
+        page-break-after: avoid;
+      }
+
+      .section {
+        page-break-inside: avoid;
+      }
+
+      .table-container {
+        page-break-inside: avoid;
+      }
     }
 
-    h1, h2, h3 {
-        color: black;
+    @page {
+      size: 8.5in 13in;
+      margin: 0.5in;
     }
 
-    .page {
+    /* Responsive adjustments */
+    @media screen and (max-width: 900px) {
+      .content-wrapper {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+      
+      .page {
         width: 100%;
-    }
+        padding: 20px;
+      }
+      
+      .label {
+        width: 120px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Scholarship Application Form</h1>
+  <div class="page">
+    <div class="content">
+      <div class="header">
+        <h1>Scholarship Application</h1>
+        <div class="subtitle">Academic Excellence & Financial Assistance Program</div>
+      </div>
 
-  <div class="section">
-    <h2>Personal Information</h2>
-    <div class="field">First Name: {{firstName}}</div>
-    <div class="field">Middle Name: {{middleName}}</div>
-    <div class="field">Last Name: {{lastName}}</div>
-    <div class="field">Suffix: {{suffix}}</div>
-    <div class="field">Email Address: {{emailAddress}}</div>
-    <div class="field">Program and Year: {{programOfStudyAndYear}}</div>
-    <div class="field">Existing Scholarship: {{existingScholarship}}</div>
-    <div class="field">Remaining Units: {{remainingUnitsIncludingThisTerm}}</div>
-    <div class="field">Remaining Terms: {{remainingTermsToGraduate}}</div>
-    <div class="field">Citizenship: {{citizenship}}</div>
-    <div class="field">Civil Status: {{civilStatus}}</div>
-    <div class="field">Annual Family Income: {{annualFamilyIncome}}</div>
-    <div class="field">Current Address: {{currentAddress}}</div>
-    <div class="field">Residing At: {{residingAt}}</div>
-    <div class="field">Permanent Address: {{permanentResidence}}</div>
-    <div class="field">Contact Number: {{contactNumber}}</div>
-  </div>
+      <div class="content-wrapper">
+        <div class="left-column">
+          <div class="section">
+            <h2>Personal Information</h2>
+            <div class="field-group">
+              <div class="field">
+                <div class="label">First Name:</div>
+                <div class="value">{{firstName}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Middle Name:</div>
+                <div class="value">{{middleName}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Last Name:</div>
+                <div class="value">{{lastName}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Suffix:</div>
+                <div class="value">{{suffix}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Email Address:</div>
+                <div class="value">{{emailAddress}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Contact Number:</div>
+                <div class="value">{{contactNumber}}</div>
+              </div>
+            </div>
+          </div>
 
-  <div class="section">
-    <h2>Family Background</h2>
-    <h3>Father</h3>
-    <div class="field">Full Name: {{family.father.firstName}} {{family.father.lastName}} {{family.father.suffix}}</div>
-    <div class="field">Middle Name: {{family.father.middleName}}</div>
-    <div class="field">Age: {{family.father.age}}</div>
-    <div class="field">Occupation: {{family.father.occupation}}</div>
-    <div class="field">Gross Annual Income: {{family.father.grossAnnualIncome}}</div>
-    <div class="field">Company Name: {{family.father.companyName}}</div>
-    <div class="field">Company Address: {{family.father.companyAddress}}</div>
-    <div class="field">Home Address: {{family.father.homeAddress}}</div>
-    <div class="field">Contact Number: {{family.father.contactNumber}}</div>
+          <div class="section">
+            <h2>Academic Information</h2>
+            <div class="field-group">
+              <div class="field">
+                <div class="label">Program & Year:</div>
+                <div class="value">{{programOfStudyAndYear}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Existing Scholarship:</div>
+                <div class="value">{{existingScholarship}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Remaining Units:</div>
+                <div class="value">{{remainingUnitsIncludingThisTerm}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Remaining Terms:</div>
+                <div class="value">{{remainingTermsToGraduate}}</div>
+              </div>
+            </div>
+          </div>
 
-    <h3>Mother</h3>
-    <div class="field">Full Name: {{family.mother.firstName}} {{family.mother.lastName}} {{family.mother.suffix}}</div>
-    <div class="field">Middle Name: {{family.mother.middleName}}</div>
-    <div class="field">Age: {{family.mother.age}}</div>
-    <div class="field">Occupation: {{family.mother.occupation}}</div>
-    <div class="field">Gross Annual Income: {{family.mother.grossAnnualIncome}}</div>
-    <div class="field">Company Name: {{family.mother.companyName}}</div>
-    <div class="field">Company Address: {{family.mother.companyAddress}}</div>
-    <div class="field">Home Address: {{family.mother.homeAddress}}</div>
-    <div class="field">Contact Number: {{family.mother.contactNumber}}</div>
+          <div class="section">
+            <h2>Personal Details</h2>
+            <div class="field-group">
+              <div class="field">
+                <div class="label">Citizenship:</div>
+                <div class="value">{{citizenship}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Civil Status:</div>
+                <div class="value">{{civilStatus}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Family Income:</div>
+                <div class="value">{{annualFamilyIncome}}</div>
+              </div>
+            </div>
+          </div>
 
-    <h3>Siblings</h3>
-    {{#if family.siblings}}
-      <table>
-        <tr>
-          <th>Name</th>
-          <th>Age</th>
-          <th>Program/School</th>
-          <th>Occupation</th>
-        </tr>
-        {{#each family.siblings}}
-          <tr>
-            <td>{{name}}</td>
-            <td>{{age}}</td>
-            <td>{{programCurrentlyTakingOrFinished}}</td>
-            <td>{{schoolOrOccupation}}</td>
-          </tr>
-        {{/each}}
-      </table>
-    {{else}}
-      <p class="no-data">No siblings listed.</p>
-    {{/if}}
-  </div>
+          <div class="section">
+            <h2>Address Information</h2>
+            <div class="field-group">
+              <div class="field">
+                <div class="label">Current Address:</div>
+                <div class="value">{{currentAddress}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Residing At:</div>
+                <div class="value">{{residingAt}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Permanent Address:</div>
+                <div class="value">{{permanentResidence}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-  <div class="section">
-    <h2>Education</h2>
-    <h3>Elementary</h3>
-    <div class="field">School: {{education.elementary.nameAndAddressOfSchool}}</div>
-    <div class="field">Honors/Awards: {{education.elementary.honorOrAwardsReceived}}</div>
-    <div class="field">Organizations: {{education.elementary.nameOfOrganizationAndPositionHeld}}</div>
-    <div class="field">General Average: {{education.elementary.generalAverage}}</div>
-    <div class="field">Rank: {{education.elementary.rankAmongGraduates}}</div>
-    <div class="field">Activities: {{education.elementary.contestTrainingsConferencesParticipated}}</div>
+        <div class="right-column">
+          <div class="section">
+            <h2>Family Background</h2>
+            
+            <div class="family-member">
+              <h3>Father's Information</h3>
+              <div class="family-fields">
+                <div class="field">
+                  <div class="label">Full Name:</div>
+                  <div class="value">{{family.father.firstName}} {{family.father.lastName}} {{family.father.suffix}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Middle Name:</div>
+                  <div class="value">{{family.father.middleName}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Age:</div>
+                  <div class="value">{{family.father.age}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Occupation:</div>
+                  <div class="value">{{family.father.occupation}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Annual Income:</div>
+                  <div class="value">{{family.father.grossAnnualIncome}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Company:</div>
+                  <div class="value">{{family.father.companyName}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Company Address:</div>
+                  <div class="value">{{family.father.companyAddress}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Home Address:</div>
+                  <div class="value">{{family.father.homeAddress}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Contact:</div>
+                  <div class="value">{{family.father.contactNumber}}</div>
+                </div>
+              </div>
+            </div>
 
-    <h3>Secondary</h3>
-    <div class="field">School: {{education.secondary.nameAndAddressOfSchool}}</div>
-    <div class="field">Honors/Awards: {{education.secondary.honorOrAwardsReceived}}</div>
-    <div class="field">Organizations: {{education.secondary.nameOfOrganizationAndPositionHeld}}</div>
-    <div class="field">General Average: {{education.secondary.generalAverage}}</div>
-    <div class="field">Rank: {{education.secondary.rankAmongGraduates}}</div>
-    <div class="field">Activities: {{education.secondary.contestTrainingsConferencesParticipated}}</div>
+            <div class="family-member">
+              <h3>Mother's Information</h3>
+              <div class="family-fields">
+                <div class="field">
+                  <div class="label">Full Name:</div>
+                  <div class="value">{{family.mother.firstName}} {{family.mother.lastName}} {{family.mother.suffix}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Middle Name:</div>
+                  <div class="value">{{family.mother.middleName}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Age:</div>
+                  <div class="value">{{family.mother.age}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Occupation:</div>
+                  <div class="value">{{family.mother.occupation}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Annual Income:</div>
+                  <div class="value">{{family.mother.grossAnnualIncome}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Company:</div>
+                  <div class="value">{{family.mother.companyName}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Company Address:</div>
+                  <div class="value">{{family.mother.companyAddress}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Home Address:</div>
+                  <div class="value">{{family.mother.homeAddress}}</div>
+                </div>
+                <div class="field">
+                  <div class="label">Contact:</div>
+                  <div class="value">{{family.mother.contactNumber}}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-    <h3>College Level</h3>
-    {{#if education.collegeLevel}}
-      <table>
-        <tr>
-          <th>Year Level</th>
-          <th>1st Semester Avg</th>
-          <th>2nd Semester Avg</th>
-          <th>3rd Semester Avg</th>
-        </tr>
-        {{#each education.collegeLevel}}
-          <tr>
-            <td>{{yearLevel}}</td>
-            <td>{{firstSemesterAverageFinalGrade}}</td>
-            <td>{{secondSemesterAverageFinalGrade}}</td>
-            <td>{{thirdSemesterAverageFinalGrade}}</td>
-          </tr>
-        {{/each}}
-      </table>
-    {{else}}
-      <p class="no-data">No college level data.</p>
-    {{/if}}
+      <div class="full-width">
+        <div class="section">
+          <h2>Siblings Information</h2>
+          {{#if family.siblings}}
+            <div class="table-container">
+              <table>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Age</th>
+                  <th>Program/Course</th>
+                  <th>School/Occupation</th>
+                </tr>
+                {{#each family.siblings}}
+                  <tr>
+                    <td>{{name}}</td>
+                    <td>{{age}}</td>
+                    <td>{{programCurrentlyTakingOrFinished}}</td>
+                    <td>{{schoolOrOccupation}}</td>
+                  </tr>
+                {{/each}}
+              </table>
+            </div>
+          {{else}}
+            <p class="no-data">No siblings information provided.</p>
+          {{/if}}
+        </div>
 
-    <h3>Current Memberships</h3>
-    {{#if education.currentMembershipInOrganizations}}
-      <table>
-        <tr>
-          <th>Organization</th>
-          <th>Position</th>
-        </tr>
-        {{#each education.currentMembershipInOrganizations}}
-          <tr>
-            <td>{{nameOfOrganization}}</td>
-            <td>{{position}}</td>
-          </tr>
-        {{/each}}
-      </table>
-    {{else}}
-      <p class="no-data">No current memberships.</p>
-    {{/if}}
-  </div>
+        <div class="section">
+          <h2>Educational Background</h2>
+          
+          <div class="education-subsection">
+            <h3>Elementary Education</h3>
+            <div class="education-fields">
+              <div class="field">
+                <div class="label">School:</div>
+                <div class="value">{{education.elementary.nameAndAddressOfSchool}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Honors/Awards:</div>
+                <div class="value">{{education.elementary.honorOrAwardsReceived}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Organizations:</div>
+                <div class="value">{{education.elementary.nameOfOrganizationAndPositionHeld}}</div>
+              </div>
+              <div class="field">
+                <div class="label">General Average:</div>
+                <div class="value">{{education.elementary.generalAverage}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Class Rank:</div>
+                <div class="value">{{education.elementary.rankAmongGraduates}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Activities:</div>
+                <div class="value">{{education.elementary.contestTrainingsConferencesParticipated}}</div>
+              </div>
+            </div>
+          </div>
 
-  <div class="section">
-    <h2>References</h2>
-    {{#if references}}
-      <table>
-        <tr>
-          <th>Name</th>
-          <th>Relationship</th>
-          <th>Contact Number</th>
-        </tr>
-        {{#each references}}
-          <tr>
-            <td>{{name}}</td>
-            <td>{{relationshipToTheApplicant}}</td>
-            <td>{{contactNumber}}</td>
-          </tr>
-        {{/each}}
-      </table>
-    {{else}}
-      <p class="no-data">No references listed.</p>
-    {{/if}}
+          <div class="education-subsection">
+            <h3>Secondary Education</h3>
+            <div class="education-fields">
+              <div class="field">
+                <div class="label">School:</div>
+                <div class="value">{{education.secondary.nameAndAddressOfSchool}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Honors/Awards:</div>
+                <div class="value">{{education.secondary.honorOrAwardsReceived}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Organizations:</div>
+                <div class="value">{{education.secondary.nameOfOrganizationAndPositionHeld}}</div>
+              </div>
+              <div class="field">
+                <div class="label">General Average:</div>
+                <div class="value">{{education.secondary.generalAverage}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Class Rank:</div>
+                <div class="value">{{education.secondary.rankAmongGraduates}}</div>
+              </div>
+              <div class="field">
+                <div class="label">Activities:</div>
+                <div class="value">{{education.secondary.contestTrainingsConferencesParticipated}}</div>
+              </div>
+            </div>
+          </div>
+
+          <h3>College Academic Performance</h3>
+          {{#if education.collegeLevel}}
+            <div class="table-container">
+              <table>
+                <tr>
+                  <th>Year Level</th>
+                  <th>1st Semester Average</th>
+                  <th>2nd Semester Average</th>
+                  <th>3rd Semester Average</th>
+                </tr>
+                {{#each education.collegeLevel}}
+                  <tr>
+                    <td>{{yearLevel}}</td>
+                    <td>{{firstSemesterAverageFinalGrade}}</td>
+                    <td>{{secondSemesterAverageFinalGrade}}</td>
+                    <td>{{thirdSemesterAverageFinalGrade}}</td>
+                  </tr>
+                {{/each}}
+              </table>
+            </div>
+          {{else}}
+            <p class="no-data">No college academic records available.</p>
+          {{/if}}
+
+          <h3>Current Organizational Memberships</h3>
+          {{#if education.currentMembershipInOrganizations}}
+            <div class="table-container">
+              <table>
+                <tr>
+                  <th>Organization Name</th>
+                  <th>Position Held</th>
+                </tr>
+                {{#each education.currentMembershipInOrganizations}}
+                  <tr>
+                    <td>{{nameOfOrganization}}</td>
+                    <td>{{position}}</td>
+                  </tr>
+                {{/each}}
+              </table>
+            </div>
+          {{else}}
+            <p class="no-data">No current organizational memberships.</p>
+          {{/if}}
+        </div>
+
+        <div class="section">
+          <h2>Character References</h2>
+          {{#if references}}
+            <div class="table-container">
+              <table>
+                <tr>
+                  <th>Reference Name</th>
+                  <th>Relationship</th>
+                  <th>Contact Information</th>
+                </tr>
+                {{#each references}}
+                  <tr>
+                    <td>{{name}}</td>
+                    <td>{{relationshipToTheApplicant}}</td>
+                    <td>{{contactNumber}}</td>
+                  </tr>
+                {{/each}}
+              </table>
+            </div>
+          {{else}}
+            <p class="no-data">No character references provided.</p>
+          {{/if}}
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 </html>
