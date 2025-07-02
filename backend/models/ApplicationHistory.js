@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const applicationFormSchema = new mongoose.Schema({
+const applicationHistorySchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -152,6 +152,6 @@ const applicationFormSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
-const ApplicationForm = mongoose.model('ApplicationForm', applicationFormSchema);
+const ApplicationHistory = mongoose.model('ApplicationHistory', applicationHistorySchema);
 
-module.exports = ApplicationForm;
+module.exports = ApplicationHistory;

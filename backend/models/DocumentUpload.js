@@ -1,12 +1,11 @@
 const mongoose = require('mongoose');
 
 const fileUploadSchema = new mongoose.Schema({
-    applicationId: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'ApplicationForm',
+        ref: 'User',
         required: true,
-        index: true,
-        unique: true
+        index: true
     },
     studentPicture: {
         filePath: { type: String }, 

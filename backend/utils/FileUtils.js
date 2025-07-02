@@ -3,7 +3,6 @@ const fs = require('fs').promises;
 const sanitizePath = require('sanitize-filename');
 const mime = require('mime-types');
 const DocumentUpload = require('../models/DocumentUpload');
-const ApplicationForm = require('../models/ApplicationForm');
 const User = require('../models/User');
 
 const downloadFile = async (fileName, req, res) => {
@@ -34,22 +33,11 @@ const downloadFile = async (fileName, req, res) => {
       return res.status(404).json({ message: 'File not associated with any document' });
     }
 
-    // Get associated application
-    const application = await ApplicationForm.findById(document.applicationId).lean();
-    if (!application) {
-      return res.status(404).json({ message: 'Associated application not found' });
-    }
-
     // Validate file ownership
     const userId = req.user.id;
     const user = await User.findById(userId);
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
-    }
-
-    const isOwner = application.user.toString() === userId;
-    if (!isOwner) {
-      return res.status(403).json({ message: 'Not authorized to access this file' });
     }
 
     // Check if file exists on disk

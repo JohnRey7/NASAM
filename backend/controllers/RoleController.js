@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const argon2 = require('argon2');
 const Role = require('../models/Role');
 const Permission = require('../models/Permissions');
 const User = require('../models/User');

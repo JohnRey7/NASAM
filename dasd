@@ -1,0 +1,157 @@
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800   1) const mongoose = require('mongoose');
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800   2) 
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800   3) const applicationFormSchema = new mongoose.Schema({
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800   4)   user: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800   5)     type: mongoose.Schema.Types.ObjectId,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800   6)     ref: 'User',
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800   7)     required: true,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800   8)     index: true
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800   9)   },
+b79f2360 (John Rey Cutab 2025-05-27 04:50:00 +0800  10)   emailAddress: {
+b79f2360 (John Rey Cutab 2025-05-27 04:50:00 +0800  11)     type: String,
+b79f2360 (John Rey Cutab 2025-05-27 04:50:00 +0800  12)     sparse: true,  // This allows multiple null values
+b79f2360 (John Rey Cutab 2025-05-27 04:50:00 +0800  13)     index: true
+b79f2360 (John Rey Cutab 2025-05-27 04:50:00 +0800  14)   },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  15)   firstName: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  16)   middleName: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  17)   lastName: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  18)   suffix: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  19)   programOfStudyAndYear: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  20)   existingScholarship: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  21)   remainingUnitsIncludingThisTerm: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  22)     type: Number,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  23)     required: true,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  24)     validate: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  25)       validator: Number.isInteger,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  26)       message: '{VALUE} is not an integer value'
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  27)     }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  28)   },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  29)   remainingTermsToGraduate: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  30)     type: Number,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  31)     required: true,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  32)     validate: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  33)       validator: Number.isInteger,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  34)       message: '{VALUE} is not an integer value'
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  35)     }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  36)   },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  37)   citizenship: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  38)   civilStatus: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  39)   annualFamilyIncome: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  40)     type: String,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  41)     enum: ['<100k', '100k-200k', '200k-300k', '300k-400k', '400k-500k', '>500k'],
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  42)     required: true
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  43)   },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  44)   currentResidenceAddress: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  45)   residingAt: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  46)     type: String,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  47)     enum: ['Boarding House', "Parent's House", "Relative's House"],
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  48)     required: true
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  49)   },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  50)   permanentResidentialAddress: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  51)   contactNumber: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  52)   familyBackground: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  53)     father: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  54)       firstName: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  55)       middleName: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  56)       lastName: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  57)       suffix: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  58)       age: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  59)         type: Number,
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800  60)         required: true,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  61)         validate: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  62)           validator: Number.isInteger,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  63)           message: '{VALUE} is not an integer value'
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  64)         }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  65)       },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  66)       occupation: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  67)       grossAnnualIncome: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  68)       companyName: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  69)       companyAddress: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  70)       homeAddress: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  71)       contactNumber: { type: String, required: true }
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800  72)     },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  73)     mother: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  74)       firstName: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  75)       middleName: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  76)       lastName: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  77)       suffix: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  78)       age: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  79)         type: Number,
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800  80)         required: true,
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800  81)         validate: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  82)           validator: Number.isInteger,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  83)           message: '{VALUE} is not an integer value'
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800  84)         }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  85)       },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  86)       occupation: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  87)       grossAnnualIncome: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  88)       companyName: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  89)       companyAddress: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  90)       homeAddress: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  91)       contactNumber: { type: String, required: true }
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800  92)     },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  93)     siblings: [{
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  94)       name: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  95)       age: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  96)         type: Number,
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800  97)         required: true,
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800  98)         validate: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800  99)           validator: Number.isInteger,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 100)           message: '{VALUE} is not an integer value'
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 101)         }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 102)       },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 103)       programCurrentlyTakingOrFinished: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 104)       schoolOrOccupation: { type: String }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 105)     }]
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 106)   },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 107)   education: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 108)     elementary: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 109)       nameAndAddressOfSchool: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 110)       honorOrAwardsReceived: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 111)       nameOfOrganizationAndPositionHeld: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 112)       generalAverage: { type: Number, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 113)       rankAmongGraduates: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 114)       contestTrainingsConferencesParticipated: { type: String }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 115)     },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 116)     secondary: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 117)       nameAndAddressOfSchool: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 118)       honorOrAwardsReceived: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 119)       nameOfOrganizationAndPositionHeld: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 120)       generalAverage: { type: Number, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 121)       rankAmongGraduates: { type: String },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 122)       contestTrainingsConferencesParticipated: { type: String }
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 123)     },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 124)     collegeLevel: [{
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 125)       yearLevel: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 126)         type: Number,
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 127)         required: true,
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 128)         validate: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 129)           validator: Number.isInteger,
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 130)           message: '{VALUE} is not an integer value'
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 131)         }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 132)       },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 133)       firstSemesterAverageFinalGrade: { type: Number, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 134)       secondSemesterAverageFinalGrade: { type: Number, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 135)       thirdSemesterAverageFinalGrade: { type: Number }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 136)     }],
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 137)     currentMembershipInOrganizations: [{
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 138)       nameOfOrganization: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 139)       position: { type: String, required: true }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 140)     }]
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 141)   },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 142)   references: [{
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 143)     name: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 144)     relationshipToTheApplicant: { type: String, required: true },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 145)     contactNumber: { type: String, required: true }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 146)   }],
+2c8acba1 (psg4220        2025-05-29 03:13:53 +0800 147)   status: { type: String, enum: ['Pending', 'Approved', 'Document Verification', 'Interview Scheduled', 'Rejected'], default: 'Pending'},
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 148)   approvalsSummary: {
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 149)     endorsedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 150)     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 151)   }
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 152) }, { timestamps: true });
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 153) 
+b79f2360 (John Rey Cutab 2025-05-27 04:50:00 +0800 154) 
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 155) const ApplicationForm = mongoose.model('ApplicationForm', applicationFormSchema);
+5f4189ff (psg4220        2025-05-15 00:59:45 +0800 156) 
+2bbc04bc (psg4220        2025-05-24 15:53:54 +0800 157) module.exports = ApplicationForm;

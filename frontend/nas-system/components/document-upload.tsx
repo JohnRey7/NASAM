@@ -1,81 +1,138 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { FileUp, X, FileCheck, AlertCircle } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { documentService, backendFieldMap, Document } from "../services/documentService"
 
-type DocumentType = "grades" | "itr" | "certificate"
+export type DocumentType =
+  | "studentPicture"
+  | "grades"
+  | "itr"
+  | "nbi"
+  | "goodMoral"
+  | "physicalCheckup"
+  | "homeLocationSketch"
 
-interface Document {
-  id: string
-  type: DocumentType
-  name: string
-  size: number
-  progress: number
-  status: "uploading" | "complete" | "error"
-}
-
-const documentTypeInfo = {
+const documentTypeInfo: Record<DocumentType, { title: string; description: string; acceptedFormats: string; maxCount: number }> = {
+  studentPicture: {
+    title: "Student Picture",
+    description: "Upload a recent passport-sized photo",
+    acceptedFormats: ".jpg, .png",
+    maxCount: 1,
+  },
   grades: {
     title: "Grade Report",
     description: "Upload your latest grade report or transcript",
     acceptedFormats: ".pdf, .jpg, .png",
+    maxCount: 5,
   },
   itr: {
     title: "Income Tax Return",
     description: "Upload your parents' or guardian's latest ITR",
     acceptedFormats: ".pdf, .jpg, .png",
+    maxCount: 5,
   },
-  certificate: {
-    title: "Certificates",
-    description: "Upload relevant certificates or awards",
+  nbi: {
+    title: "NBI Clearance",
+    description: "Upload your valid NBI Clearance",
     acceptedFormats: ".pdf, .jpg, .png",
+    maxCount: 5,
+  },
+  goodMoral: {
+    title: "Good Moral Certificate",
+    description: "Upload your Good Moral Certificate",
+    acceptedFormats: ".pdf, .jpg, .png",
+    maxCount: 5,
+  },
+  physicalCheckup: {
+    title: "Physical Checkup",
+    description: "Upload your Physical Checkup results",
+    acceptedFormats: ".pdf, .jpg, .png",
+    maxCount: 5,
+  },
+  homeLocationSketch: {
+    title: "Home Location Sketch",
+    description: "Upload a sketch or map of your home location",
+    acceptedFormats: ".pdf, .jpg, .png",
+    maxCount: 5,
   },
 }
 
 export function DocumentUpload() {
   const [documents, setDocuments] = useState<Document[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const fetchedDocuments = await documentService.getDocuments()
+        setDocuments(fetchedDocuments)
+      } catch (err) {
+        toast({
+          title: "Error",
+          description: err instanceof Error ? err.message : "Failed to fetch existing documents.",
+          variant: "destructive",
+        })
+      }
+    }
+    fetchDocuments()
+  }, [toast])
 
   const handleFileUpload = (type: DocumentType) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    const file = files[0]
-    const newDocument: Document = {
-      id: Math.random().toString(36).substring(2, 9),
-      type,
-      name: file.name,
-      size: file.size,
-      progress: 0,
-      status: "uploading",
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"]
+    const maxCount = documentTypeInfo[type].maxCount
+    const currentCount = documents.filter((doc) => doc.type === type).length
+    const filesToAdd = Array.from(files).slice(0, maxCount - currentCount)
+
+    if (filesToAdd.length === 0) {
+      toast({
+        title: "Limit Reached",
+        description: `You can only upload up to ${maxCount} ${documentTypeInfo[type].title} files.`,
+        variant: "destructive",
+      })
+      return
     }
 
-    setDocuments([...documents, newDocument])
+    const newDocuments: Document[] = filesToAdd
+      .map((file): Document | null => {
+        if (file.size > maxSize) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} exceeds the 5MB limit.`,
+            variant: "destructive",
+          })
+          return null
+        }
+        if (!allowedTypes.includes(file.type)) {
+          toast({
+            title: "Invalid File Type",
+            description: `${file.name} is not a PDF, JPEG, or PNG.`,
+            variant: "destructive",
+          })
+          return null
+        }
+        return {
+          id: Math.random().toString(36).substring(2, 9),
+          type,
+          name: file.name,
+          size: file.size,
+          progress: 0,
+          status: "uploading",
+          file,
+        }
+      })
+      .filter((doc): doc is Document => doc !== null)
 
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setDocuments((prev) =>
-        prev.map((doc) => {
-          if (doc.id === newDocument.id) {
-            const newProgress = doc.progress + 10
-
-            if (newProgress >= 100) {
-              clearInterval(interval)
-              return { ...doc, progress: 100, status: "complete" }
-            }
-
-            return { ...doc, progress: newProgress }
-          }
-          return doc
-        }),
-      )
-    }, 300)
+    setDocuments((prev) => [...prev, ...newDocuments])
   }
 
   const removeDocument = (id: string) => {
@@ -87,6 +144,7 @@ export function DocumentUpload() {
   }
 
   const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "Unknown size"
     if (bytes < 1024) return bytes + " bytes"
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB"
     else return (bytes / 1048576).toFixed(1) + " MB"
@@ -97,7 +155,7 @@ export function DocumentUpload() {
   }
 
   const renderDocumentSection = (type: DocumentType) => {
-    const { title, description, acceptedFormats } = documentTypeInfo[type]
+    const { title, description, acceptedFormats, maxCount } = documentTypeInfo[type]
     const typeDocuments = getDocumentsByType(type)
 
     return (
@@ -151,6 +209,7 @@ export function DocumentUpload() {
                     className="hidden"
                     accept={acceptedFormats}
                     onChange={handleFileUpload(type)}
+                    multiple={maxCount > 1}
                   />
                 </label>
                 <p className="text-xs text-gray-500 mt-2">Accepted formats: {acceptedFormats}</p>
@@ -158,7 +217,7 @@ export function DocumentUpload() {
             )}
           </div>
         </CardContent>
-        {typeDocuments.length > 0 && (
+        {typeDocuments.length < maxCount && (
           <CardFooter className="border-t pt-4 flex justify-end">
             <label htmlFor={`file-upload-${type}`}>
               <div className="bg-[#800000] text-white px-4 py-2 rounded-md cursor-pointer hover:bg-[#600000] transition-colors">
@@ -170,12 +229,73 @@ export function DocumentUpload() {
                 className="hidden"
                 accept={acceptedFormats}
                 onChange={handleFileUpload(type)}
+                multiple={maxCount > 1}
               />
             </label>
           </CardFooter>
         )}
       </Card>
     )
+  }
+
+  const handleSubmitAllDocuments = async () => {
+    if (documents.length === 0) {
+      toast({
+        title: "No Documents",
+        description: "Please upload at least one document before submitting.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    let interval: NodeJS.Timeout | null = null
+    try {
+      setDocuments((prev) =>
+        prev.map((doc) => ({ ...doc, progress: 0, status: "uploading" }))
+      )
+      interval = setInterval(() => {
+        setDocuments((prev) =>
+          prev.map((doc) => {
+            const newProgress = Math.min(doc.progress + 10, 100)
+            return {
+              ...doc,
+              progress: newProgress,
+              status: newProgress === 100 ? "complete" : "uploading",
+            }
+          })
+        )
+      }, 300)
+
+      await documentService.uploadDocuments(documents)
+
+      if (interval) clearInterval(interval)
+      setDocuments((prev) =>
+        prev.map((doc) => ({ ...doc, progress: 100, status: "complete" }))
+      )
+
+      const fetchedDocuments = await documentService.getDocuments()
+      setDocuments(fetchedDocuments)
+
+      toast({
+        title: "Documents submitted",
+        description: "Your documents have been submitted successfully.",
+      })
+    } catch (err) {
+      if (interval) clearInterval(interval)
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.status === "uploading" ? { ...doc, status: "error" } : doc
+        )
+      )
+      toast({
+        title: "Upload Failed",
+        description: err instanceof Error ? err.message : "There was a problem uploading your documents.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -187,31 +307,27 @@ export function DocumentUpload() {
           </div>
           <div className="ml-3">
             <p className="text-sm text-yellow-700">
-              Please upload all required documents to complete your application. All documents must be clear and
-              legible.
+              Please upload all required documents to complete your application. All documents must be clear and legible.
             </p>
           </div>
         </div>
       </div>
 
+      {renderDocumentSection("studentPicture")}
       {renderDocumentSection("grades")}
       {renderDocumentSection("itr")}
-      {renderDocumentSection("certificate")}
+      {renderDocumentSection("nbi")}
+      {renderDocumentSection("goodMoral")}
+      {renderDocumentSection("physicalCheckup")}
+      {renderDocumentSection("homeLocationSketch")}
 
       <div className="flex justify-end">
         <Button
           className="bg-[#800000] hover:bg-[#600000]"
-          onClick={() => {
-            toast({
-              title: "Documents submitted",
-              description: "Your documents have been submitted successfully.",
-            })
-
-            // Switch to status tab
-            document.querySelector('[data-value="status"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
-          }}
+          onClick={handleSubmitAllDocuments}
+          disabled={isSubmitting}
         >
-          Submit All Documents
+          {isSubmitting ? "Submitting..." : "Submit All Documents"}
         </Button>
       </div>
     </div>
