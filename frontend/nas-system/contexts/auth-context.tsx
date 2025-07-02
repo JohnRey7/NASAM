@@ -166,13 +166,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json()
       console.log("Login response data:", data) // Debug log
       
-      // Map backend user data to frontend user format
+      // Check if the user has the 'applicant' role (from backend)
+      if (!data.user || !data.user.role || data.user.role.name !== "applicant") {
+        throw new Error("Only applicants can log in here. Please use the correct portal for your role.")
+      }
+      
+      // Map backend user data to frontend user format (store only role name)
       const loggedInUser: User = {
         id: data.user.id,
-        // Always use the backend name if available
         name: data.user?.name || "Student",
         email: data.user.email || "",
-        role: "applicant", // Regular users are always applicants
+        role: data.user.role.name, // Store only the role name (string)
       }
       
       console.log("Logged in user data:", loggedInUser) // Debug log
