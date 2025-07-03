@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
-type UserRole = "applicant" | "oas_staff" | "panelist" | null
+type UserRole = "applicant" | "oas_staff" | "panelist" | "admin" | null
 type AuthStatus = "loading" | "authenticated" | "unauthenticated"
 
 interface User {
@@ -44,8 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser);
           
-          // Special handling for admin and panelist users (they don't need backend validation)
-          if (parsedUser.role === "oas_staff" || parsedUser.role === "panelist") {
+          // Special handling for admin, oas_staff, and panelist users (they don't need backend validation)
+          if (parsedUser.role === "admin" || parsedUser.role === "oas_staff" || parsedUser.role === "panelist") {
             setUser(parsedUser)
             setStatus("authenticated")
             return
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 ...data.user,
                 // Always use the backend name if available
                 name: data.user?.name || parsedUser.name || "Student",
-                role: "applicant", // Regular users are always applicants
+                role: data.user?.role?.name || parsedUser.role,
               }
               
               console.log("Updated user data:", updatedUser) // Debug log
@@ -103,27 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("loading")
     
     try {
-      // Special cases for OAS and panelist roles (hardcoded credentials)
-      if (idNumber === "admin123" && password === "admin123") {
-        // OAS staff hardcoded login
-        const oasUser: User = {
-          id: "admin-1",
-          name: "OAS Administrator",
-          email: "oas@example.com",
-          role: "oas_staff",
-        }
-        
-        setUser(oasUser)
-        setStatus("authenticated")
-        
-        // Set both localStorage and cookie
-        localStorage.setItem("nas_user", JSON.stringify(oasUser))
-        document.cookie = `nas_user=${JSON.stringify(oasUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
-        
-        router.push("/oas-dashboard")
-        return
-      } 
-      
+      // Special cases for panelist role (hardcoded credentials)
       if (idNumber === "panel123" && password === "panel123") {
         // Panelist hardcoded login
         const panelistUser: User = {
@@ -166,9 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json()
       console.log("Login response data:", data) // Debug log
       
-      // Check if the user has the 'applicant' role (from backend)
-      if (!data.user || !data.user.role || data.user.role.name !== "applicant") {
-        throw new Error("Only applicants can log in here. Please use the correct portal for your role.")
+      // Check if the user has the 'applicant', 'oas_staff', or 'admin' role (from backend)
+      const allowedRoles = ["applicant", "oas_staff", "admin"];
+      if (!data.user || !data.user.role || !allowedRoles.includes(data.user.role.name)) {
+        throw new Error("Only applicants, OAS staff, or admins can log in here. Please use the correct portal for your role.");
       }
       
       // Map backend user data to frontend user format (store only role name)
@@ -187,7 +168,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("nas_user", JSON.stringify(loggedInUser))
       document.cookie = `nas_user=${JSON.stringify(loggedInUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
       
-      router.push("/dashboard")
+      // Redirect based on role
+      if (loggedInUser.role === "admin" || loggedInUser.role === "oas_staff") {
+        router.push("/oas-dashboard")
+      } else if (loggedInUser.role === "panelist") {
+        router.push("/panel-dashboard")
+      } else {
+        router.push("/dashboard")
+      }
     } catch (error) {
       console.error("Login error:", error)
       setStatus("unauthenticated")

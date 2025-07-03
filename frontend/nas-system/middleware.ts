@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 // Define protected routes and their allowed roles
 const protectedRoutes = {
   '/dashboard': ['applicant'],
-  '/oas-dashboard': ['oas_staff'],
+  '/oas-dashboard': ['oas_staff', 'admin'],
   '/panel-dashboard': ['panelist'],
 }
 

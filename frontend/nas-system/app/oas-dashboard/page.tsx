@@ -8,7 +8,7 @@ import { AuditLogs } from "@/components/audit-logs"
 
 export default function OASDashboardPage() {
   return (
-    <DashboardLayout allowedRoles={["oas_staff"]}>
+    <DashboardLayout allowedRoles={["oas_staff", "admin"]}>
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-[#800000]">OAS Staff Dashboard</h2>
         <p className="text-gray-600">Manage scholarship applications, review documents, and evaluate scholars.</p>

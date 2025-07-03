@@ -1,9 +1,8 @@
-
 export interface User {
   id: string
   email: string
   name: string
-  role: "applicant" | "oas_staff" | "panelist"
+  role: "applicant" | "oas_staff" | "panelist" | "admin"
   isActive?: boolean
 }
 

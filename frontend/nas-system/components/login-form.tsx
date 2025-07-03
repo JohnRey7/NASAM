@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -14,10 +14,17 @@ import { useAuth } from "@/contexts/auth-context"
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
-  const { login } = useAuth()
+  const { login, user, status } = useAuth()
   const [rememberMe, setRememberMe] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{ idNumber?: string; password?: string }>({})
   const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Reset loading state when user is authenticated
+  useEffect(() => {
+    if (status === "authenticated" && user) {
+      setIsLoading(false)
+    }
+  }, [status, user])
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()

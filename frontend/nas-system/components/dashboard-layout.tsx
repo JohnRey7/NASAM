@@ -4,7 +4,7 @@ import { UserNav } from "@/components/user-nav"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
-  allowedRoles?: Array<"applicant" | "oas_staff" | "panelist">
+  allowedRoles?: Array<"applicant" | "oas_staff" | "panelist" | "admin">
 }
 
 export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps) {
