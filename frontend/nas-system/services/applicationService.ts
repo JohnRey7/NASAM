@@ -254,23 +254,13 @@ export const applicationService = {
 
   async updateApplicationById(id: string, formData: ApplicationFormData) {
     try {
-      const cleanedFormData = {
-        ...formData,
-        education: {
-          ...formData.education,
-          currentMembershipInOrganizations:
-            Array.isArray(formData.education.currentMembershipInOrganizations)
-              ? formData.education.currentMembershipInOrganizations.filter(
-                  org =>
-                    typeof org.nameOfOrganization === 'string' &&
-                    org.nameOfOrganization.trim() &&
-                    typeof org.position === 'string' &&
-                    org.position.trim()
-              )
-              : [],
-        },
-      };
-      console.log('Updating application by ID with data:', JSON.stringify(cleanedFormData, null, 2));
+      const cleanedFormData = { ...formData };
+      // Remove empty fields if needed (optional, for now send full formData)
+      if (Object.keys(cleanedFormData).length === 0) {
+        console.error('Attempted to PATCH with empty body, skipping request.');
+        return;
+      }
+      console.log('PATCH /application/' + id + ' with data:', JSON.stringify(cleanedFormData, null, 2));
       const response = await axios.patch(`${API_URL}/application/${id}`, cleanedFormData, {
         withCredentials: true,
         headers: {
@@ -346,5 +336,25 @@ export const applicationService = {
       console.error('Unexpected error exporting application to PDF:', error);
       throw error;
     }
+  },
+
+  async getAllApplications(): Promise<any[]> {
+    let allApplications: any[] = [];
+    let page = 1;
+    let hasNextPage = true;
+    const limit = 100; // Use a reasonable page size
+    while (hasNextPage) {
+      const response = await axios.get(`${API_URL}/application/all?limit=${limit}&page=${page}`, { withCredentials: true });
+      const data = response.data.applications || response.data;
+      allApplications = allApplications.concat(data);
+      // Check for pagination object
+      const pagination = response.data.pagination;
+      if (pagination && pagination.hasNextPage) {
+        page++;
+      } else {
+        hasNextPage = false;
+      }
+    }
+    return allApplications;
   },
 };

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -32,70 +32,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-
-// Sample application data
-const APPLICATIONS = [
-  {
-    id: "APP-2023-001",
-    studentName: "Juan Dela Cruz",
-    studentId: "2020-00001",
-    course: "BS Information Technology",
-    submissionDate: "2023-05-10",
-    status: "pending",
-    documents: ["grades", "itr", "certificate"],
-    personalityTest: true,
-    interviewScheduled: false,
-  },
-  {
-    id: "APP-2023-002",
-    studentName: "Maria Santos",
-    studentId: "2020-00002",
-    course: "BS Computer Science",
-    submissionDate: "2023-05-11",
-    status: "document_verification",
-    documents: ["grades", "itr"],
-    personalityTest: true,
-    interviewScheduled: false,
-  },
-  {
-    id: "APP-2023-003",
-    studentName: "Pedro Reyes",
-    studentId: "2020-00003",
-    course: "BS Civil Engineering",
-    submissionDate: "2023-05-12",
-    status: "interview_scheduled",
-    documents: ["grades", "itr", "certificate"],
-    personalityTest: true,
-    interviewScheduled: true,
-    interviewDate: "2023-06-15",
-  },
-  {
-    id: "APP-2023-004",
-    studentName: "Ana Gonzales",
-    studentId: "2020-00004",
-    course: "BS Accountancy",
-    submissionDate: "2023-05-13",
-    status: "approved",
-    documents: ["grades", "itr", "certificate"],
-    personalityTest: true,
-    interviewScheduled: true,
-    interviewDate: "2023-06-10",
-    interviewCompleted: true,
-  },
-  {
-    id: "APP-2023-005",
-    studentName: "Carlos Tan",
-    studentId: "2020-00005",
-    course: "BS Architecture",
-    submissionDate: "2023-05-14",
-    status: "rejected",
-    documents: ["grades", "itr", "certificate"],
-    personalityTest: true,
-    interviewScheduled: true,
-    interviewDate: "2023-06-12",
-    interviewCompleted: true,
-  },
-]
+import { applicationService } from "@/services/applicationService"
 
 export function ApplicationReview() {
   const [filter, setFilter] = useState("all")
@@ -104,56 +41,70 @@ export function ApplicationReview() {
   const [interviewDate, setInterviewDate] = useState("")
   const [remarks, setRemarks] = useState("")
   const { toast } = useToast()
+  const [applications, setApplications] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filteredApplications = APPLICATIONS.filter((app) => {
-    if (filter !== "all" && app.status !== filter) return false
+  useEffect(() => {
+    applicationService.getAllApplications()
+      .then((apps) => {
+        // Sort FIFO: oldest first by submissionDate or createdAt
+        const sorted = [...apps].sort((a, b) => new Date(a.submissionDate || a.createdAt).getTime() - new Date(b.submissionDate || b.createdAt).getTime())
+        setApplications(sorted)
+      })
+      .catch((err) => setError(err.message || "Failed to load applications"))
+      .finally(() => setLoading(false))
+  }, [])
 
+  const filteredApplications = applications.filter((app) => {
+    if (app.user?.idNumber === "ADMIN001") return false; // Exclude admin applications
+    if (filter !== "all" && app.status !== filter) return false;
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
+      const searchLower = searchTerm.toLowerCase();
       return (
-        app.studentName.toLowerCase().includes(searchLower) ||
-        app.studentId.toLowerCase().includes(searchLower) ||
-        app.id.toLowerCase().includes(searchLower)
-      )
+        (app.firstName + ' ' + app.lastName).toLowerCase().includes(searchLower) ||
+        app.user?.idNumber?.toLowerCase().includes(searchLower) ||
+        app._id?.toLowerCase().includes(searchLower)
+      );
     }
-
-    return true
-  })
+    return true;
+  });
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    const normalized = status?.toLowerCase?.() || "";
+    switch (normalized) {
       case "pending":
         return (
           <Badge variant="outline" className="bg-gray-100 text-gray-500">
             Pending
           </Badge>
-        )
+        );
       case "document_verification":
         return (
           <Badge variant="outline" className="bg-blue-100 text-blue-700">
             Document Verification
           </Badge>
-        )
+        );
       case "interview_scheduled":
         return (
           <Badge variant="outline" className="bg-purple-100 text-purple-700">
             Interview Scheduled
           </Badge>
-        )
+        );
       case "approved":
         return (
           <Badge variant="outline" className="bg-green-100 text-green-700">
             Approved
           </Badge>
-        )
+        );
       case "rejected":
         return (
           <Badge variant="outline" className="bg-red-100 text-red-700">
             Rejected
           </Badge>
-        )
+        );
       default:
-        return <Badge variant="outline">Unknown</Badge>
+        return <Badge variant="outline">Unknown</Badge>;
     }
   }
 
@@ -223,9 +174,8 @@ export function ApplicationReview() {
               </Select>
             </div>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+          <div className="max-h-[400px] overflow-y-auto">
+            <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr className="border-b">
                   <th className="py-3 px-2 text-left font-medium text-sm">Application ID</th>
@@ -238,13 +188,13 @@ export function ApplicationReview() {
                 </tr>
               </thead>
               <tbody>
-                {filteredApplications.map((application) => (
-                  <tr key={application.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-2 text-sm">{application.id}</td>
-                    <td className="py-3 px-2 text-sm">{application.studentName}</td>
-                    <td className="py-3 px-2 text-sm">{application.studentId}</td>
-                    <td className="py-3 px-2 text-sm">{application.course}</td>
-                    <td className="py-3 px-2 text-sm">{application.submissionDate}</td>
+                {filteredApplications.map((application: any) => (
+                  <tr key={application._id} className="border-b hover:bg-gray-50">
+                    <td className="py-3 px-2 text-sm">{application._id}</td>
+                    <td className="py-3 px-2 text-sm">{application.firstName} {application.lastName}</td>
+                    <td className="py-3 px-2 text-sm">{application.user?.idNumber}</td>
+                    <td className="py-3 px-2 text-sm">{application.programOfStudyAndYear}</td>
+                    <td className="py-3 px-2 text-sm">{application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}</td>
                     <td className="py-3 px-2 text-sm">{getStatusBadge(application.status)}</td>
                     <td className="py-3 px-2 text-sm">
                       <div className="flex gap-2">
@@ -263,7 +213,7 @@ export function ApplicationReview() {
                             <DialogHeader>
                               <DialogTitle>Application Details</DialogTitle>
                               <DialogDescription>
-                                Review application {application.id} submitted by {application.studentName}
+                                Review application {application._id} submitted by {application.firstName} {application.lastName}
                               </DialogDescription>
                             </DialogHeader>
 
@@ -276,29 +226,68 @@ export function ApplicationReview() {
                               </TabsList>
 
                               <TabsContent value="details" className="space-y-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-4 max-h-80 overflow-y-auto pr-2">
                                   <div>
-                                    <p className="text-sm font-medium text-gray-500">Student Name</p>
-                                    <p>{application.studentName}</p>
+                                    <p className="text-sm font-medium text-gray-500">Full Name</p>
+                                    <p>{application.firstName} {application.middleName} {application.lastName} {application.suffix}</p>
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-gray-500">Student ID</p>
-                                    <p>{application.studentId}</p>
+                                    <p>{application.user?.idNumber}</p>
                                   </div>
                                   <div>
-                                    <p className="text-sm font-medium text-gray-500">Course</p>
-                                    <p>{application.course}</p>
+                                    <p className="text-sm font-medium text-gray-500">Email Address</p>
+                                    <p>{application.emailAddress}</p>
                                   </div>
                                   <div>
-                                    <p className="text-sm font-medium text-gray-500">Submission Date</p>
-                                    <p>{application.submissionDate}</p>
+                                    <p className="text-sm font-medium text-gray-500">Program/Year</p>
+                                    <p>{application.programOfStudyAndYear}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Existing Scholarship</p>
+                                    <p>{application.existingScholarship}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Remaining Units</p>
+                                    <p>{application.remainingUnitsIncludingThisTerm}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Remaining Terms</p>
+                                    <p>{application.remainingTermsToGraduate}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Citizenship</p>
+                                    <p>{application.citizenship}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Civil Status</p>
+                                    <p>{application.civilStatus}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Annual Family Income</p>
+                                    <p>{application.annualFamilyIncome}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Current Residence Address</p>
+                                    <p>{application.currentResidenceAddress}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Permanent Address</p>
+                                    <p>{application.permanentResidentialAddress}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Contact Number</p>
+                                    <p>{application.contactNumber}</p>
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-gray-500">Status</p>
                                     <p>{getStatusBadge(application.status)}</p>
                                   </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Submission Date</p>
+                                    <p>{application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}</p>
+                                  </div>
                                 </div>
-
                                 <div className="pt-4">
                                   <Button
                                     variant="outline"
@@ -318,14 +307,14 @@ export function ApplicationReview() {
 
                               <TabsContent value="documents" className="space-y-4 py-4">
                                 <div className="space-y-4">
-                                  {application.documents.includes("grades") && (
+                                  {Array.isArray(application.documents) && application.documents.includes("grades") && (
                                     <div className="flex justify-between items-center p-3 border rounded-lg">
                                       <div className="flex items-center gap-3">
                                         <FileText className="h-5 w-5 text-[#800000]" />
                                         <div>
                                           <p className="font-medium">Grade Report</p>
                                           <p className="text-sm text-gray-500">
-                                            Submitted on {application.submissionDate}
+                                            Submitted on {application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}
                                           </p>
                                         </div>
                                       </div>
@@ -336,14 +325,14 @@ export function ApplicationReview() {
                                     </div>
                                   )}
 
-                                  {application.documents.includes("itr") && (
+                                  {Array.isArray(application.documents) && application.documents.includes("itr") && (
                                     <div className="flex justify-between items-center p-3 border rounded-lg">
                                       <div className="flex items-center gap-3">
                                         <FileText className="h-5 w-5 text-[#800000]" />
                                         <div>
                                           <p className="font-medium">Income Tax Return</p>
                                           <p className="text-sm text-gray-500">
-                                            Submitted on {application.submissionDate}
+                                            Submitted on {application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}
                                           </p>
                                         </div>
                                       </div>
@@ -354,14 +343,14 @@ export function ApplicationReview() {
                                     </div>
                                   )}
 
-                                  {application.documents.includes("certificate") && (
+                                  {Array.isArray(application.documents) && application.documents.includes("certificate") && (
                                     <div className="flex justify-between items-center p-3 border rounded-lg">
                                       <div className="flex items-center gap-3">
                                         <FileText className="h-5 w-5 text-[#800000]" />
                                         <div>
                                           <p className="font-medium">Certificates</p>
                                           <p className="text-sm text-gray-500">
-                                            Submitted on {application.submissionDate}
+                                            Submitted on {application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}
                                           </p>
                                         </div>
                                       </div>
