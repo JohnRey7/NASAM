@@ -13,6 +13,14 @@ function generateVerificationCode() {
 
 // Helper: Generate a JWT token for a user
 function generateToken(user) {
+  if (!user || !user._id) {
+    throw new Error('User is required for token generation');
+  }
+  
+  if (!user.role || !user.role._id) {
+    throw new Error('User role is required for token generation');
+  }
+  
   const payload = { 
     id: user._id, 
     idNumber: user.idNumber, 
@@ -48,8 +56,13 @@ const AuthController = {
       }
 
       const user = await User.findOne({ idNumber }).populate('role');
+      
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      if (!user.role) {
+        return res.status(500).json({ message: 'User role configuration error. Please contact administrator.' });
       }
 
       if (user.disabled) {
@@ -65,7 +78,14 @@ const AuthController = {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      const token = generateToken(user);
+      let token;
+      try {
+        token = generateToken(user);
+      } catch (error) {
+        console.error('Token generation error:', error);
+        return res.status(500).json({ message: 'Authentication error. Please contact administrator.' });
+      }
+
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
       res.cookie('jwt', token, {
