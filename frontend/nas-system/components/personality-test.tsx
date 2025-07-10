@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { Clock, AlertTriangle } from "lucide-react"
+import axios from "axios"
 
 interface Question {
   id: number
@@ -144,6 +145,8 @@ const personalityQuestions: Question[] = [
   },
 ]
 
+const API_URL = "http://localhost:3000/api"
+
 export function PersonalityTest() {
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [answers, setAnswers] = useState<Record<number, string>>({})
@@ -196,12 +199,32 @@ export function PersonalityTest() {
     }
   }
 
-  const handleTestCompletion = () => {
+  const handleTestCompletion = async () => {
     setTestCompleted(true)
-    toast({
-      title: "Test Completed",
-      description: "Your personality test has been submitted successfully.",
-    })
+    try {
+      // Prepare answers for backend
+      const formattedAnswers = Object.entries(answers).map(([questionId, optionId]) => {
+        // Find the question and the selected option value
+        const question = personalityQuestions.find(q => q.id === Number(questionId))
+        const option = question?.options.find(o => o.id === optionId)
+        return {
+          questionId: questionId, // This is the local question id, backend expects ObjectId if using backend questions
+          answer: option ? option.value : null,
+        }
+      })
+      // Send to backend
+      await axios.post(`${API_URL}/personality-test/answer`, formattedAnswers, { withCredentials: true })
+      toast({
+        title: "Test Completed",
+        description: "Your personality test has been submitted successfully.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Submission Failed",
+        description: error?.response?.data?.message || "Could not submit your answers.",
+        variant: "destructive",
+      })
+    }
   }
 
   const formatTime = (seconds: number) => {
