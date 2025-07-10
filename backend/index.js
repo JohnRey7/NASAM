@@ -122,6 +122,8 @@ app.get('/api/personality-test/all', authenticate, checkPermission('personality_
 app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getPersonalityTestByUserId);
 app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest);
 app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deletePersonalityTestByUserId);
+app.post('/api/personality-test/record', authenticate, checkPermission('personality_test.answer'), PersonalityTestController.recordPersonalityTest);
+app.post('/api/personality-test/answer-single', authenticate, checkPermission('personality_test.answer'), PersonalityTestController.recordSingleAnswer);
 
 // Personality Test Template routes
 app.post('/api/personality-test/template', authenticate, checkPermission('personality_test.template.create'), PersonalityTestController.createTemplate);

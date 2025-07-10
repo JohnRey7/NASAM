@@ -181,15 +181,40 @@ export function PersonalityTest() {
     })
   }
 
+  // Record a single answer to the backend
+  const recordSingleAnswer = async (questionId: number, optionId: string) => {
+    try {
+      const question = personalityQuestions.find(q => q.id === questionId)
+      const option = question?.options.find(o => o.id === optionId)
+      if (!option) return
+      await axios.post(
+        `${API_URL}/personality-test/answer-single`,
+        { questionId: questionId, answer: option.value },
+        { withCredentials: true }
+      )
+    } catch (error: any) {
+      toast({
+        title: "Failed to save answer",
+        description: error?.response?.data?.message || "Could not save your answer.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleAnswer = (value: string) => {
     setAnswers({ ...answers, [personalityQuestions[currentQuestion].id]: value })
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    const qId = personalityQuestions[currentQuestion].id
+    const optionId = answers[qId]
+    if (optionId) {
+      await recordSingleAnswer(qId, optionId)
+    }
     if (currentQuestion < personalityQuestions.length - 1) {
       setCurrentQuestion(currentQuestion + 1)
     } else {
-      handleTestCompletion()
+      await handleTestCompletion()
     }
   }
 
@@ -204,16 +229,15 @@ export function PersonalityTest() {
     try {
       // Prepare answers for backend
       const formattedAnswers = Object.entries(answers).map(([questionId, optionId]) => {
-        // Find the question and the selected option value
         const question = personalityQuestions.find(q => q.id === Number(questionId))
         const option = question?.options.find(o => o.id === optionId)
         return {
-          questionId: questionId, // This is the local question id, backend expects ObjectId if using backend questions
+          questionId: questionId,
           answer: option ? option.value : null,
         }
       })
-      // Send to backend
-      await axios.post(`${API_URL}/personality-test/answer`, formattedAnswers, { withCredentials: true })
+      // Send all answers to backend
+      await axios.post(`${API_URL}/personality-test/record`, formattedAnswers, { withCredentials: true })
       toast({
         title: "Test Completed",
         description: "Your personality test has been submitted successfully.",

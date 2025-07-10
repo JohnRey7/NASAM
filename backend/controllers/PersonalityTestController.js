@@ -562,6 +562,117 @@ const PersonalityTestController = {
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
+
+  // POST /recordPersonalityTest
+  async recordPersonalityTest(req, res) {
+    try {
+      const userId = req.user.id;
+      const answers = req.body;
+
+      if (!Array.isArray(answers) || answers.length === 0) {
+        return res.status(400).json({ message: 'Answers must be a non-empty array' });
+      }
+
+      // Find application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for user' });
+      }
+
+      // Find or create test (no time limit enforced)
+      let test = await PersonalityTest.findOne({ applicationId: application._id });
+      if (!test) {
+        test = new PersonalityTest({
+          applicationId: application._id,
+          questions: answers.map(a => a.questionId),
+          answers: [],
+        });
+      }
+
+      for (const { questionId, answer } of answers) {
+        if (!questionId || answer === undefined) {
+          return res.status(400).json({ message: 'questionId and answer are required for each answer' });
+        }
+        // Upsert answer
+        let answerDoc = await PersonalityAssessmentAnswers.findOne({
+          applicationId: application._id,
+          questionId,
+        });
+        if (answerDoc) {
+          answerDoc.answer = answer;
+          await answerDoc.save();
+        } else {
+          answerDoc = new PersonalityAssessmentAnswers({
+            applicationId: application._id,
+            questionId,
+            answer,
+          });
+          await answerDoc.save();
+          test.answers.push(answerDoc._id);
+        }
+        // Add question to test if not present
+        if (!test.questions.includes(questionId)) {
+          test.questions.push(questionId);
+        }
+      }
+      await test.save();
+      res.status(201).json({ message: 'All answers recorded successfully' });
+    } catch (error) {
+      console.error('Error in recordPersonalityTest:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
+    }
+  },
+
+  // POST /recordSingleAnswer
+  async recordSingleAnswer(req, res) {
+    try {
+      const userId = req.user.id;
+      const { questionId, answer } = req.body;
+      if (!questionId || answer === undefined) {
+        return res.status(400).json({ message: 'questionId and answer are required' });
+      }
+      // Find application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for user' });
+      }
+      // Find or create test
+      let test = await PersonalityTest.findOne({ applicationId: application._id });
+      if (!test) {
+        test = new PersonalityTest({
+          applicationId: application._id,
+          questions: [questionId],
+          answers: [],
+        });
+      }
+      // Upsert answer
+      let answerDoc = await PersonalityAssessmentAnswers.findOne({
+        applicationId: application._id,
+        questionId,
+      });
+      if (answerDoc) {
+        answerDoc.answer = answer;
+        await answerDoc.save();
+      } else {
+        answerDoc = new PersonalityAssessmentAnswers({
+          applicationId: application._id,
+          questionId,
+          answer,
+        });
+        await answerDoc.save();
+        test.answers.push(answerDoc._id);
+      }
+      // Add question to test if not present
+      if (!test.questions.includes(questionId)) {
+        test.questions.push(questionId);
+      }
+      await test.save();
+      res.status(201).json({ message: 'Answer recorded successfully' });
+    } catch (error) {
+      console.error('Error in recordSingleAnswer:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
+    }
+  },
 };
 
 module.exports = PersonalityTestController;
