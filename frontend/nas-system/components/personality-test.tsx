@@ -10,186 +10,159 @@ import { useToast } from "@/hooks/use-toast"
 import { Clock, AlertTriangle } from "lucide-react"
 import axios from "axios"
 
-interface Question {
-  id: number
-  text: string
-  options: {
-    id: string
-    text: string
-    value: number
-  }[]
-  trait: string
+interface BackendQuestion {
+  _id: string
+  type: string
+  question: string
 }
 
-// Sample personality test questions
-const personalityQuestions: Question[] = [
-  {
-    id: 1,
-    text: "I enjoy being the center of attention at social gatherings.",
-    options: [
-      { id: "1-1", text: "Strongly Disagree", value: 1 },
-      { id: "1-2", text: "Disagree", value: 2 },
-      { id: "1-3", text: "Neutral", value: 3 },
-      { id: "1-4", text: "Agree", value: 4 },
-      { id: "1-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "extraversion",
-  },
-  {
-    id: 2,
-    text: "I prefer to plan my day rather than go with the flow.",
-    options: [
-      { id: "2-1", text: "Strongly Disagree", value: 1 },
-      { id: "2-2", text: "Disagree", value: 2 },
-      { id: "2-3", text: "Neutral", value: 3 },
-      { id: "2-4", text: "Agree", value: 4 },
-      { id: "2-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "conscientiousness",
-  },
-  {
-    id: 3,
-    text: "I find it easy to empathize with others' feelings.",
-    options: [
-      { id: "3-1", text: "Strongly Disagree", value: 1 },
-      { id: "3-2", text: "Disagree", value: 2 },
-      { id: "3-3", text: "Neutral", value: 3 },
-      { id: "3-4", text: "Agree", value: 4 },
-      { id: "3-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "agreeableness",
-  },
-  {
-    id: 4,
-    text: "I often worry about things that might go wrong.",
-    options: [
-      { id: "4-1", text: "Strongly Disagree", value: 1 },
-      { id: "4-2", text: "Disagree", value: 2 },
-      { id: "4-3", text: "Neutral", value: 3 },
-      { id: "4-4", text: "Agree", value: 4 },
-      { id: "4-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "neuroticism",
-  },
-  {
-    id: 5,
-    text: "I enjoy exploring new ideas and concepts.",
-    options: [
-      { id: "5-1", text: "Strongly Disagree", value: 1 },
-      { id: "5-2", text: "Disagree", value: 2 },
-      { id: "5-3", text: "Neutral", value: 3 },
-      { id: "5-4", text: "Agree", value: 4 },
-      { id: "5-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "openness",
-  },
-  {
-    id: 6,
-    text: "I find it energizing to be around other people.",
-    options: [
-      { id: "6-1", text: "Strongly Disagree", value: 1 },
-      { id: "6-2", text: "Disagree", value: 2 },
-      { id: "6-3", text: "Neutral", value: 3 },
-      { id: "6-4", text: "Agree", value: 4 },
-      { id: "6-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "extraversion",
-  },
-  {
-    id: 7,
-    text: "I keep my belongings neat and organized.",
-    options: [
-      { id: "7-1", text: "Strongly Disagree", value: 1 },
-      { id: "7-2", text: "Disagree", value: 2 },
-      { id: "7-3", text: "Neutral", value: 3 },
-      { id: "7-4", text: "Agree", value: 4 },
-      { id: "7-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "conscientiousness",
-  },
-  {
-    id: 8,
-    text: "I try to be kind and considerate to everyone I meet.",
-    options: [
-      { id: "8-1", text: "Strongly Disagree", value: 1 },
-      { id: "8-2", text: "Disagree", value: 2 },
-      { id: "8-3", text: "Neutral", value: 3 },
-      { id: "8-4", text: "Agree", value: 4 },
-      { id: "8-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "agreeableness",
-  },
-  {
-    id: 9,
-    text: "I remain calm under pressure.",
-    options: [
-      { id: "9-1", text: "Strongly Disagree", value: 1 },
-      { id: "9-2", text: "Disagree", value: 2 },
-      { id: "9-3", text: "Neutral", value: 3 },
-      { id: "9-4", text: "Agree", value: 4 },
-      { id: "9-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "neuroticism",
-  },
-  {
-    id: 10,
-    text: "I enjoy trying new activities and experiences.",
-    options: [
-      { id: "10-1", text: "Strongly Disagree", value: 1 },
-      { id: "10-2", text: "Disagree", value: 2 },
-      { id: "10-3", text: "Neutral", value: 3 },
-      { id: "10-4", text: "Agree", value: 4 },
-      { id: "10-5", text: "Strongly Agree", value: 5 },
-    ],
-    trait: "openness",
-  },
-]
+interface Option {
+  id: string
+  text: string
+  value: number
+}
+
+interface Answered {
+  questionId: string
+  answer: number
+}
 
 const API_URL = "http://localhost:3000/api"
 
 export function PersonalityTest() {
-  const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [timeLeft, setTimeLeft] = useState(1200) // 20 minutes in seconds
+  const [questions, setQuestions] = useState<BackendQuestion[]>([])
+  const [currentStep, setCurrentStep] = useState(1)
+  const [formData, setFormData] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [testCompleted, setTestCompleted] = useState(false)
   const [testStarted, setTestStarted] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(900) // 15 minutes (backend default)
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+
+  // Options for all questions (Likert scale)
+  const likertOptions: Option[] = [
+    { id: "1", text: "Strongly Disagree", value: 1 },
+    { id: "2", text: "Disagree", value: 2 },
+    { id: "3", text: "Neutral", value: 3 },
+    { id: "4", text: "Agree", value: 4 },
+    { id: "5", text: "Strongly Agree", value: 5 },
+  ]
+
+  // On mount, check if user has a test in progress or completed
+  useEffect(() => {
+    const fetchTest = async () => {
+      setLoading(true)
+      try {
+        const res = await axios.get(`${API_URL}/personality-test/me`, { withCredentials: true })
+        if (res.data && res.data.questions) {
+          setQuestions(res.data.questions)
+          setTestStarted(true)
+          setTestCompleted(false)
+          // Set timer if available
+          if (res.data.endTime && res.data.startTime) {
+            const end = new Date(res.data.endTime).getTime()
+            const now = Date.now()
+            setTimeLeft(Math.max(0, Math.floor((end - now) / 1000)))
+          }
+          // Load answers if any
+          if (res.data.answers && Array.isArray(res.data.answers)) {
+            const answers: Record<string, string> = {}
+            res.data.answers.forEach((ans: any) => {
+              answers[ans.questionId?._id || ans.questionId] = likertOptions.find(o => o.value === ans.answer)?.id || ""
+            })
+            setFormData(answers)
+          }
+        } else {
+          setTestStarted(false)
+        }
+      } catch (e: any) {
+        setTestStarted(false)
+        setQuestions([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchTest()
+  }, [])
 
   // Timer effect
   useEffect(() => {
     if (!testStarted || testCompleted) return
-
+    if (timeLeft <= 0) {
+      handleSubmit()
+      return
+    }
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          handleTestCompletion()
+          handleSubmit()
           return 0
         }
         return prev - 1
       })
     }, 1000)
-
     return () => clearInterval(timer)
-  }, [testStarted, testCompleted])
+  }, [testStarted, testCompleted, timeLeft])
 
-  const handleStartTest = () => {
-    setTestStarted(true)
-    toast({
-      title: "Test Started",
-      description: "You have 20 minutes to complete the personality test.",
-    })
+  const handleStartTest = async () => {
+    setLoading(true)
+    try {
+      const res = await axios.post(`${API_URL}/personality-test/start`, {}, { withCredentials: true })
+      if (res.data && res.data.questions) {
+        setQuestions(res.data.questions)
+        setTestStarted(true)
+        setTestCompleted(false)
+        setCurrentStep(1)
+        setFormData({})
+        setTimeLeft(res.data.timeLimitSeconds || 900)
+        toast({
+          title: "Test Started",
+          description: `You have ${(res.data.timeLimitSeconds || 900) / 60} minutes to complete the personality test.`,
+        })
+      }
+    } catch (e: any) {
+      toast({
+        title: "Could not start test",
+        description: e?.response?.data?.message || "An error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Record a single answer to the backend
-  const recordSingleAnswer = async (questionId: number, optionId: string) => {
+  const handleAnswer = (value: string) => {
+    setFormData({ ...formData, [questions[currentStep - 1]._id]: value })
+  }
+
+  const handleNext = async () => {
+    const q = questions[currentStep - 1]
+    if (!formData[q._id]) {
+      toast({
+        title: "Required",
+        description: "Please select an answer before proceeding.",
+        variant: "destructive",
+      })
+      return
+    }
+    // Save single answer to backend
+    await recordSingleAnswer(q._id, formData[q._id])
+    setCurrentStep(currentStep + 1)
+  }
+
+  const handlePrevious = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1)
+  }
+
+  const recordSingleAnswer = async (questionId: string, optionId: string) => {
     try {
-      const question = personalityQuestions.find(q => q.id === questionId)
-      const option = question?.options.find(o => o.id === optionId)
+      const option = likertOptions.find(o => o.id === optionId)
       if (!option) return
       await axios.post(
         `${API_URL}/personality-test/answer-single`,
-        { questionId: questionId, answer: option.value },
+        { questionId, answer: option.value },
         { withCredentials: true }
       )
     } catch (error: any) {
@@ -201,43 +174,19 @@ export function PersonalityTest() {
     }
   }
 
-  const handleAnswer = (value: string) => {
-    setAnswers({ ...answers, [personalityQuestions[currentQuestion].id]: value })
-  }
-
-  const handleNext = async () => {
-    const qId = personalityQuestions[currentQuestion].id
-    const optionId = answers[qId]
-    if (optionId) {
-      await recordSingleAnswer(qId, optionId)
-    }
-    if (currentQuestion < personalityQuestions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1)
-    } else {
-      await handleTestCompletion()
-    }
-  }
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1)
-    }
-  }
-
-  const handleTestCompletion = async () => {
-    setTestCompleted(true)
+  const handleSubmit = async () => {
+    setIsSubmitting(true)
     try {
       // Prepare answers for backend
-      const formattedAnswers = Object.entries(answers).map(([questionId, optionId]) => {
-        const question = personalityQuestions.find(q => q.id === Number(questionId))
-        const option = question?.options.find(o => o.id === optionId)
+      const formattedAnswers = Object.entries(formData).map(([questionId, optionId]) => {
+        const option = likertOptions.find(o => o.id === optionId)
         return {
-          questionId: questionId,
+          questionId,
           answer: option ? option.value : null,
         }
       })
-      // Send all answers to backend
       await axios.post(`${API_URL}/personality-test/record`, formattedAnswers, { withCredentials: true })
+      setTestCompleted(true)
       toast({
         title: "Test Completed",
         description: "Your personality test has been submitted successfully.",
@@ -248,6 +197,8 @@ export function PersonalityTest() {
         description: error?.response?.data?.message || "Could not submit your answers.",
         variant: "destructive",
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -257,7 +208,13 @@ export function PersonalityTest() {
     return `${minutes}:${remainingSeconds < 10 ? "0" : ""}${remainingSeconds}`
   }
 
-  const progress = (Object.keys(answers).length / personalityQuestions.length) * 100
+  const progress = questions.length > 0 ? ((currentStep - 1) / questions.length) * 100 : 0
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">Loading...</div>
+    )
+  }
 
   if (!testStarted) {
     return (
@@ -277,17 +234,16 @@ export function PersonalityTest() {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-yellow-700">
-                    <strong>Important:</strong> Once you start the test, you will have 20 minutes to complete it. Please
+                    <strong>Important:</strong> Once you start the test, you will have 15 minutes to complete it. Please
                     ensure you have a quiet environment and won't be interrupted.
                   </p>
                 </div>
               </div>
             </div>
-
             <div>
               <h3 className="text-lg font-medium">Instructions:</h3>
               <ul className="list-disc pl-5 mt-2 space-y-1">
-                <li>The test consists of {personalityQuestions.length} questions.</li>
+                <li>The test consists of a set of questions randomly selected for you.</li>
                 <li>Answer each question honestly based on how you typically think, feel, and behave.</li>
                 <li>There are no right or wrong answers.</li>
                 <li>You can navigate between questions using the Previous and Next buttons.</li>
@@ -298,7 +254,7 @@ export function PersonalityTest() {
           </div>
         </CardContent>
         <CardFooter className="border-t pt-6 flex justify-end">
-          <Button onClick={handleStartTest} className="bg-[#800000] hover:bg-[#600000]">
+          <Button onClick={handleStartTest} className="bg-[#800000] hover:bg-[#600000]" disabled={loading}>
             Start Test
           </Button>
         </CardFooter>
@@ -332,19 +288,53 @@ export function PersonalityTest() {
               scholarship committee as part of your application.
             </p>
             <p className="text-sm text-gray-500">
-              You answered {Object.keys(answers).length} out of {personalityQuestions.length} questions.
+              You answered {Object.keys(formData).length} out of {questions.length} questions.
             </p>
           </div>
         </CardContent>
         <CardFooter className="border-t pt-6 flex justify-center">
-          <Button asChild className="bg-[#800000] hover:bg-[#600000]">
-            <a href="/dashboard">Return to Dashboard</a>
+          <Button className="bg-[#800000] hover:bg-[#600000]" onClick={() => window.location.href = "/dashboard"}>
+            Return to Dashboard
           </Button>
         </CardFooter>
       </Card>
     )
   }
 
+  // Summary step
+  if (currentStep > questions.length) {
+    return (
+      <Card className="max-w-3xl mx-auto">
+        <CardHeader className="bg-[#800000]/10 border-b border-[#800000]/20">
+          <CardTitle className="text-[#800000]">Review & Submit</CardTitle>
+          <CardDescription>Review your answers before submitting the test.</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            {questions.map((q, idx) => (
+              <div key={q._id} className="border rounded p-3">
+                <div className="font-medium">{idx + 1}. {q.question}</div>
+                <div className="text-sm text-gray-600 mt-1">
+                  {likertOptions.find(o => o.id === formData[q._id])?.text || <span className="text-red-500">No answer</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+        <CardFooter className="border-t pt-6 flex justify-between">
+          <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)}>
+            Previous
+          </Button>
+          <Button className="bg-[#800000] hover:bg-[#600000]" onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Submit Test"}
+          </Button>
+        </CardFooter>
+      </Card>
+    )
+  }
+
+  // Question step
+  const question = questions[currentStep - 1]
   return (
     <Card className="max-w-3xl mx-auto">
       <CardHeader className="bg-[#800000]/10 border-b border-[#800000]/20">
@@ -352,14 +342,12 @@ export function PersonalityTest() {
           <div>
             <CardTitle className="text-[#800000]">Personality Assessment</CardTitle>
             <CardDescription>
-              Question {currentQuestion + 1} of {personalityQuestions.length}
+              Question {currentStep} of {questions.length}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
             <Clock className="h-4 w-4 text-[#800000]" />
-            <span className={`font-mono ${timeLeft < 300 ? "text-red-500 font-bold" : ""}`}>
-              {formatTime(timeLeft)}
-            </span>
+            <span className={`font-mono ${timeLeft < 60 ? "text-red-500 font-bold" : ""}`}>{formatTime(timeLeft)}</span>
           </div>
         </div>
       </CardHeader>
@@ -370,19 +358,18 @@ export function PersonalityTest() {
             <div className="flex justify-between mt-1 text-xs text-gray-500">
               <span>Progress: {Math.round(progress)}%</span>
               <span>
-                {Object.keys(answers).length} of {personalityQuestions.length} answered
+                {Object.keys(formData).length} of {questions.length} answered
               </span>
             </div>
           </div>
-
           <div>
-            <h3 className="text-lg font-medium mb-4">{personalityQuestions[currentQuestion].text}</h3>
+            <h3 className="text-lg font-medium mb-4">{question.question}</h3>
             <RadioGroup
-              value={answers[personalityQuestions[currentQuestion].id] || ""}
+              value={formData[question._id] || ""}
               onValueChange={handleAnswer}
               className="space-y-3"
             >
-              {personalityQuestions[currentQuestion].options.map((option) => (
+              {likertOptions.map((option) => (
                 <div key={option.id} className="flex items-center space-x-2 border p-3 rounded-md hover:bg-gray-50">
                   <RadioGroupItem value={option.id} id={option.id} />
                   <Label htmlFor={option.id} className="flex-1 cursor-pointer">
@@ -395,15 +382,15 @@ export function PersonalityTest() {
         </div>
       </CardContent>
       <CardFooter className="border-t pt-6 flex justify-between">
-        <Button variant="outline" onClick={handlePrevious} disabled={currentQuestion === 0}>
+        <Button variant="outline" onClick={handlePrevious} disabled={currentStep === 1}>
           Previous
         </Button>
         <Button
           onClick={handleNext}
           className="bg-[#800000] hover:bg-[#600000]"
-          disabled={!answers[personalityQuestions[currentQuestion].id]}
+          disabled={!formData[question._id]}
         >
-          {currentQuestion === personalityQuestions.length - 1 ? "Complete Test" : "Next"}
+          {currentStep === questions.length ? "Review & Submit" : "Next"}
         </Button>
       </CardFooter>
     </Card>
