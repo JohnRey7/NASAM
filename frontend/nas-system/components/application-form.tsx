@@ -193,7 +193,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
               : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }],
             currentMembershipInOrganizations: appData.education?.currentMembershipInOrganizations?.length > 0
               ? appData.education.currentMembershipInOrganizations
-              : [{ nameOfOrganization: "", position: "" }]
+              : [{ nameOfOrganization: "", position: "" }], // Always show at least one
           },
           references: appData.references?.length > 0
             ? appData.references
@@ -265,31 +265,35 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   };
 
   const addOrganization = () => {
-    if (organizationName.trim() && position.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        education: {
-          ...prev.education,
-          currentMembershipInOrganizations: [
-            ...prev.education.currentMembershipInOrganizations,
-            {
-              nameOfOrganization: organizationName,
-              position: position
-            }
-          ]
-        }
-      }))
-      setOrganizationName("")
-      setPosition("")
+    console.log("addOrganization clicked!")
+    
+    const newOrganization = {
+      nameOfOrganization: '',
+      position: ''
     }
-  };
-
-  const removeOrganization = (index: number) => {
+    
+    // Update the organizations state
+    setOrganizations([...organizations, newOrganization])
+    
+    // Update the formData
     setFormData(prev => ({
       ...prev,
       education: {
         ...prev.education,
-        currentMembershipInOrganizations: prev.education.currentMembershipInOrganizations.filter((_, i) => i !== index)
+        currentMembershipInOrganizations: [...organizations, newOrganization]
+      }
+    }))
+  };
+
+  const removeOrganization = (index: number) => {
+    const newOrganizations = organizations.filter((_, i) => i !== index)
+    setOrganizations(newOrganizations)
+    
+    setFormData(prev => ({
+      ...prev,
+      education: {
+        ...prev.education,
+        currentMembershipInOrganizations: newOrganizations
       }
     }))
   }
@@ -693,7 +697,9 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   const safeElementary = safeEducation.elementary || { nameAndAddressOfSchool: '', honorOrAwardsReceived: '', nameOfOrganizationAndPositionHeld: '', generalAverage: 0, rankAmongGraduates: '', contestTrainingsConferencesParticipated: '' };
   const safeSecondary = safeEducation.secondary || { nameAndAddressOfSchool: '', honorOrAwardsReceived: '', nameOfOrganizationAndPositionHeld: '', generalAverage: 0, rankAmongGraduates: '', contestTrainingsConferencesParticipated: '' };
   const safeCollegeLevels = safeEducation.collegeLevel || [];
-  const safeOrganizations = safeEducation.currentMembershipInOrganizations || [];
+  const safeOrganizations = safeEducation.currentMembershipInOrganizations || [
+    { nameOfOrganization: '', position: '' }
+  ];
 
   // Defensive fallback for nested objects to prevent undefined errors
   const safeFamilyBackground = formData.familyBackground || { father: {}, mother: {}, siblings: [] };
@@ -1459,6 +1465,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
               <div className="space-y-4">
                 <h3 className="font-medium">Current Membership in Organizations</h3>
+                
                 {safeOrganizations.map((org, index) => (
                   <div key={index} className="space-y-4 p-4 border rounded-lg">
                     <div className="flex justify-between items-center">
@@ -1581,6 +1588,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
           <div>
             {currentStep > 1 && (
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => setCurrentStep(currentStep - 1)}
                 className="mr-2"
@@ -1591,32 +1599,28 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
             )}
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
             {currentStep < totalSteps ? (
-              <Button onClick={handleNext}>
+              <Button
+                onClick={handleNext}
+              >
                 Next
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <>
-                {isReadOnly ? (
-                  <>
-                    <Button disabled className="bg-[#800000]">
-                      Application Submitted
-                    </Button>
-                    <Button onClick={handleExportPDF} variant="outline" className="ml-2">
-                      Export to PDF
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="bg-[#800000] hover:bg-[#600000]"
-                  >
-                    {isSubmitting ? "Submitting..." : "Submit Application"}
-                  </Button>
-                )}
-              </>
+              <Button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="bg-[#800000] hover:bg-[#600000]"
+              >
+                {isSubmitting ? "Submitting..." : "Submit Application"}
+              </Button>
             )}
           </div>
         </CardFooter>

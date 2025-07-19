@@ -1,6 +1,8 @@
 const DocumentUpload = require('../models/DocumentUpload');
 const path = require('path');
 const fs = require('fs').promises;
+const ApplicationForm = require('../models/ApplicationForm'); // ❌ May not be needed
+const NotificationService = require('../services/NotificationService');
 
 const DocumentController = {
   // Upload or update documents for the authenticated user
@@ -84,6 +86,29 @@ const DocumentController = {
       }
 
       await document.save();
+
+      // After successfully saving documents, add notification:
+      const uploadedTypes = [];
+      if (req.files.studentPicture) uploadedTypes.push('Student Picture');
+      if (req.files.nbiClearance) uploadedTypes.push('NBI Clearance');
+      if (req.files.gradeReport) uploadedTypes.push('Grade Report');
+      if (req.files.incomeTaxReturn) uploadedTypes.push('Income Tax Return');
+      if (req.files.goodMoralCertificate) uploadedTypes.push('Good Moral Certificate');
+      if (req.files.physicalCheckup) uploadedTypes.push('Physical Checkup');
+      if (req.files.homeLocationSketch) uploadedTypes.push('Home Location Sketch');
+
+      // Create notification
+      if (uploadedTypes.length > 0) {
+        const userApplication = await ApplicationForm.findOne({ user: req.user.id });
+        
+        if (userApplication) {
+          await NotificationService.createDocumentUploadedNotification(
+            req.user.id,
+            userApplication._id,
+            uploadedTypes
+          );
+        }
+      }
 
       res.status(201).json({
         message: 'Documents uploaded successfully',

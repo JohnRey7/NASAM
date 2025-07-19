@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 const path = require('path');
+const ActivityLogger = require('../services/ActivityLogger');
+const NotificationService = require('../services/NotificationService');
 
 // Helper function to format yearLevel for display
 const formatYearLevel = (yearLevel) => {
@@ -224,6 +226,19 @@ const ApplicationController = {
       });
 
       await application.save();
+
+      // 🔥 ADD: Log application submission
+      await ActivityLogger.logApplicationSubmission(
+        userId, 
+        application._id, 
+        data.typeOfScholarship || 'scholarship'
+      );
+
+      // 🎯 CREATE NOTIFICATION HERE
+      await NotificationService.createApplicationSubmittedNotification(
+        req.user.id,
+        application._id
+      );
 
       const applicationResponse = await ApplicationForm.findById(application._id)
         .select('-status -approvalsSummary');
@@ -596,7 +611,7 @@ const ApplicationController = {
       if (!['Pending', 'Approved', 'Document Verification', 'Interview Scheduled', 'Rejected'].includes(status)) {
         return res.status(400).json({ message: 'Invalid status value' });
       }
-
+      
       const currentApplication = await ApplicationForm.findOne({ user: userId });
       if (!currentApplication) {
         return res.status(404).json({ message: 'No application found for this user' });
@@ -612,6 +627,13 @@ const ApplicationController = {
         { $set: { status } },
         { new: true, runValidators: true }
       ).select('status');
+
+      // 🎯 CREATE STATUS CHANGE NOTIFICATION
+      await NotificationService.createStatusChangeNotification(
+        currentApplication.user,
+        currentApplication._id,
+        status
+      );
 
       res.json({
         message: 'Status updated successfully',
@@ -737,6 +759,9 @@ const ApplicationController = {
       const templatePath = path.join(__dirname, '../pdf-templates/application-form.html');
       const pdfBuffer = await generateApplicationPDF(application, templatePath);
 
+      // 🔥 ADD: Log PDF export
+      await ActivityLogger.logPDFExport(userId, application._id);
+
       res.set({
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename=application-form-${application._id}.pdf`,
@@ -746,6 +771,52 @@ const ApplicationController = {
     } catch (error) {
       console.error('Error in exportMyApplicationFormAsPDF:', error.message, error.stack);
       res.status(500).json({ message: `Failed to generate PDF: ${error.message}` });
+    }
+  },
+
+  // ADD: New method to get user activity history
+  async getMyActivityHistory(req, res) {
+    try {
+      const userId = req.user.id;
+      const { limit = 50 } = req.query;
+
+      const history = await ActivityLogger.getUserActivityHistory(userId, parseInt(limit));
+
+      res.json({
+        success: true,
+        message: 'Activity history retrieved successfully',
+        history,
+        count: history.length
+      });
+    } catch (error) {
+      console.error('Error in getMyActivityHistory:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to retrieve activity history' 
+      });
+    }
+  },
+
+  // Optional: Add method to get activity history for any user (admin only)
+  async getUserActivityHistory(req, res) {
+    try {
+      const { userId } = req.params;
+      const { limit = 50 } = req.query;
+
+      const history = await ActivityLogger.getUserActivityHistory(userId, parseInt(limit));
+
+      res.json({
+        success: true,
+        message: 'User activity history retrieved successfully',
+        history,
+        count: history.length
+      });
+    } catch (error) {
+      console.error('Error in getUserActivityHistory:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to retrieve user activity history' 
+      });
     }
   }
 };

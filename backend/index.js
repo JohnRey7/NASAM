@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const cors = require('cors');
-
+const NotificationController = require('./controllers/NotificationController');
 const AuthController = require('./controllers/AuthController');
 const ApplicationController = require('./controllers/ApplicationController');
 const DocumentController = require('./controllers/DocumentController');
@@ -191,4 +191,29 @@ process.on('SIGTERM', () => {
       process.exit(0);
     });
   });
+});
+
+// Activity history routes
+app.get('/api/activity/history', authenticate, ApplicationController.getMyActivityHistory);
+app.get('/api/activity/history/user/:userId', authenticate, checkPermission('activity.readAll'), ApplicationController.getUserActivityHistory);
+
+// Notification routes
+app.get('/api/notifications', authenticate, NotificationController.getNotifications);
+app.patch('/api/notifications/:id/read', authenticate, NotificationController.markAsRead);
+app.patch('/api/notifications/mark-all-read', authenticate, NotificationController.markAllAsRead);
+
+// Add this test route temporarily
+app.get('/api/notifications-test', (req, res) => {
+  res.json({ message: 'Notification route is working!' });
+});
+
+// Add this temporarily for testing
+app.get('/api/test-notifications', (req, res) => {
+  console.log('Test notification route hit!');
+  res.json({ message: 'Notification route is working!' });
+});
+
+// Add this simple test route
+app.get('/api/test-notification', (req, res) => {
+  res.json({ message: 'Test notification route works!' });
 });

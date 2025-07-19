@@ -4,13 +4,15 @@ import { useAuth } from "@/contexts/auth-context"
 import { RoleBasedLayout } from "@/components/role-based-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, FileText, Upload, CheckSquare } from "lucide-react"
+import { Calendar, FileText, Upload, CheckSquare, CheckCircle } from "lucide-react"
+import { ActivityHistory } from "@/components/activity-history"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApplicationForm } from "@/components/application-form"
-import { ApplicationStatus } from "@/components/application-status"
 import { DocumentUpload } from "@/components/document-upload"
 import { PersonalityTest } from "@/components/personality-test"
+
+import { ApplicationProgressTracker } from "@/components/application-progress-tracker"
 
 export function DashboardClient() {
   const { user } = useAuth()
@@ -43,7 +45,8 @@ export function DashboardClient() {
 function ApplicantDashboard() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {/* 1. Application Form Card */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
@@ -61,6 +64,7 @@ function ApplicantDashboard() {
           </CardContent>
         </Card>
 
+        {/* 2. Document Upload Card */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
@@ -78,6 +82,7 @@ function ApplicantDashboard() {
           </CardContent>
         </Card>
 
+        {/* 3. Personality Test Card */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
@@ -95,20 +100,22 @@ function ApplicantDashboard() {
           </CardContent>
         </Card>
 
+        {/* 4. Application Status - Use your existing component */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-[#800000]" />
-              Interview
+              <CheckCircle className="h-5 w-5 mr-2 text-[#800000]" />
+              Application Status
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-500 mb-4">Check your scheduled interview date</p>
-            <Link href="#status">
-              <Button variant="outline" className="w-full">
-                View Schedule
-              </Button>
-            </Link>
+            <p className="text-sm text-gray-500 mb-4">
+              Click to view detailed application progress
+            </p>
+            <Button variant="outline" className="w-full">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              View Application Status
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -116,15 +123,9 @@ function ApplicantDashboard() {
       <Tabs defaultValue="form" className="w-full" id="application-form">
         <TabsList className="grid w-full grid-cols-4 mb-8">
           <TabsTrigger value="form">Application Form</TabsTrigger>
-          <TabsTrigger value="documents" id="documents">
-            Document Upload
-          </TabsTrigger>
-          <TabsTrigger value="personality-test" id="personality-test">
-            Personality Test
-          </TabsTrigger>
-          <TabsTrigger value="status" id="status">
-            Application Status
-          </TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="test">Personality Test</TabsTrigger>
+          <TabsTrigger value="status">Application Status</TabsTrigger>
         </TabsList>
 
         <TabsContent value="form">
@@ -135,12 +136,12 @@ function ApplicantDashboard() {
           <DocumentUpload />
         </TabsContent>
 
-        <TabsContent value="personality-test">
+        <TabsContent value="test">
           <PersonalityTest />
         </TabsContent>
 
         <TabsContent value="status">
-          <ApplicationStatus />
+          <ApplicationProgressTracker />
         </TabsContent>
       </Tabs>
     </div>
@@ -163,4 +164,4 @@ function PanelistDashboard() {
       {/* Content for Panelist */}
     </div>
   )
-} 
+}

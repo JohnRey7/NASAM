@@ -31,6 +31,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
+import { NotificationDropdown } from "./notification-dropdown"
 
 interface RoleBasedLayoutProps {
   children: React.ReactNode
@@ -146,16 +147,7 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-[#600000]">
-                <Bell className="h-5 w-5" />
-                {notifications > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500">
-                    {notifications}
-                  </Badge>
-                )}
-              </Button>
-            </div>
+            <NotificationDropdown />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -3,6 +3,8 @@ const PersonalityTest = require('../models/PersonalityTest');
 const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
 const PersonalityAssessmentTemplate = require('../models/PersonalityTestTemplate');
 const ApplicationForm = require('../models/ApplicationForm');
+const ActivityLogger = require('../services/ActivityLogger');
+const NotificationService = require('../services/NotificationService');
 
 const PersonalityTestController = {
   // POST /startPersonalityTest
@@ -65,6 +67,14 @@ const PersonalityTestController = {
       const populatedTest = await PersonalityTest.findById(test._id)
         .populate('questions', 'type question');
 
+      // Log the personality test start activity
+      const userApplication = await ApplicationForm.findOne({ user: req.user.id });
+      await ActivityLogger.logPersonalityTest(
+        req.user.id,
+        userApplication?._id,
+        'personality_test_started'
+      );
+
       // Return questions
       res.status(201).json({
         testId: test._id,
@@ -112,6 +122,10 @@ const PersonalityTestController = {
         });
       }
 
+      let isTestCompleted = false;
+      let finalScore = 0;
+      let answeredQuestions = 0;
+
       // Process each answer
       for (const { questionId, answer } of answers) {
         if (!questionId || !answer) {
@@ -149,10 +163,31 @@ const PersonalityTestController = {
 
         // Update test
         test.answers.push(answerDoc._id);
+
+        // Calculate score and check if test is completed
+        if (answer !== null && answer !== undefined) {
+          answeredQuestions++;
+          finalScore += parseFloat(answer); // Assuming answer is numeric for scoring
+        }
       }
 
       await test.save();
       res.status(201).json({ message: 'Answers submitted successfully' });
+
+      // Log the personality test completion activity if completed
+      if (isTestCompleted) {
+        const userApplication = await ApplicationForm.findOne({ user: req.user.id });
+        await ActivityLogger.logPersonalityTest(
+          req.user.id,
+          userApplication?._id,
+          'personality_test_completed',
+          { 
+            score: finalScore, 
+            totalQuestions: answeredQuestions,
+            completionDate: new Date()
+          }
+        );
+      }
     } catch (error) {
       console.error('Error in answerPersonalityTest:', error);
       res.status(500).json({ message: `Server error: ${error.message}` });
