@@ -24,21 +24,19 @@ export function ApplicationProgressTracker() {
         if (appResponse.ok) {
           const appData = await appResponse.json()
           
-          // Only set status if application actually exists
           if (appData.application) {
-            if (appData.application.status) {
-              setApplicationStatus(appData.application.status)
-            } else {
-              setApplicationStatus("Submitted") // Has application but no specific status
-            }
-          } else {
-            setApplicationStatus("None") // No application exists
+            const backendStatus = appData.application.status
+            console.log('🔍 DEBUG: Backend returned status:', backendStatus); // ✅ ADD THIS DEBUG
+            
+            // Set the exact status from backend - DON'T TRANSFORM IT
+            setApplicationStatus(backendStatus); // ✅ USE EXACT STATUS
+            console.log('🔍 DEBUG: Progress tracker status set to:', backendStatus); // ✅ ADD THIS DEBUG
           }
         } else {
-          setApplicationStatus("None") // Request failed, no application
+          setApplicationStatus("None")
         }
 
-        // Check documents
+        // Check documents (existing logic)
         const docResponse = await fetch('http://localhost:3000/api/documents', {
           credentials: 'include'
         })
@@ -75,40 +73,50 @@ export function ApplicationProgressTracker() {
     }
     
     fetchApplicationProgress()
-    // Auto refresh every 30 seconds
-    const interval = setInterval(fetchApplicationProgress, 30000)
+    // Auto refresh every 15 seconds to catch OAS updates quickly
+    const interval = setInterval(fetchApplicationProgress, 15000)
     return () => clearInterval(interval)
   }, [])
 
-  // Application progress steps in order
+  // Application progress steps in order - REVERTED TO ORIGINAL TITLES
   const progressSteps = [
     {
-      title: "Application Submitted",
+      title: "Application Form",
       description: "Application form and documents received", 
-      // If application exists at all (not "None"), mark as completed
-      status: (applicationStatus !== "None") ? "Completed" : "Pending",
+      // ✅ FIXED: Check for the exact status your backend sets
+      status: applicationStatus === "None" ? "Not Submitted" :
+              applicationStatus === "form_verified" ? "Completed" :  // ✅ CHECK THIS EXACT VALUE
+              ["document_verification", "approved", "rejected"].includes(applicationStatus) ? "Completed" :
+              "Pending",  // ✅ Default to pending for submitted but not verified
       icon: <FileText className="h-6 w-6" />
     },
     {
-      title: "Under Review",
-      description: "Document verification and initial screening",
-      // Only completed if has documents OR admin changed status
-      status: (hasDocuments || ["Document Verification", "Interview Scheduled", "Approved", "Rejected"].includes(applicationStatus)) 
-        ? "Completed" : "Pending",
-      icon: <CheckCircle className="h-6 w-6" />
-    },
-    {
-      title: "Evaluation Phase", 
-      description: "Assessment and interview process",
-      status: ["Interview Scheduled", "Approved", "Rejected"].includes(applicationStatus) 
-        ? "Completed" : "Pending",
+      title: "Documents",
+      description: "Upload required documents for verification",
+      status: applicationStatus === "None" ? "Not Submitted" :
+              ["document_verification", "approved", "rejected"].includes(applicationStatus)
+                ? "Completed" :
+              applicationStatus === "form_verified"
+                ? "Pending" : 
+              hasDocuments ? "Pending" : "Not Submitted",
       icon: <Users className="h-6 w-6" />
     },
     {
-      title: "Final Decision",
+      title: "Personality Test",
+      description: "Take the required personality assessment",
+      status: applicationStatus === "None" ? "Not Submitted" :
+              ["approved", "rejected"].includes(applicationStatus)
+                ? "Completed" :
+              applicationStatus === "document_verification"
+                ? "Pending" : "Not Submitted",
+      icon: <CheckCircle className="h-6 w-6" />
+    },
+    {
+      title: "Application Status",
       description: "Application approval or rejection",
-      status: ["Approved", "Rejected"].includes(applicationStatus) 
-        ? "Completed" : "Pending",
+      status: applicationStatus === "None" ? "Not Submitted" :
+              ["approved", "rejected"].includes(applicationStatus)
+                ? "Completed" : "Not Submitted",
       icon: <Award className="h-6 w-6" />
     }
   ]
@@ -161,38 +169,90 @@ export function ApplicationProgressTracker() {
               
               <div className="flex items-start gap-6">
                 {/* Status Icon */}
-                <div className={`rounded-full p-1 ${step.status === "Completed" ? "bg-green-100" : "bg-yellow-100"}`}>
+                <div className={`rounded-full p-1 ${
+                  step.status === "Completed" ? "bg-green-100" : 
+                  step.status === "Pending" ? "bg-yellow-100" : "bg-gray-100"  // ✅ Gray for not submitted
+                }`}>
                   {step.status === "Completed" ? (
                     <CheckCircle className="h-5 w-5 text-green-600" />
-                  ) : (
+                  ) : step.status === "Pending" ? (
                     <Clock className="h-5 w-5 text-yellow-600" />
+                  ) : (
+                    <Clock className="h-5 w-5 text-gray-400" />  // ✅ Gray clock for not submitted
                   )}
                 </div>
                 
-                {/* Step Details */}
+                {/* Step Details - Enhanced */}
                 <div className="flex-1">
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-lg">{step.title}</h3>
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                       step.status === "Completed" 
                         ? "bg-green-100 text-green-800" 
-                        : "bg-yellow-100 text-yellow-800"
+                        : step.status === "Pending"
+                        ? "bg-yellow-100 text-yellow-800"  
+                        : "bg-gray-100 text-gray-600"     
                     }`}>
                       {step.status}
                     </span>
                   </div>
                   <p className="text-sm text-gray-500 mt-1">{step.description}</p>
                   
-                  {/* Show additional info for document step */}
-                  {idx === 1 && step.status === "Completed" && hasDocuments && (
-                    <div className="mt-2 text-xs text-green-600">
-                      ✓ Documents uploaded successfully
+                  {/* ✅ Enhanced status messages for Application Form step */}
+                  {idx === 0 && (
+                    <div className="mt-2 text-xs">
+                      {step.status === "Pending" && (
+                        <span className="text-yellow-600">⏳ Application received, awaiting OAS review</span>
+                      )}
+                      {step.status === "Completed" && (
+                        <span className="text-green-600">✓ Application form processed by OAS staff</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ✅ Enhanced status messages for Documents step */}
+                  {idx === 1 && (
+                    <div className="mt-2 text-xs">
+                      {step.status === "Pending" && (
+                        <span className="text-yellow-600">⏳ Awaiting OAS staff document review</span>
+                      )}
+                      {step.status === "Completed" && (
+                        <span className="text-green-600">✓ Documents verified by OAS staff</span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* ✅ Enhanced status messages for Personality Test step */}
+                  {idx === 2 && (
+                    <div className="mt-2 text-xs">
+                      {step.status === "Pending" && (
+                        <span className="text-yellow-600">⏳ Ready to take personality assessment</span>
+                      )}
+                      {step.status === "Completed" && (
+                        <span className="text-green-600">✓ Personality test completed</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ✅ Enhanced status messages for Application Status step */}
+                  {idx === 3 && (
+                    <div className="mt-2 text-xs">
+                      {step.status === "Pending" && (
+                        <span className="text-yellow-600">⏳ Awaiting final decision</span>
+                      )}
+                      {step.status === "Completed" && applicationStatus === "approved" && (
+                        <span className="text-green-600">🎉 Application approved!</span>
+                      )}
+                      {step.status === "Completed" && applicationStatus === "rejected" && (
+                        <span className="text-red-600">❌ Application rejected</span>
+                      )}
                     </div>
                   )}
                   
                   {/* Timeline */}
                   <div className="mt-2 text-xs text-gray-400">
-                    {step.status === "Completed" ? "Completed" : "Pending"}
+                    {step.status === "Completed" ? "Completed" : 
+                     step.status === "Pending" ? "Awaiting OAS Action" : "Awaiting"}
                   </div>
                 </div>
               </div>

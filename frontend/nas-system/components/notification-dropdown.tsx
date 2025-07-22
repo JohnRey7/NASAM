@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Bell, X, CheckCircle, AlertCircle, Clock } from "lucide-react"
+import { Bell, X, CheckCircle, AlertCircle, Clock, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface Notification {
@@ -21,6 +21,7 @@ export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown when clicking outside
@@ -50,6 +51,7 @@ export function NotificationDropdown() {
       if (response.ok) {
         const data = await response.json()
         setNotifications(data.notifications || [])
+        setUnreadCount(data.notifications.filter((n: Notification) => !n.isRead).length)
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
@@ -67,6 +69,7 @@ export function NotificationDropdown() {
       setNotifications(prev => 
         prev.map(n => n._id === notificationId ? { ...n, isRead: true } : n)
       )
+      setUnreadCount(prev => Math.max(0, prev - 1))
     } catch (error) {
       console.error('Error marking as read:', error)
     }
@@ -79,10 +82,68 @@ export function NotificationDropdown() {
         credentials: 'include'
       })
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+      setUnreadCount(0)
     } catch (error) {
       console.error('Error marking all as read:', error)
     }
   }
+
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/notifications/${notificationId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        setNotifications(prev => prev.filter(n => n._id !== notificationId));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        
+        toast({
+          title: "Notification deleted",
+          description: "Notification has been removed successfully."
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete notification",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteAllNotifications = async () => {
+    const confirmed = window.confirm('Are you sure you want to delete all notifications? This action cannot be undone.');
+    
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch('http://localhost:3000/api/notifications', {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        setNotifications([]);
+        setUnreadCount(0);
+        
+        toast({
+          title: "All notifications deleted",
+          description: "All notifications have been removed successfully."
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting all notifications:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete notifications",
+        variant: "destructive"
+      });
+    }
+  };
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
@@ -92,8 +153,6 @@ export function NotificationDropdown() {
       default: return <Bell className="h-4 w-4 text-gray-500" />
     }
   }
-
-  const unreadCount = notifications.filter(n => !n.isRead).length
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -122,7 +181,7 @@ export function NotificationDropdown() {
             <CardHeader className="bg-gray-50 border-b px-4 py-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-gray-900">
-                  Notifications
+                  Notifications {unreadCount > 0 && `(${unreadCount})`}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {unreadCount > 0 && (
@@ -133,6 +192,16 @@ export function NotificationDropdown() {
                       className="text-xs text-blue-600 hover:text-blue-800"
                     >
                       Mark all read
+                    </Button>
+                  )}
+                  {notifications.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={deleteAllNotifications}
+                      className="text-xs text-red-600 hover:text-red-800"
+                    >
+                      Delete all
                     </Button>
                   )}
                   <Button
@@ -162,27 +231,42 @@ export function NotificationDropdown() {
                   {notifications.map((notification) => (
                     <div
                       key={notification._id}
-                      className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        !notification.isRead ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''
+                      className={`p-4 hover:bg-gray-50 cursor-pointer border-l-4 ${
+                        notification.isRead 
+                          ? 'border-gray-300 bg-gray-50' 
+                          : 'border-[#800000] bg-white'
                       }`}
-                      onClick={() => markAsRead(notification._id)}
                     >
-                      <div className="flex items-start gap-3">
-                        {getPriorityIcon(notification.priority)}
-                        <div className="flex-1 min-w-0">
-                          <h4 className={`text-sm ${!notification.isRead ? 'font-semibold' : 'font-medium'} text-gray-900`}>
-                            {notification.title}
-                          </h4>
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1" onClick={() => markAsRead(notification._id)}>
+                          <div className="flex items-center gap-2 mb-1">
+                            {getPriorityIcon(notification.priority)}
+                            <h4 className="font-medium text-sm text-gray-900">
+                              {notification.title}
+                            </h4>
+                            {!notification.isRead && (
+                              <div className="w-2 h-2 bg-[#800000] rounded-full"></div>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600 mb-2">
                             {notification.message}
                           </p>
-                          <p className="text-xs text-gray-400 mt-2">
+                          <p className="text-xs text-gray-400">
                             {new Date(notification.createdAt).toLocaleString()}
                           </p>
                         </div>
-                        {!notification.isRead && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                        )}
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notification._id);
+                          }}
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 ml-2"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                   ))}

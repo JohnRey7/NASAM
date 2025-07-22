@@ -1,28 +1,31 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
-  userId: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  applicationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'ApplicationForm'
-  },
   type: {
     type: String,
+    required: true,
     enum: [
-      'status_change',
-      'document_required', 
-      'interview_scheduled',
+      'general',
       'application_submitted',
+      'application_form_verified',
+      'application_status',
+      'documents_submitted',
       'document_uploaded',
-      'document_verification',
-      'personality_test',
-      'system_alert'
-    ],
-    required: true
+      'documents_verified',
+      'document_status',
+      'interview_scheduled',
+      'personality_test_available',
+      'personality_test_completed',
+      'scholarship_approved',
+      'scholarship_rejected',
+      'progress_update',
+      'status_change'
+    ]
   },
   title: {
     type: String,
@@ -32,17 +35,20 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  priority: {
-    type: String,
-    enum: ['low', 'medium', 'high', 'urgent'],
-    default: 'medium'
-  },
   isRead: {
     type: Boolean,
     default: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  metadata: {
+    applicationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ApplicationForm'
+    }
   }
-}, {
-  timestamps: true
 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

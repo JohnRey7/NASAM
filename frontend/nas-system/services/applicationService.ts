@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_URL = 'http://localhost:3000/api';
 
 export interface ApplicationFormData {
   user?: string;
@@ -309,7 +309,7 @@ export const applicationService = {
       console.error('Unexpected error deleting application:', error);
       throw error;
     }
-},
+  },
 
   async exportToPDF(applicationId: string) {
     try {
@@ -357,4 +357,33 @@ export const applicationService = {
     }
     return allApplications;
   },
+
+  // Add this new method for OAS staff
+  async getAllApplicationsForStaff() {
+    try {
+      const response = await fetch(`${API_URL}/oas/applications`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const applications = await response.json();
+      return applications;
+    } catch (error) {
+      console.error('Error fetching applications for staff:', error);
+      throw error;
+    }
+  },
+};
+
+export type ApplicationFormData = {
+  // Define your application form data type
+  [key: string]: any;
 };

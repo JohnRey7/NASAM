@@ -103,7 +103,7 @@ const DocumentController = {
         
         if (userApplication) {
           await NotificationService.createDocumentUploadedNotification(
-            req.user.id,
+            req.user.id,  // ✅ Pass the user ID first
             userApplication._id,
             uploadedTypes
           );
@@ -128,7 +128,7 @@ const DocumentController = {
         }
       });
     } catch (error) {
-      console.error('Error in uploadDocuments:', error);
+      console.error('❌ Error in uploadDocuments:', error);
       // Clean up uploaded files on error
       if (req.files) {
         for (const field in req.files) {
@@ -141,7 +141,11 @@ const DocumentController = {
           }
         }
       }
-      res.status(400).json({ message: `Document upload failed: ${error.message}` });
+      res.status(500).json({
+        success: false,
+        message: 'Failed to upload documents',
+        error: error.message
+      });
     }
   },
 

@@ -293,32 +293,62 @@ export function UserProfile() {
       type: "submission"
     })
     
-    // Add more events based on status
-    if (application.status !== "pending") {
+    // Add more events based on status - UPDATED WORDINGS
+    if (application.status === "under_review" || application.status === "reviewing") {
       history.push({
         id: `${application._id}-review`,
         title: "Under Review",
-        description: "Your application is being reviewed by OAS staff.",
+        description: "Your application is currently being reviewed by OAS staff.",
         date: application.updatedAt,
-        status: application.status === "reviewing" ? "current" : "completed",
+        status: "current",
         type: "review"
       })
     }
+
+    if (application.status === "form_verified") {
+      history.push({
+        id: `${application._id}-form-verified`,
+        title: "Application Form Verified",
+        description: "Your application form has been reviewed and verified.",
+        date: application.updatedAt,
+        status: "completed",
+        type: "verification"
+      })
+    }
+
+    if (application.status === "document_verification") {
+      history.push({
+        id: `${application._id}-doc-review`,
+        title: "Document Verification",
+        description: "Your submitted documents are being verified.",
+        date: application.updatedAt,
+        status: "current",
+        type: "verification"
+      })
+    }
     
-    if (application.status === "approved" || application.status === "rejected") {
+    if (application.status === "approved") {
       history.push({
         id: `${application._id}-decision`,
-        title: application.status === "approved" ? "Application Approved" : "Application Not Approved",
-        description: application.status === "approved" 
-          ? "Congratulations! Your application has been approved."
-          : "Your application was not approved at this time.",
+        title: "Application Approved",
+        description: "Congratulations! Your scholarship application has been approved.",
+        date: application.updatedAt,
+        status: "completed",
+        type: "decision"
+      })
+    }
+
+    if (application.status === "rejected") {
+      history.push({
+        id: `${application._id}-decision`,
+        title: "Application Decision",
+        description: "Your application has been reviewed. Please check with OAS for details.",
         date: application.updatedAt,
         status: "completed",
         type: "decision"
       })
     }
     
-    // Fix the date sorting
     return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }
 
@@ -349,15 +379,91 @@ export function UserProfile() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "bg-[#800000]"
+        return "bg-green-500" // Green for completed steps
       case "current":
-        return "bg-blue-500"
+        return "bg-blue-500"  // Blue for current step
       case "pending":
-        return "bg-gray-400"
+        return "bg-yellow-500" // Yellow for pending (only when application exists)
       default:
-        return "bg-gray-400"
+        return "bg-gray-400"  // Gray for not started
     }
   }
+
+  // Add this function to your dashboard component (wherever you see the pending statuses)
+  const getProgressStatus = (stepId: string, applicationData: any) => {
+    if (!applicationData) {
+      // No application submitted yet - ALL steps should be "not_submitted"
+      return "not_submitted"
+    }
+    
+    // Map your application status to progress steps
+    const status = applicationData.status
+    
+    switch (stepId) {
+      case "submission":
+        return "completed" // Always completed if application exists
+        
+      case "review":
+        if (status === "under_review" || status === "reviewing") return "pending"  // ✅ Only pending when actually under review
+        if (status === "form_verified" || status === "document_verification" || status === "approved") return "completed"
+        return "not_submitted"
+        
+      case "evaluation":
+        if (status === "document_verification") return "pending"  // ✅ Only pending when in this phase
+        if (status === "approved") return "completed"
+        return "not_submitted"
+        
+      case "decision":
+        if (status === "approved" || status === "rejected") return "completed"
+        return "not_submitted"  // ✅ Not submitted until final decision
+        
+      default:
+        return "not_submitted"  // ✅ Default to not_submitted
+    }
+  }
+
+  // Update status label function
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "Completed"
+      case "pending":
+        return "Pending"
+      case "not_submitted":
+        return "Not Submitted"  // ✅ This will show by default
+      default:
+        return "Not Submitted"  // ✅ Changed from "Not Submitted" to this as fallback
+    }
+  }
+
+  // New progress tracker state
+  const totalSteps = 4
+  const [applicationData, setApplicationData] = useState<Application | null>(null)
+  const completedSteps = applicationData ? (applicationData.status === "approved" ? 4 : 3) : 0 // Mocked logic for completed steps
+
+  // Mocked progress steps - replace with your actual steps
+  const progressSteps = [
+    {
+      id: "submission",
+      title: "Application Submitted",
+      description: "Application form and documents received"
+    },
+    {
+      id: "review", 
+      title: "Under Review",
+      description: "Document verification and initial screening"
+    },
+    {
+      id: "evaluation",
+      title: "Evaluation Phase",
+      description: "Assessment and interview process"
+    },
+    {
+      id: "decision",
+      title: "Final Decision",
+      description: "Application approval or rejection"
+    },
+  ]
 
   return (
     <Card>
@@ -609,11 +715,10 @@ export function UserProfile() {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No application history available yet.</p>
-                    <p className="text-sm text-gray-400 mt-2">
-                      Your application progress will appear here once you submit an application.
-                    </p>
+                  <div className="text-center py-12 space-y-4">
+                    
+                    
+                    
                   </div>
                 )}
               </div>
@@ -650,6 +755,49 @@ export function UserProfile() {
           <Button onClick={handleSaveProfile} disabled={isLoading} className="bg-[#800000] hover:bg-[#600000]">
             {isLoading ? "Saving..." : "Save Changes"}
           </Button>
+        </div>
+
+        {/* Replace your existing progress tracker with this */}
+        <div className="space-y-6">
+          <h3 className="text-lg font-semibold">Application Progress</h3>
+          
+          {applicationData ? (
+            <div className="text-sm text-gray-600 mb-4">
+              {Math.round((completedSteps / totalSteps) * 100)}% Complete
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600 mb-4">
+              0% Complete - Start your application
+            </div>
+          )}
+          
+          <div className="space-y-4">
+            {progressSteps.map((step) => {
+              const status = getProgressStatus(step.id, applicationData)
+              
+              return (
+                <div key={step.id} className="flex items-center justify-between p-4 rounded-lg border">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      status === 'completed' ? 'bg-green-500' :
+                      status === 'pending' ? 'bg-yellow-500' : 'bg-gray-300'
+                    }`}></div>
+                    <div>
+                      <h4 className="font-medium">{step.title}</h4>
+                      <p className="text-sm text-gray-600">{step.description}</p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    status === 'completed' ? 'bg-green-100 text-green-800' :
+                    status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-gray-100 text-gray-600'  // ✅ Gray for "Not Submitted" instead of yellow
+                  }`}>
+                    {getStatusLabel(status)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </CardContent>
     </Card>

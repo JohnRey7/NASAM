@@ -19,6 +19,7 @@ const authenticate = require('./middleware/authenticate');
 const checkPermission = require('./middleware/checkPermission');
 const { checkApplicationAccess, uploadDocuments } = require('./middleware/documentMiddleware');
 const User = require('./models/User');
+process.setMaxListeners(20);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -26,7 +27,7 @@ const port = process.env.PORT || 3000;
 // CORS middleware for development
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3001');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS'); // ✅ ADD PATCH HERE
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
   
@@ -36,6 +37,14 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// ✅ REVERT TO ORIGINAL CORS CONFIGURATION:
+app.use(cors({
+  origin: ['http://localhost:3001', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // ✅ ADD PATCH HERE
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+}));
 
 // Middleware
 app.use(helmet({
@@ -198,9 +207,12 @@ app.get('/api/activity/history', authenticate, ApplicationController.getMyActivi
 app.get('/api/activity/history/user/:userId', authenticate, checkPermission('activity.readAll'), ApplicationController.getUserActivityHistory);
 
 // Notification routes
-app.get('/api/notifications', authenticate, NotificationController.getNotifications);
-app.patch('/api/notifications/:id/read', authenticate, NotificationController.markAsRead);
+app.post('/api/notifications', authenticate, NotificationController.createNotification);
+app.get('/api/notifications', authenticate, NotificationController.getUserNotifications);
+app.patch('/api/notifications/:notificationId/read', authenticate, NotificationController.markAsRead);
 app.patch('/api/notifications/mark-all-read', authenticate, NotificationController.markAllAsRead);
+app.delete('/api/notifications/:notificationId', authenticate, NotificationController.deleteNotification);
+app.delete('/api/notifications', authenticate, NotificationController.deleteAllNotifications);
 
 // Add this test route temporarily
 app.get('/api/notifications-test', (req, res) => {
@@ -217,3 +229,31 @@ app.get('/api/test-notifications', (req, res) => {
 app.get('/api/test-notification', (req, res) => {
   res.json({ message: 'Test notification route works!' });
 });
+
+// OAS Staff Dashboard Routes
+app.get('/api/oas/applications', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAllApplicationsForStaff);
+app.get('/api/oas/application/:applicationId/documents', authenticate, ApplicationController.getApplicationDocumentsByAppId);
+app.patch('/api/oas/application/:applicationId/status', authenticate, checkPermission('applicationForm.update'), ApplicationController.updateApplicationStatus);
+app.get('/api/oas/application-by-id/:applicationId/pdf', authenticate, ApplicationController.exportApplicationFormAsPDFByApplicationId);
+// Delete application route for OAS staff
+app.delete('/api/oas/application/:applicationId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationById);
+// Delete only application form (keep documents)
+app.delete('/api/oas/application/:applicationId/form-only', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormOnly);
+
+// Delete only documents (keep application form)
+app.delete('/api/oas/application/:applicationId/documents-only', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteDocumentsOnly);
+// ✅ Make sure this route exists in your backend/index.js
+app.patch('/api/oas/application/:applicationId/verify', authenticate, ApplicationController.verifyApplicationForm);
+
+// Add this new route for document verification
+app.patch('/api/oas/application/:applicationId/verify-documents', authenticate, ApplicationController.verifyApplicationDocuments);
+app.patch('/api/oas/application/:applicationId/verify', authenticate, ApplicationController.verifyApplicationForm);
+
+// Add this temporarily to your backend/index.js:
+app.get('/api/test-verify', (req, res) => {
+  res.json({ message: 'Route is working!' });
+});
+
+// Add this route to your backend/index.js:
+app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationForm.read'), ApplicationController.getDashboardStats);
+
