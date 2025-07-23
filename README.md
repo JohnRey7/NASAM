@@ -8,3 +8,6 @@ Paquera, Ronan Jake C. \
 Clabisellas, Genesis T. \
 Vijar, Justin Carl S. \
 Paquit, Asher Caleb N. 
+
+
+# NOTE: This branch only updates the backend branch as of creating this branch.
