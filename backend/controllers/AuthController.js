@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Role = require('../models/Role');
+const Department = require('../models/Department');
 const BlacklistedToken = require('../models/BlacklistedToken');
 const sendVerificationEmail = require('../utils/sendVerificationEmail');
 
@@ -168,9 +169,9 @@ const AuthController = {
 
   async registerDepartmentHead(req, res) {
     try {
-      const { name, idNumber, email, password, courseId, rememberMe } = req.body;
-      if (!name || !idNumber || !password || !courseId) {
-        return res.status(400).json({ message: 'Name, ID number, password, and course ID are required' });
+      const { name, idNumber, email, password, departmentCode, rememberMe } = req.body;
+      if (!name || !idNumber || !password || !departmentCode) {
+        return res.status(400).json({ message: 'Name, ID number, password, and department code are required' });
       }
 
       if (await User.findOne({ idNumber })) {
@@ -180,13 +181,13 @@ const AuthController = {
         return res.status(400).json({ message: 'Email already exists' });
       }
 
-      console.log('Department Head registration attempt:', { name, idNumber, email, courseId });
+      console.log('Department Head registration attempt:', { name, idNumber, email, departmentCode });
       
-      // Find the course by ID
-      const course = await Course.findOne({ courseId });
-      if (!course) {
-        console.log('Course not found:', courseId);
-        return res.status(400).json({ message: 'Invalid course ID' });
+      // Find the department by departmentCode
+      const departmentDoc = await Department.findOne({ departmentCode });
+      if (!departmentDoc) {
+        console.log('Department not found:', departmentCode);
+        return res.status(400).json({ message: 'Invalid department code' });
       }
 
       // Find the department head role
@@ -201,7 +202,7 @@ const AuthController = {
         idNumber, 
         email, 
         password: hashedPassword, 
-        course: course._id,
+        department: departmentDoc._id,
         role: role._id 
       });
 
@@ -228,6 +229,11 @@ const AuthController = {
         user: { 
           id: user._id, 
           idNumber: user.idNumber, 
+          department: {
+            id: departmentDoc._id,
+            code: departmentDoc.departmentCode,
+            name: departmentDoc.name
+          },
           role: { 
             id: role._id, 
             name: role.name 
