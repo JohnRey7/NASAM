@@ -8,6 +8,7 @@ import { CheckCircle, Clock, FileText, Users, Award } from "lucide-react"
 export function ApplicationProgressTracker() {
   const [applicationStatus, setApplicationStatus] = useState<string>("Pending")
   const [hasDocuments, setHasDocuments] = useState(false)
+  const [hasPersonalityTest, setHasPersonalityTest] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Fetch application status and documents
@@ -62,11 +63,46 @@ export function ApplicationProgressTracker() {
         } else {
           setHasDocuments(false)
         }
+
+        // Check if personality test exists for this user
+        try {
+          console.log('🔍 DEBUG: Checking personality test status...')
+          const personalityResponse = await fetch('http://localhost:3000/api/personality-test/status', {
+            credentials: 'include'
+          })
+          
+          console.log('🔍 DEBUG: Personality test response status:', personalityResponse.status)
+          
+          if (personalityResponse.ok) {
+            const personalityData = await personalityResponse.json()
+            console.log('🔍 DEBUG: Personality test data:', personalityData)
+            
+            const testExists = personalityData.hasTest || personalityData.testId
+            console.log('🔍 DEBUG: Test exists:', testExists)
+            console.log('🔍 DEBUG: Current application status:', applicationStatus)
+            
+            setHasPersonalityTest(testExists)
+            
+            // Note: Auto-completion happens on the backend when personality test is completed
+            // No need for frontend to call auto-complete endpoint (avoids permission issues)
+            if (testExists) {
+              console.log('🎯 Personality test detected - backend should have auto-completed application')
+            }
+          } else {
+            const errorText = await personalityResponse.text()
+            console.error('❌ Personality test status check failed:', personalityResponse.status, errorText)
+            setHasPersonalityTest(false)
+          }
+        } catch (personalityError) {
+          console.error('❌ Error checking personality test:', personalityError)
+          setHasPersonalityTest(false)
+        }
         
       } catch (error) {
         console.error('Error fetching application progress:', error)
         setApplicationStatus("None")
         setHasDocuments(false)
+        setHasPersonalityTest(false)
       } finally {
         setLoading(false)
       }
@@ -103,13 +139,11 @@ export function ApplicationProgressTracker() {
     },
     {
       title: "Personality Test",
-      description: "Take the required personality assessment",
+      description: "Complete psychological assessment",
       status: applicationStatus === "None" ? "Not Submitted" :
-              ["approved", "rejected"].includes(applicationStatus)
-                ? "Completed" :
-              applicationStatus === "document_verification"
-                ? "Pending" : "Not Submitted",
-      icon: <CheckCircle className="h-6 w-6" />
+              hasPersonalityTest ? "Completed" :
+              applicationStatus === "document_verification" ? "Pending" : "Locked",
+      icon: <Users className="h-6 w-6" />
     },
     {
       title: "Application Status",
@@ -230,6 +264,9 @@ export function ApplicationProgressTracker() {
                       )}
                       {step.status === "Completed" && (
                         <span className="text-green-600">✓ Personality test completed</span>
+                      )}
+                      {step.status === "Locked" && (
+                        <span className="text-red-600">🔒 Locked - Complete form and document verification first</span>
                       )}
                     </div>
                   )}

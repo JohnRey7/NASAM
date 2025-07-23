@@ -1689,6 +1689,146 @@ const ApplicationController = {
       });
     }
   },
+
+  // PUT: Set status for a specific application by ID (for OAS staff)
+  async setStatusById(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ message: 'Status is required' });
+      }
+
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid application ID format' });
+      }
+
+      // Find the application first
+      const currentApplication = await ApplicationForm.findById(id);
+      if (!currentApplication) {
+        return res.status(404).json({ message: 'Application not found' });
+      }
+
+      // Create history entry before updating
+      const historyData = currentApplication.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      // Update the application status
+      const updatedApplication = await ApplicationForm.findByIdAndUpdate(
+        id,
+        { 
+          $set: { 
+            status,
+            updatedAt: new Date(),
+            updatedBy: req.user.id
+          }
+        },
+        { new: true, runValidators: true }
+      ).populate('user', 'name email');
+
+      // Create status change notification
+      try {
+        const NotificationService = require('../services/NotificationService');
+        await NotificationService.createStatusChangeNotification(
+          currentApplication.user,
+          currentApplication._id,
+          status
+        );
+      } catch (notifError) {
+        console.warn('⚠️ Failed to create notification:', notifError.message);
+      }
+
+      res.json({
+        message: 'Status updated successfully',
+        application: {
+          id: updatedApplication._id,
+          status: updatedApplication.status,
+          updatedAt: updatedApplication.updatedAt,
+          user: updatedApplication.user
+        }
+      });
+    } catch (error) {
+      console.error('Error in setStatusById:', error);
+      res.status(400).json({ message: `Failed to update status: ${error.message}` });
+    }
+  },
+
+  // PATCH /application/auto-complete - Auto-complete application when personality test is detected
+  async autoCompleteApplication(req, res) {
+    try {
+      const userId = req.user.id;
+      const { reason } = req.body;
+
+      // Find user's application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for user' });
+      }
+
+      // Check if application is already approved or rejected
+      if (['approved', 'rejected'].includes(application.status)) {
+        return res.json({ 
+          message: 'Application already completed', 
+          status: application.status 
+        });
+      }
+
+      // Verify that personality test actually exists
+      const PersonalityTest = require('../models/PersonalityTest');
+      const existingTest = await PersonalityTest.findOne({
+        applicationId: application._id,
+      });
+
+      if (!existingTest) {
+        return res.status(400).json({ 
+          message: 'Cannot auto-complete: No personality test found' 
+        });
+      }
+
+      // Create history entry before updating
+      const ApplicationHistory = require('../models/ApplicationHistory');
+      const historyData = application.toObject();
+      delete historyData._id;
+      const historyEntry = new ApplicationHistory(historyData);
+      await historyEntry.save();
+
+      // Update application status to approved
+      application.status = 'approved';
+      application.updatedAt = new Date();
+      application.personalityTestCompletedAt = new Date();
+      await application.save();
+
+      // Create notification
+      const NotificationService = require('../services/NotificationService');
+      await NotificationService.createNotification({
+        userId: userId,
+        type: 'application_status_update',
+        title: 'Application Approved',
+        message: `Your application has been automatically approved upon completion of the personality test.`,
+        data: {
+          applicationId: application._id,
+          newStatus: 'approved',
+          reason: reason || 'personality_test_completed'
+        }
+      });
+
+      console.log(`✅ Application ${application._id} auto-completed for user ${userId}`);
+
+      res.json({
+        message: 'Application auto-completed successfully',
+        status: 'approved',
+        applicationId: application._id
+      });
+
+    } catch (error) {
+      console.error('Error in autoCompleteApplication:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
+    }
+  }
 };
 
 module.exports = ApplicationController;

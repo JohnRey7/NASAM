@@ -126,6 +126,8 @@ app.patch('/api/application', authenticate, checkPermission('applicationForm.upd
 app.delete('/api/application/:id', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormById);
 app.delete('/api/application/user/:userId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormByUserId);
 app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
+app.put('/api/application/:id/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatusById);
+app.patch('/api/application/auto-complete', authenticate, checkPermission('applicationForm.update'), ApplicationController.autoCompleteApplication);
 app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
 
 // Application History routes
@@ -145,6 +147,7 @@ app.get('/api/personality-test/stop', authenticate, checkPermission('personality
 app.get('/api/personality-test/me', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getMyPersonalityTest);
 app.get('/api/personality-test/all', authenticate, checkPermission('personality_test.readAll'), PersonalityTestController.getAllUserPersonalityTest);
 app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getPersonalityTestByUserId);
+app.get('/api/personality-test/status', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getPersonalityTestStatus);
 app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest);
 app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deletePersonalityTestByUserId);
 

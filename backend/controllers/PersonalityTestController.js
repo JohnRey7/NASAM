@@ -238,8 +238,35 @@ const PersonalityTestController = {
       test.riskLevelIndicator = riskLevelIndicator;
       await test.save();
 
+      // Auto-complete application when personality test is finished
+      try {
+        const ApplicationHistory = require('../models/ApplicationHistory');
+        
+        // Create history entry before updating
+        const historyData = application.toObject();
+        delete historyData._id;
+        const historyEntry = new ApplicationHistory(historyData);
+        await historyEntry.save();
+        
+        // Update application status to approved
+        await ApplicationForm.findByIdAndUpdate(
+          application._id,
+          { 
+            status: 'approved',
+            updatedAt: new Date(),
+            personalityTestCompletedAt: new Date()
+          },
+          { new: true }
+        );
+        
+        console.log(' Application auto-completed after personality test');
+      } catch (updateError) {
+        console.warn(' Failed to auto-complete application:', updateError.message);
+        // Don't fail the test submission if status update fails
+      }
+
       res.json({
-        message: 'Personality test submitted',
+        message: 'Personality test completed',
         testId: test._id,
         score,
         riskLevelIndicator
@@ -621,6 +648,44 @@ const PersonalityTestController = {
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
+
+  // GET /personality-test/status - Check if user has completed personality test
+  async getPersonalityTestStatus(req, res) {
+    try {
+      const userId = req.user.id;
+
+      // Find user's application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for user' });
+      }
+
+      // Check if user has ever taken a test (same logic as startPersonalityTest)
+      const existingTest = await PersonalityTest.findOne({
+        applicationId: application._id,
+      });
+
+      if (existingTest) {
+        // User has completed a personality test
+        return res.json({
+          hasTest: true,
+          testId: existingTest._id,
+          completed: true,
+          score: existingTest.score,
+          riskLevel: existingTest.riskLevelIndicator
+        });
+      } else {
+        // User has not taken a personality test
+        return res.json({
+          hasTest: false,
+          completed: false
+        });
+      }
+    } catch (error) {
+      console.error('Error in getPersonalityTestStatus:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
+    }
+  }
 };
 
 module.exports = PersonalityTestController;

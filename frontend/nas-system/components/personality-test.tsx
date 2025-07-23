@@ -40,6 +40,10 @@ export function PersonalityTest() {
   const [score, setScore] = useState<number | null>(null)
   const [riskLevel, setRiskLevel] = useState<string | null>(null)
   const [loading, setLoading] = useState(true);
+  const [applicationStatus, setApplicationStatus] = useState<string>("");
+  const [isFormVerified, setIsFormVerified] = useState(false);
+  const [areDocumentsVerified, setAreDocumentsVerified] = useState(false);
+  const [canTakeTest, setCanTakeTest] = useState(false);
   const { toast } = useToast()
 
   // Timer effect remains unchanged
@@ -117,8 +121,8 @@ export function PersonalityTest() {
       setScore(result.score)
       setRiskLevel(result.riskLevelIndicator)
       toast({
-        title: "Test Completed",
-        description: "Your personality test has been submitted successfully.",
+        title: "Personality test successfully submitted",
+        description: "Your personality test has been completed and submitted successfully. Your application has been automatically approved.",
       })
     } catch (error: any) {
       toast({
@@ -139,6 +143,37 @@ export function PersonalityTest() {
 
   // Check test status on mount
   useEffect(() => {
+    async function checkVerificationStatus() {
+      try {
+        // Check application status
+        const appResponse = await fetch('http://localhost:3000/api/application', {
+          credentials: 'include'
+        });
+        
+        if (appResponse.ok) {
+          const appData = await appResponse.json();
+          if (appData.application) {
+            const status = appData.application.status;
+            setApplicationStatus(status);
+            
+            // Form is verified if status is 'form_verified' or beyond
+            const formVerified = ['form_verified', 'document_verification', 'approved', 'rejected'].includes(status);
+            setIsFormVerified(formVerified);
+            
+            // Documents are verified if status is 'document_verification' or beyond  
+            const documentsVerified = ['document_verification', 'approved', 'rejected'].includes(status);
+            setAreDocumentsVerified(documentsVerified);
+            
+            // Can take test only if BOTH form and documents are verified
+            setCanTakeTest(formVerified && documentsVerified);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking verification status:', error);
+        setCanTakeTest(false);
+      }
+    }
+
     async function fetchTestStatus() {
       try {
         const data = await getMyPersonalityTest();
@@ -156,6 +191,7 @@ export function PersonalityTest() {
         setLoading(false);
       }
     }
+    checkVerificationStatus();
     fetchTestStatus();
   }, []);
 
@@ -165,6 +201,93 @@ export function PersonalityTest() {
         <CardContent className="py-12 text-center text-gray-500">Loading...</CardContent>
       </Card>
     );
+  }
+
+  // Show access restriction if verification requirements not met
+  if (!canTakeTest) {
+    return (
+      <Card className="max-w-3xl mx-auto">
+        <CardHeader className="bg-red-50 border-b border-red-200">
+          <CardTitle className="text-red-700 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Personality Assessment - Access Restricted
+          </CardTitle>
+          <CardDescription className="text-red-600">
+            You must complete the verification process before taking the personality test.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="bg-red-50 border-l-4 border-red-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">
+                    <strong>Access Denied:</strong> The personality test is only available after both your application form and documents have been verified by OAS staff.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-lg font-medium text-gray-900">Verification Status:</h3>
+              
+              <div className="flex items-center gap-3 p-3 border rounded-lg">
+                <div className={`w-4 h-4 rounded-full ${
+                  isFormVerified ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
+                <div className="flex-1">
+                  <p className="font-medium">Application Form</p>
+                  <p className="text-sm text-gray-600">
+                    {isFormVerified ? 'Verified by OAS staff' : 'Awaiting OAS verification'}
+                  </p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  isFormVerified 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {isFormVerified ? 'Verified' : 'Pending'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 border rounded-lg">
+                <div className={`w-4 h-4 rounded-full ${
+                  areDocumentsVerified ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
+                <div className="flex-1">
+                  <p className="font-medium">Documents</p>
+                  <p className="text-sm text-gray-600">
+                    {areDocumentsVerified ? 'Verified by OAS staff' : 'Awaiting OAS verification'}
+                  </p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  areDocumentsVerified 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {areDocumentsVerified ? 'Verified' : 'Pending'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>What to do next:</strong> Please wait for OAS staff to review and verify your application form and documents. 
+                You will be able to take the personality test once both are verified. Check your progress in the Application Progress Tracker.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="border-t pt-6 flex justify-center">
+          <Button variant="outline" className="text-gray-600" disabled>
+            Test Locked - Awaiting Verification
+          </Button>
+        </CardFooter>
+      </Card>
+    )
   }
 
   if (!testStarted) {
@@ -195,7 +318,7 @@ export function PersonalityTest() {
             <div>
               <h3 className="text-lg font-medium">Instructions:</h3>
               <ul className="list-disc pl-5 mt-2 space-y-1">
-                <li>The test consists of {questions.length} questions.</li>
+                <li>The test consists of 10 questions.</li>
                 <li>Answer each question honestly based on how you typically think, feel, and behave.</li>
                 <li>There are no right or wrong answers.</li>
                 <li>You can navigate between questions using the Previous and Next buttons.</li>
@@ -254,9 +377,9 @@ export function PersonalityTest() {
                   Risk Level: {riskLevel}
                 </p>
                 <p className="text-sm mt-2">
-                  {riskLevel === "High" && "Guidance: Please consider reaching out to our support team for further assistance."}
-                  {riskLevel === "Medium" && "Guidance: Review your answers and reflect on areas for improvement."}
-                  {riskLevel === "Low" && "Guidance: Great job! You show low risk based on your responses."}
+                  {riskLevel === "High" && "Guidance: Your responses indicate areas that may need attention. The scholarship committee will review your application carefully."}
+                  {riskLevel === "Medium" && "Guidance: Your responses show a balanced profile. Continue demonstrating your commitment to academic excellence."}
+                  {riskLevel === "Low" && "Guidance: Excellent! Your responses demonstrate strong personal qualities that align well with our scholarship values."}
                 </p>
               </div>
             )}

@@ -106,19 +106,46 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
     }
   };
 
+  const handleVerifyApplication = async (application: any) => {
+    try {
+      console.log('✅ Verifying application form for:', application._id);
+
+      const response = await fetch(`http://localhost:3000/api/oas/application/${application._id}/verify-form`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Application form verified:', result);
+
+      toast({
+        title: "Application Form Verified",
+        description: `Application form for ${application.firstName} ${application.lastName} has been verified and approved.`,
+        duration: 5000
+      });
+
+      // Refresh the page to show updated status
+      setTimeout(() => window.location.reload(), 2000);
+
+    } catch (error) {
+      console.error('❌ Verify application failed:', error);
+      
+      toast({
+        title: "Verification Failed",
+        description: `Failed to verify application form: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+        duration: 5000
+      });
+    }
+  };
+
   const handleVerifyAllDocuments = async () => {
-    const isConfirmed = window.confirm(
-      `✅ VERIFY ALL DOCUMENTS\n\n` +
-      `Application ID: ${applicationId}\n\n` +
-      `This will:\n` +
-      `• ✅ Mark all documents as verified and approved\n` +
-      `• ✅ Update status to "Document Verification"\n` +
-      `• ✅ Update student's progress tracker\n\n` +
-      `Proceed with document verification?`
-    );
-
-    if (!isConfirmed) return;
-
     try {
       console.log('✅ Verifying all documents for application:', applicationId);
 
@@ -354,6 +381,8 @@ export function ApplicationReview() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedApplication, setSelectedApplication] = useState<any>(null)
   const [interviewDate, setInterviewDate] = useState("")
+  const [personalityTestData, setPersonalityTestData] = useState<any>(null);
+  const [personalityTestLoading, setPersonalityTestLoading] = useState(false);
   const [remarks, setRemarks] = useState("")
   const { toast } = useToast()
   const [applications, setApplications] = useState<any[]>([])
@@ -680,20 +709,43 @@ export function ApplicationReview() {
     }
   };
 
+  // Fetch personality test data for selected application
+  const fetchPersonalityTestData = async (userId: string) => {
+    if (!userId) return;
+    
+    setPersonalityTestLoading(true);
+    try {
+      const response = await fetch(`http://localhost:3000/api/personality-test/user/${userId}`, {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPersonalityTestData(data);
+      } else if (response.status === 404) {
+        // No personality test found - this is normal
+        setPersonalityTestData(null);
+      } else {
+        throw new Error('Failed to fetch personality test data');
+      }
+    } catch (error) {
+      console.error('Error fetching personality test:', error);
+      setPersonalityTestData(null);
+    } finally {
+      setPersonalityTestLoading(false);
+    }
+  };
+
+  // Reset personality test data when application changes
+  useEffect(() => {
+    if (selectedApplication?.user?._id) {
+      fetchPersonalityTestData(selectedApplication.user._id);
+    } else {
+      setPersonalityTestData(null);
+    }
+  }, [selectedApplication]);
+
   const handleVerifyApplication = async (application: any) => {
-    const isConfirmed = window.confirm(
-      `✅ VERIFY APPLICATION FORM\n\n` +
-      `Student: ${application.firstName} ${application.lastName}\n` +
-      `Email: ${application.emailAddress}\n\n` +
-      `This will:\n` +
-      `• ✅ Mark application form as verified and approved\n` +
-      `• ✅ Update status to "Form Verified"\n` +
-      `• ✅ Update student's progress tracker\n\n` +
-      `Proceed with verification?`
-    );
-
-    if (!isConfirmed) return;
-
     try {
       console.log('✅ Verifying application form:', application._id);
 
@@ -928,98 +980,137 @@ export function ApplicationReview() {
                               </TabsContent>
 
                               <TabsContent value="personality" className="space-y-4 py-4">
-                                {application.personalityTest ? (
-                                  <div className="space-y-4">
-                                    <div className="bg-green-50 border-l-4 border-green-400 p-4">
-                                      <div className="flex">
-                                        <div className="flex-shrink-0">
-                                          <CheckCircle className="h-5 w-5 text-green-400" />
+                                {personalityTestLoading ? (
+                                  <div className="flex items-center justify-center py-8">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                                    <span className="ml-2 text-sm text-gray-600">Loading personality test data...</span>
+                                  </div>
+                                ) : personalityTestData ? (
+                                  <div className="max-w-2xl mx-auto">
+                                    {/* Assessment Completed Card - Matching Applicant View */}
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+                                      {/* Checkmark Icon */}
+                                      <div className="flex justify-center mb-4">
+                                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                                          <CheckCircle className="w-8 h-8 text-green-600" />
                                         </div>
-                                        <div className="ml-3">
-                                          <p className="text-sm text-green-700">
-                                            <strong>Completed:</strong> Personality test has been completed by the
-                                            applicant.
+                                      </div>
+
+                                      {/* Title */}
+                                      <h2 className="text-2xl font-bold text-green-800 mb-2">
+                                        Assessment Completed
+                                      </h2>
+                                      
+                                      {/* Subtitle */}
+                                      <p className="text-green-700 mb-4">
+                                        Applicant is done taking the personality test.
+                                      </p>
+
+                                      {/* Status Message */}
+                                      <p className="text-sm text-green-600 mb-6">
+                                        Please proceed to the{' '}
+                                        <span className="font-semibold underline cursor-pointer"
+                                              onClick={() => {
+                                                // Switch to interview tab if available
+                                                const interviewTab = document.querySelector('[value="interview"]') as HTMLElement;
+                                                if (interviewTab) interviewTab.click();
+                                              }}>
+                                          Application Status
+                                        </span>{' '}
+                                        tab and wait for the approval.
+                                      </p>
+
+                                      {/* Completion Message */}
+                                      <div className="bg-white/50 rounded-lg p-4 mb-6">
+                                        <p className="text-sm text-gray-700 mb-4">
+                                          Thank you for completing the personality assessment. Your responses have been recorded
+                                          and will be reviewed by the scholarship committee.
+                                        </p>
+                                        
+                                        <p className="text-sm text-gray-600 mb-4">
+                                          You answered {personalityTestData.answers?.length || 0} out of {personalityTestData.questions?.length || personalityTestData.answers?.length || 0} questions.
+                                        </p>
+
+                                        {/* Score Display */}
+                                        <div className="space-y-2">
+                                          <p className="text-lg font-semibold text-gray-800">
+                                            Your Score: <span className="text-green-700">{personalityTestData.score ? Number(personalityTestData.score).toFixed(2) : 'N/A'}</span>
+                                          </p>
+                                          
+                                          <p className="text-lg font-semibold text-gray-800">
+                                            Risk Level: <span className={`${
+                                              personalityTestData.riskLevelIndicator === 'Low' 
+                                                ? 'text-green-600'
+                                                : personalityTestData.riskLevelIndicator === 'Medium'
+                                                ? 'text-yellow-600'
+                                                : 'text-red-600'
+                                            }`}>
+                                              {personalityTestData.riskLevelIndicator || 'Unknown'}
+                                            </span>
                                           </p>
                                         </div>
+
+                                        {/* Guidance Message */}
+                                        <p className="text-sm text-gray-600 mt-4">
+                                          <strong>Guidance:</strong> {' '}
+                                          {personalityTestData.riskLevelIndicator === 'Low' && 'Excellent! Your responses demonstrate strong personal qualities that align well with our scholarship values.'}
+                                          {personalityTestData.riskLevelIndicator === 'Medium' && 'Your responses show a balanced profile. Continue demonstrating your commitment to academic excellence.'}
+                                          {personalityTestData.riskLevelIndicator === 'High' && 'Your responses indicate areas that may need attention. The scholarship committee will review your application carefully.'}
+                                          {!personalityTestData.riskLevelIndicator && 'Your responses show a balanced profile. Continue demonstrating your commitment to academic excellence.'}
+                                        </p>
                                       </div>
-                                    </div>
 
-                                    <div>
-                                      <h3 className="text-lg font-medium mb-4">Personality Profile:</h3>
-
-                                      <div className="space-y-4">
-                                        <div className="mb-4">
-                                          <div className="flex justify-between mb-1">
-                                            <span className="text-sm font-medium">Extraversion</span>
-                                            <span className="text-sm font-medium">3.8/5</span>
+                                      {/* Additional Test Details */}
+                                      <div className="bg-white/30 rounded-lg p-4 text-left">
+                                        <h4 className="font-semibold text-gray-700 mb-3 text-center">Test Summary</h4>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                          <div>
+                                            <span className="text-gray-600">Completion Date:</span>
+                                            <p className="font-medium text-gray-800">
+                                              {personalityTestData.endTime 
+                                                ? new Date(personalityTestData.endTime).toLocaleDateString()
+                                                : 'N/A'
+                                              }
+                                            </p>
                                           </div>
-                                          <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                              className="bg-[#800000] h-2 rounded-full"
-                                              style={{ width: "76%" }}
-                                            ></div>
+                                          <div>
+                                            <span className="text-gray-600">Time Taken:</span>
+                                            <p className="font-medium text-gray-800">
+                                              {personalityTestData.startTime && personalityTestData.endTime
+                                                ? `${Math.round((new Date(personalityTestData.endTime).getTime() - new Date(personalityTestData.startTime).getTime()) / (1000 * 60))} minutes`
+                                                : 'N/A'
+                                              }
+                                            </p>
                                           </div>
-                                        </div>
-
-                                        <div className="mb-4">
-                                          <div className="flex justify-between mb-1">
-                                            <span className="text-sm font-medium">Agreeableness</span>
-                                            <span className="text-sm font-medium">4.2/5</span>
+                                          <div>
+                                            <span className="text-gray-600">Test ID:</span>
+                                            <p className="font-medium text-gray-800 text-xs">
+                                              {personalityTestData._id?.slice(-8) || 'N/A'}
+                                            </p>
                                           </div>
-                                          <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                              className="bg-[#800000] h-2 rounded-full"
-                                              style={{ width: "84%" }}
-                                            ></div>
-                                          </div>
-                                        </div>
-
-                                        <div className="mb-4">
-                                          <div className="flex justify-between mb-1">
-                                            <span className="text-sm font-medium">Conscientiousness</span>
-                                            <span className="text-sm font-medium">4.5/5</span>
-                                          </div>
-                                          <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                              className="bg-[#800000] h-2 rounded-full"
-                                              style={{ width: "90%" }}
-                                            ></div>
-                                          </div>
-                                        </div>
-
-                                        <div className="mb-4">
-                                          <div className="flex justify-between mb-1">
-                                            <span className="text-sm font-medium">Neuroticism</span>
-                                            <span className="text-sm font-medium">2.1/5</span>
-                                          </div>
-                                          <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                              className="bg-[#800000] h-2 rounded-full"
-                                              style={{ width: "42%" }}
-                                            ></div>
-                                          </div>
-                                        </div>
-
-                                        <div className="mb-4">
-                                          <div className="flex justify-between mb-1">
-                                            <span className="text-sm font-medium">Openness</span>
-                                            <span className="text-sm font-medium">3.9/5</span>
-                                          </div>
-                                          <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                              className="bg-[#800000] h-2 rounded-full"
-                                              style={{ width: "78%" }}
-                                            ></div>
+                                          <div>
+                                            <span className="text-gray-600">Status:</span>
+                                            <p className="font-medium text-green-700">
+                                              Completed
+                                            </p>
                                           </div>
                                         </div>
                                       </div>
-                                    </div>
 
-                                    <div className="pt-4">
-                                      <Button variant="outline">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download Full Report
-                                      </Button>
+                                      {/* Action Button */}
+                                      <div className="mt-6">
+                                        <Button 
+                                          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
+                                          onClick={() => {
+                                            toast({
+                                              title: "Personality test Mark as reviewed",
+                                              description: `Personality assessment for ${selectedApplication?.firstName} ${selectedApplication?.lastName} has been reviewed by staff.`,
+                                            });
+                                          }}
+                                        >
+                                          Mark as Reviewed
+                                        </Button>
+                                      </div>
                                     </div>
                                   </div>
                                 ) : (
@@ -1030,8 +1121,7 @@ export function ApplicationReview() {
                                       </div>
                                       <div className="ml-3">
                                         <p className="text-sm text-yellow-700">
-                                          <strong>Pending:</strong> Applicant has not completed the personality test
-                                          yet.
+                                          <strong>Pending:</strong> Applicant has not completed the personality test yet.
                                         </p>
                                       </div>
                                     </div>
