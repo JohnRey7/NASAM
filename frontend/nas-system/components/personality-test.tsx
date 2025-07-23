@@ -37,6 +37,9 @@ export function PersonalityTest() {
   const [testStarted, setTestStarted] = useState(false)
   const [testId, setTestId] = useState<string | null>(null)
   const [questions, setQuestions] = useState<any[]>([])
+  const [score, setScore] = useState<number | null>(null)
+  const [riskLevel, setRiskLevel] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast()
 
   // Timer effect remains unchanged
@@ -110,7 +113,9 @@ export function PersonalityTest() {
   const handleTestCompletion = async () => {
     setTestCompleted(true)
     try {
-      await stopPersonalityTest()
+      const result = await stopPersonalityTest()
+      setScore(result.score)
+      setRiskLevel(result.riskLevelIndicator)
       toast({
         title: "Test Completed",
         description: "Your personality test has been submitted successfully.",
@@ -131,6 +136,36 @@ export function PersonalityTest() {
   }
 
   const progress = (Object.keys(answers).length / (questions.length || 1)) * 100
+
+  // Check test status on mount
+  useEffect(() => {
+    async function fetchTestStatus() {
+      try {
+        const data = await getMyPersonalityTest();
+        if (data && data.test) {
+          // If test is completed, show completion message
+          if (data.test.endTime) {
+            setTestCompleted(true);
+            setScore(data.test.score ? Number(data.test.score) : null);
+            setRiskLevel(data.test.riskLevelIndicator || null);
+          }
+        }
+      } catch (error) {
+        // Optionally handle error
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTestStatus();
+  }, []);
+
+  if (loading) {
+    return (
+      <Card className="max-w-3xl mx-auto mt-10">
+        <CardContent className="py-12 text-center text-gray-500">Loading...</CardContent>
+      </Card>
+    );
+  }
 
   if (!testStarted) {
     return (
@@ -181,36 +216,54 @@ export function PersonalityTest() {
 
   if (testCompleted) {
     return (
-      <Card className="max-w-3xl mx-auto">
-        <CardHeader className="bg-green-100 border-b border-green-200">
-          <CardTitle className="text-green-800">Assessment Completed</CardTitle>
-          <CardDescription>Thank you for completing the personality assessment.</CardDescription>
+      <Card className="max-w-3xl mx-auto border-green-300 shadow-lg bg-green-50">
+        <CardHeader className="bg-green-100 border-b border-green-200 flex flex-col items-center">
+          <div className="mx-auto w-16 h-16 bg-green-200 rounded-full flex items-center justify-center mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-10 w-10 text-green-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <CardTitle className="text-green-800 text-2xl text-center">Assessment Completed</CardTitle>
+          <CardDescription className="text-green-700 text-center mt-2">
+            <span className="font-semibold block mb-2">
+              Applicant is done taking the personality test.
+            </span>
+            <span className="block bg-green-200 text-green-900 rounded px-3 py-2 mt-2 shadow-inner font-medium">
+              Please proceed to the <span className="underline">Application Status</span> tab and wait for the approval.
+            </span>
+          </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <div className="text-center py-8">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 text-green-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-medium mb-2">Your responses have been recorded</h3>
-            <p className="text-gray-600 mb-4">
-              Your personality assessment has been submitted successfully. The results will be reviewed by the
-              scholarship committee as part of your application.
+            <p className="text-gray-700 mb-4">
+              Thank you for completing the personality assessment. Your responses have been recorded and will be reviewed by the scholarship committee.
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 mb-2">
               You answered {Object.keys(answers).length} out of {questions.length} questions.
             </p>
+            {score !== null && riskLevel && (
+              <div className="mt-4">
+                <p className="font-semibold">Your Score: {score.toFixed(2)}</p>
+                <p className={`font-semibold ${riskLevel === "High" ? "text-red-600" : riskLevel === "Medium" ? "text-yellow-600" : "text-green-600"}`}>
+                  Risk Level: {riskLevel}
+                </p>
+                <p className="text-sm mt-2">
+                  {riskLevel === "High" && "Guidance: Please consider reaching out to our support team for further assistance."}
+                  {riskLevel === "Medium" && "Guidance: Review your answers and reflect on areas for improvement."}
+                  {riskLevel === "Low" && "Guidance: Great job! You show low risk based on your responses."}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
         <CardFooter className="border-t pt-6 flex justify-center">
-          <Button className="bg-[#800000] hover:bg-[#600000]">
+          <Button className="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-lg shadow">
             <a href="/dashboard">Return to Dashboard</a>
           </Button>
         </CardFooter>

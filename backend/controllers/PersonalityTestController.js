@@ -143,23 +143,26 @@ const PersonalityTestController = {
         }
 
         // Check for existing answer
-        const existingAnswer = await PersonalityAssessmentAnswers.findOne({
+        let answerDoc;
+        let existingAnswer = await PersonalityAssessmentAnswers.findOne({
           applicationId: application._id,
           questionId,
         });
         if (existingAnswer) {
-          return res.status(409).json({ 
-            message: `Question already answered: ${questionId}` 
+          // Update the answer
+          existingAnswer.answer = answer;
+          await existingAnswer.save();
+          answerDoc = existingAnswer;
+        } else {
+          // Save new answer
+          answerDoc = new PersonalityAssessmentAnswers({
+            applicationId: application._id,
+            questionId,
+            answer,
           });
+          await answerDoc.save();
+          test.answers.push(answerDoc._id);
         }
-
-        // Save answer
-        const answerDoc = new PersonalityAssessmentAnswers({
-          applicationId: application._id,
-          questionId,
-          answer,
-        });
-        await answerDoc.save();
 
         // Update test
         test.answers.push(answerDoc._id);
@@ -210,6 +213,9 @@ const PersonalityTestController = {
       const test = await PersonalityTest.findOne({
         applicationId: application._id,
         endTime: { $gt: currentTime },
+      }).populate({
+        path: 'answers',
+        select: 'answer',
       });
       if (!test) {
         return res.status(404).json({ message: 'No active personality test found' });
@@ -217,9 +223,27 @@ const PersonalityTestController = {
 
       // Stop test by setting endTime to current time
       test.endTime = new Date();
+
+      // Calculate score
+      const answers = test.answers;
+      const total = answers.reduce((sum, ans) => sum + Number(ans.answer), 0);
+      const score = answers.length ? total / answers.length : 0;
+
+      // Risk level rubric (example)
+      let riskLevelIndicator = "Low";
+      if (score < 2.5) riskLevelIndicator = "High";
+      else if (score < 3.5) riskLevelIndicator = "Medium";
+
+      test.score = score;
+      test.riskLevelIndicator = riskLevelIndicator;
       await test.save();
 
-      res.json({ message: 'Personality test submitted', testId: test._id });
+      res.json({
+        message: 'Personality test submitted',
+        testId: test._id,
+        score,
+        riskLevelIndicator
+      });
     } catch (error) {
       console.error('Error in stopPersonalityTest:', error);
       res.status(500).json({ message: `Server error: ${error.message}` });
