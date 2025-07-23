@@ -1,5 +1,6 @@
 const Interview = require('../models/Interview');
 const ApplicationForm = require('../models/ApplicationForm');
+const DocumentUpload = require('../models/DocumentUpload');
 const mongoose = require('mongoose');
 
 const InterviewController = {
@@ -296,6 +297,101 @@ const InterviewController = {
       res.json({ message: 'Interview deleted successfully' });
     } catch (error) {
       console.error('Error in deleteMyInterview:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // GET: Get interview review by specific interview ID for logged-in interviewer
+  async getReviewByInterviewId(req, res) {
+    try {
+      const { interviewId } = req.params;
+      const userId = req.user.id; // logged-in user's ID
+
+      // Validate interview ID
+      if (!mongoose.Types.ObjectId.isValid(interviewId)) {
+        return res.status(400).json({ message: 'Invalid interview ID' });
+      }
+
+      // Find the interview and verify the user is the interviewer
+      const interview = await Interview.findOne({ 
+        _id: interviewId, 
+        interviewer: userId 
+      }).populate('applicationId');
+
+      if (!interview) {
+        return res.status(404).json({ 
+          message: 'Interview not found or you are not authorized to view this interview' 
+        });
+      }
+
+      // Get the application form
+      const applicationForm = await ApplicationForm.findById(interview.applicationId._id);
+      if (!applicationForm) {
+        return res.status(404).json({ message: 'Application form not found' });
+      }
+
+      // Get the document uploads for the applicant
+      const documentUpload = await DocumentUpload.findOne({ user: applicationForm.user });
+
+      res.json({
+        message: 'Review retrieved successfully',
+        data: {
+          interview,
+          applicationForm,
+          documentUpload: documentUpload || null
+        }
+      });
+    } catch (error) {
+      console.error('Error in getReviewByInterviewId:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // GET: Get paginated list of interviews for logged-in interviewer with application and document data
+  async getReviewList(req, res) {
+    try {
+      const userId = req.user.id; // logged-in user's ID
+      const { page = 1, limit = 10 } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      // Find all interviews where the logged-in user is the interviewer
+      const interviews = await Interview.find({ interviewer: userId })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .sort({ createdAt: -1 })
+        .populate('applicationId');
+
+      // Get total count for pagination
+      const totalDocs = await Interview.countDocuments({ interviewer: userId });
+
+      // For each interview, get the application form and document upload
+      const reviewData = await Promise.all(
+        interviews.map(async (interview) => {
+          const applicationForm = await ApplicationForm.findById(interview.applicationId._id);
+          const documentUpload = await DocumentUpload.findOne({ user: applicationForm.user });
+
+          return {
+            interview,
+            applicationForm,
+            documentUpload: documentUpload || null
+          };
+        })
+      );
+
+      res.json({
+        message: 'Review list retrieved successfully',
+        data: reviewData,
+        pagination: {
+          totalDocs,
+          limit: parseInt(limit),
+          page: parseInt(page),
+          totalPages: Math.ceil(totalDocs / parseInt(limit)),
+          hasNextPage: skip + interviews.length < totalDocs,
+          hasPrevPage: page > 1
+        }
+      });
+    } catch (error) {
+      console.error('Error in getReviewList:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }

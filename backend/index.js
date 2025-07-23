@@ -143,6 +143,10 @@ app.delete('/api/interview/:id', authenticate, checkPermission('interview.delete
 app.delete('/api/interview/user/:userId', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewByUserId);
 app.delete('/api/interview', authenticate, checkPermission('interview.deleteOwn'), InterviewController.deleteMyInterview);
 
+// Review Routes - Interview-based reviews with application and document data
+app.get('/api/review/:interviewId', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewByInterviewId);
+app.get('/api/review', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewList);
+
 // Evaluation Routes
 app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
 app.get('/api/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluations);
