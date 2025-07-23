@@ -143,23 +143,26 @@ const PersonalityTestController = {
         }
 
         // Check for existing answer
-        const existingAnswer = await PersonalityAssessmentAnswers.findOne({
+        let answerDoc;
+        let existingAnswer = await PersonalityAssessmentAnswers.findOne({
           applicationId: application._id,
           questionId,
         });
         if (existingAnswer) {
-          return res.status(409).json({ 
-            message: `Question already answered: ${questionId}` 
+          // Update the answer
+          existingAnswer.answer = answer;
+          await existingAnswer.save();
+          answerDoc = existingAnswer;
+        } else {
+          // Save new answer
+          answerDoc = new PersonalityAssessmentAnswers({
+            applicationId: application._id,
+            questionId,
+            answer,
           });
+          await answerDoc.save();
+          test.answers.push(answerDoc._id);
         }
-
-        // Save answer
-        const answerDoc = new PersonalityAssessmentAnswers({
-          applicationId: application._id,
-          questionId,
-          answer,
-        });
-        await answerDoc.save();
 
         // Update test
         test.answers.push(answerDoc._id);
