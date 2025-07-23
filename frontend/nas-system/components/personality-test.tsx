@@ -37,6 +37,8 @@ export function PersonalityTest() {
   const [testStarted, setTestStarted] = useState(false)
   const [testId, setTestId] = useState<string | null>(null)
   const [questions, setQuestions] = useState<any[]>([])
+  const [score, setScore] = useState<number | null>(null)
+  const [riskLevel, setRiskLevel] = useState<string | null>(null)
   const { toast } = useToast()
 
   // Timer effect remains unchanged
@@ -110,7 +112,9 @@ export function PersonalityTest() {
   const handleTestCompletion = async () => {
     setTestCompleted(true)
     try {
-      await stopPersonalityTest()
+      const result = await stopPersonalityTest()
+      setScore(result.score)
+      setRiskLevel(result.riskLevelIndicator)
       toast({
         title: "Test Completed",
         description: "Your personality test has been submitted successfully.",
@@ -207,6 +211,19 @@ export function PersonalityTest() {
             <p className="text-sm text-gray-500">
               You answered {Object.keys(answers).length} out of {questions.length} questions.
             </p>
+            {score !== null && riskLevel && (
+              <div className="mt-4">
+                <p className="font-semibold">Your Score: {score.toFixed(2)}</p>
+                <p className={`font-semibold ${riskLevel === "High" ? "text-red-600" : riskLevel === "Medium" ? "text-yellow-600" : "text-green-600"}`}>
+                  Risk Level: {riskLevel}
+                </p>
+                <p className="text-sm mt-2">
+                  {riskLevel === "High" && "Guidance: Please consider reaching out to our support team for further assistance."}
+                  {riskLevel === "Medium" && "Guidance: Review your answers and reflect on areas for improvement."}
+                  {riskLevel === "Low" && "Guidance: Great job! You show low risk based on your responses."}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
         <CardFooter className="border-t pt-6 flex justify-center">

@@ -28,6 +28,11 @@ const personalityTestSchema = new mongoose.Schema({
     },
     score: {
         type: mongoose.Schema.Types.Decimal128
+    },
+    riskLevelIndicator: {
+        type: String,
+        enum: ['Low', 'Medium', 'High'],
+        default: 'Low'
     }
 }, { timestamps: true });
 
