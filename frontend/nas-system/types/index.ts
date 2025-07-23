@@ -2,7 +2,7 @@ export interface User {
   id: string
   email: string
   name: string
-  role: "applicant" | "oas_staff" | "panelist" | "admin"
+  role: "applicant" | "oas_staff" | "admin" | "department_head"
   isActive?: boolean
 }
 

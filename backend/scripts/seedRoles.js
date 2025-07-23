@@ -54,7 +54,7 @@ async function seedRoles() {
           .map(p => p._id)
       },
       {
-        name: 'panelist',
+        name: 'department_head',
         permissions: permissionDocs
           .filter(p => ['application.read', 'application.readAll', 'document.get'].includes(p.name))
           .map(p => p._id)
