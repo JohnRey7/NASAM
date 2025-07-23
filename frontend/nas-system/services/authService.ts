@@ -13,7 +13,7 @@ export const authService = {
       // Clear any local storage or state if needed
       localStorage.removeItem('user');
       // You might want to redirect to login page after logout
-      window.location.href = '/login';
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
