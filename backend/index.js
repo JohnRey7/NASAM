@@ -80,6 +80,7 @@ connectDB();
 // Routes
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
+app.post('/api/auth/register/dept-head', authenticate, checkPermission('register.departmentHead'), AuthController.registerDepartmentHead);
 app.post('/api/auth/logout', AuthController.logout);
 app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
@@ -151,6 +152,11 @@ app.patch('/api/interview', authenticate, checkPermission('interview.updateOwn')
 app.delete('/api/interview/:id', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewById);
 app.delete('/api/interview/user/:userId', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewByUserId);
 app.delete('/api/interview', authenticate, checkPermission('interview.deleteOwn'), InterviewController.deleteMyInterview);
+
+// Review Routes - Interview-based reviews with application and document data
+app.get('/api/review/:interviewId', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewByInterviewId);
+app.get('/api/review', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewList);
+
 
 // Evaluation Routes
 app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
