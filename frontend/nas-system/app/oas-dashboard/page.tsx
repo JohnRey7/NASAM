@@ -9,6 +9,7 @@ import { ScholarEvaluation } from "@/components/scholar-evaluation"
 import { AuditLogs } from "@/components/audit-logs"
 import { useEffect, useState } from "react"
 import { oasDashboardService } from "@/services/oasDashboardService"
+import { ToolsCard } from "./ToolsCard"
 
 export default function OASDashboardPage() {
   const [stats, setStats] = useState<any>({
@@ -125,11 +126,12 @@ export default function OASDashboardPage() {
       </div>
 
       <Tabs defaultValue="applications" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
+        <TabsList className="grid w-full grid-cols-5 mb-8">
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="evaluation">Scholar Evaluation</TabsTrigger>
           <TabsTrigger value="audit">Audit Logs</TabsTrigger>
+          <TabsTrigger value="tools">Tools</TabsTrigger>
         </TabsList>
 
         <TabsContent value="applications">
@@ -146,6 +148,10 @@ export default function OASDashboardPage() {
 
         <TabsContent value="audit">
           <AuditLogs />
+        </TabsContent>
+
+        <TabsContent value="tools">
+          <ToolsCard />
         </TabsContent>
       </Tabs>
     </DashboardLayout>

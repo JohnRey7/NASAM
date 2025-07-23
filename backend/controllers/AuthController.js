@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Role = require('../models/Role');
+const Department = require('../models/Department');
 const BlacklistedToken = require('../models/BlacklistedToken');
 const sendVerificationEmail = require('../utils/sendVerificationEmail');
 
@@ -154,6 +155,85 @@ const AuthController = {
         user: { 
           id: user._id, 
           idNumber: user.idNumber, 
+          role: { 
+            id: role._id, 
+            name: role.name 
+          }
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  async registerDepartmentHead(req, res) {
+    try {
+      const { name, idNumber, email, password, departmentCode, rememberMe } = req.body;
+      if (!name || !idNumber || !password || !departmentCode) {
+        return res.status(400).json({ message: 'Name, ID number, password, and department code are required' });
+      }
+
+      if (await User.findOne({ idNumber })) {
+        return res.status(400).json({ message: 'ID number already exists' });
+      }
+      if (email && (await User.findOne({ email }))) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
+
+      console.log('Department Head registration attempt:', { name, idNumber, email, departmentCode });
+      
+      // Find the department by departmentCode
+      const departmentDoc = await Department.findOne({ departmentCode });
+      if (!departmentDoc) {
+        console.log('Department not found:', departmentCode);
+        return res.status(400).json({ message: 'Invalid department code' });
+      }
+
+      // Find the department head role
+      const role = await Role.findOne({ name: "department_head" });
+      if (!role) {
+        return res.status(400).json({ message: 'Department head role not found' });
+      }
+
+      const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
+      const user = new User({ 
+        name, 
+        idNumber, 
+        email, 
+        password: hashedPassword, 
+        department: departmentDoc._id,
+        role: role._id 
+      });
+
+      if (email) {
+        const code = updateVerificationDetails(user);
+        await sendVerificationEmail(user.email, code);
+      }
+
+      await user.save();
+
+      const token = generateToken({ ...user._doc, role });
+      const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+
+      res.cookie('jwt', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge,
+        path: '/',
+      });
+
+      return res.status(201).json({
+        message: email ? 'Department head registration successful, please verify your email.' : 'Department head registration successful',
+        user: { 
+          id: user._id, 
+          idNumber: user.idNumber, 
+          department: {
+            id: departmentDoc._id,
+            code: departmentDoc.departmentCode,
+            name: departmentDoc.name
+          },
           role: { 
             id: role._id, 
             name: role.name 

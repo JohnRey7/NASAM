@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
-type UserRole = "applicant" | "oas_staff" | "panelist" | "admin" | null
+type UserRole = "applicant" | "oas_staff" | "admin" | "department_head" | null
 type AuthStatus = "loading" | "authenticated" | "unauthenticated"
 
 interface User {
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const parsedUser = JSON.parse(storedUser);
           
           // Special handling for admin, oas_staff, and panelist users (they don't need backend validation)
-          if (parsedUser.role === "admin" || parsedUser.role === "oas_staff" || parsedUser.role === "panelist") {
+          if (parsedUser.role === "admin" || parsedUser.role === "oas_staff" || parsedUser.role === "department_head") {
             setUser(parsedUser)
             setStatus("authenticated")
             return
@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("Login response data:", data) // Debug log
       
       // Check if the user has the 'applicant', 'oas_staff', or 'admin' role (from backend)
-      const allowedRoles = ["applicant", "oas_staff", "admin"];
+      const allowedRoles = ["applicant", "oas_staff", "admin", "department_head"];
       if (!data.user || !data.user.role || !allowedRoles.includes(data.user.role.name)) {
         throw new Error("Only applicants, OAS staff, or admins can log in here. Please use the correct portal for your role.");
       }

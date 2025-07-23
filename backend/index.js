@@ -1,4 +1,12 @@
-require('dotenv').config();
+require('dotenv').config({ path: './.env' });
+
+// Debug: Check if environment variables are loaded
+console.log('Environment check:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('MONGODB_URI exists:', !!process.env.MONGODB_URI);
+console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
@@ -66,6 +74,13 @@ app.use(cookieParser());
 // MongoDB Connection with retry logic
 const connectDB = async () => {
   try {
+    console.log('Attempting to connect to MongoDB...');
+    console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Found' : 'NOT FOUND');
+    
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI environment variable is not defined');
+    }
+    
     await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
     });
@@ -80,6 +95,7 @@ connectDB();
 // Routes
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
+app.post('/api/auth/register/dept-head', authenticate, checkPermission('register.departmentHead'), AuthController.registerDepartmentHead);
 app.post('/api/auth/logout', AuthController.logout);
 app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
@@ -151,6 +167,11 @@ app.patch('/api/interview', authenticate, checkPermission('interview.updateOwn')
 app.delete('/api/interview/:id', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewById);
 app.delete('/api/interview/user/:userId', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewByUserId);
 app.delete('/api/interview', authenticate, checkPermission('interview.deleteOwn'), InterviewController.deleteMyInterview);
+
+// Review Routes - Interview-based reviews with application and document data
+app.get('/api/review/:interviewId', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewByInterviewId);
+app.get('/api/review', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewList);
+
 
 // Evaluation Routes
 app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
