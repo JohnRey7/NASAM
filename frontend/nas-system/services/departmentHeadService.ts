@@ -50,4 +50,42 @@ export const departmentHeadService = {
     });
     return response.data;
   },
+
+  async getReviews() {
+    const response = await axios.get(`${API_URL}/review`, {
+      withCredentials: true,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+  },
+
+  async getCourses() {
+    const response = await axios.get(`${API_URL}/courses`, {
+      withCredentials: true,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+  },
+
+  async getDepartments() {
+    const response = await axios.get(`${API_URL}/departments?limit=1000`, {
+      withCredentials: true,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data.data || response.data;
+  },
+
+  async registerDepartmentHead(data: {
+    name: string;
+    email: string;
+    idNumber: string;
+    password: string;
+    // Add other fields as required by your backend
+  }) {
+    const response = await axios.post(`${API_URL}/auth/register/dept-head`, data, {
+      withCredentials: true,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+  },
 }; 

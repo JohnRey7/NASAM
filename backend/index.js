@@ -189,6 +189,9 @@ app.get('/api/departments/:departmentCode', authenticate, checkPermission('depar
 app.patch('/api/departments/:departmentCode', authenticate, checkPermission('department.update'), DepartmentController.updateDepartment);
 app.delete('/api/departments/:departmentCode', authenticate, checkPermission('department.delete'), DepartmentController.deleteDepartment);
 
+// Department Head: Get applicants in their department
+app.get('/api/department-head/applicants', authenticate, checkPermission('department_head'), DepartmentController.getApplicantsForDepartmentHead);
+
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {
   await fileUtils.downloadFile(req.params.fileName, req, res);
@@ -277,4 +280,7 @@ app.get('/api/test-verify', (req, res) => {
 
 // Add this route to your backend/index.js:
 app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationForm.read'), ApplicationController.getDashboardStats);
+
+// Admin: Assign applicant to department
+app.post('/api/admin/assign-applicant-to-department', authenticate, checkPermission('department.update'), DepartmentController.assignApplicantToDepartment);
 

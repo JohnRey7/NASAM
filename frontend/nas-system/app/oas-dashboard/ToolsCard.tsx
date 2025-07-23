@@ -5,37 +5,38 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import React, { useState } from "react";
+import RegisterDepartmentHeadForm from "../department-head/RegisterDepartmentHeadForm";
 
 export function ToolsCard() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [successDialog, setSuccessDialog] = useState(false);
   const [errorDialog, setErrorDialog] = useState(false);
-  const [form, setForm] = useState({ name: "", idNumber: "", email: "", password: "" });
+  // Remove local form state for department head creation
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  // const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   setForm({ ...form, [e.target.name]: e.target.value });
+  // };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg("");
-    try {
-      // TODO: Replace with real API call
-      // await createDepartmentHead(form)
-      await new Promise(res => setTimeout(res, 1000)); // Simulate API
-      setDialogOpen(false);
-      setSuccessDialog(true);
-      setForm({ name: "", idNumber: "", email: "", password: "" });
-    } catch (err: any) {
-      setErrorMsg("Failed to create Department Head. Please try again.");
-      setErrorDialog(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setLoading(true);
+  //   setErrorMsg("");
+  //   try {
+  //     // TODO: Replace with real API call
+  //     // await createDepartmentHead(form)
+  //     await new Promise(res => setTimeout(res, 1000)); // Simulate API
+  //     setDialogOpen(false);
+  //     setSuccessDialog(true);
+  //     setForm({ name: "", idNumber: "", email: "", password: "" });
+  //   } catch (err: any) {
+  //     setErrorMsg("Failed to create Department Head. Please try again.");
+  //     setErrorDialog(true);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -71,27 +72,8 @@ export function ToolsCard() {
             <DialogTitle>Create Department Head Account</DialogTitle>
             <DialogDescription>Fill in the details to create a new Department Head account.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label>Name</Label>
-              <Input name="name" value={form.name} onChange={handleChange} required />
-            </div>
-            <div>
-              <Label>ID Number</Label>
-              <Input name="idNumber" value={form.idNumber} onChange={handleChange} required />
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input name="email" type="email" value={form.email} onChange={handleChange} required />
-            </div>
-            <div>
-              <Label>Password</Label>
-              <Input name="password" type="password" value={form.password} onChange={handleChange} required />
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={loading} className="bg-[#800000] text-white w-full">{loading ? "Creating..." : "Create"}</Button>
-            </DialogFooter>
-          </form>
+          {/* Use the full-featured registration form here */}
+          <RegisterDepartmentHeadForm />
         </DialogContent>
       </Dialog>
       <Dialog open={successDialog} onOpenChange={setSuccessDialog}>
