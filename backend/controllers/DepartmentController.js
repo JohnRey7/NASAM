@@ -177,10 +177,61 @@ async function deleteDepartment(req, res) {
   }
 }
 
+// Get all applicants assigned to the logged-in department head's department
+async function getApplicantsForDepartmentHead(req, res) {
+  try {
+    const departmentHead = req.user;
+    if (!departmentHead || !departmentHead.department) {
+      return res.status(400).json({ message: 'Department head does not have a department assigned.' });
+    }
+    const User = require('../models/User');
+    const applicantRole = await require('../models/Role').findOne({ name: 'applicant' });
+    if (!applicantRole) {
+      return res.status(400).json({ message: 'Applicant role not found.' });
+    }
+    const applicants = await User.find({
+      role: applicantRole._id,
+      department: departmentHead.department
+    }).select('id name idNumber email');
+    res.json(applicants);
+  } catch (error) {
+    console.error('Error in getApplicantsForDepartmentHead:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Assign a user (applicant) to a department
+async function assignApplicantToDepartment(req, res) {
+  try {
+    const { userId, departmentCode } = req.body;
+    if (!userId || !departmentCode) {
+      return res.status(400).json({ message: 'userId and departmentCode are required.' });
+    }
+    const User = require('../models/User');
+    const Department = require('../models/Department');
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    const department = await Department.findOne({ departmentCode });
+    if (!department) {
+      return res.status(404).json({ message: 'Department not found.' });
+    }
+    user.department = department._id;
+    await user.save();
+    res.json({ message: 'Applicant assigned to department successfully.', user });
+  } catch (error) {
+    console.error('Error in assignApplicantToDepartment:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   createDepartment,
   getAllDepartments,
   getDepartmentByCode,
   updateDepartment,
-  deleteDepartment
+  deleteDepartment,
+  getApplicantsForDepartmentHead,
+  assignApplicantToDepartment
 };

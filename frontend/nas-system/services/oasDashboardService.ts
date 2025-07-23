@@ -9,4 +9,8 @@ export const oasDashboardService = {
     const response = await axios.get(`${API_URL}/oas-dashboard/stats`, { withCredentials: true });
     return response.data;
   },
+  async assignApplicantToDepartment(userId: string, departmentCode: string) {
+    const response = await axios.post(`${API_URL}/admin/assign-applicant-to-department`, { userId, departmentCode }, { withCredentials: true });
+    return response.data;
+  },
 }; 

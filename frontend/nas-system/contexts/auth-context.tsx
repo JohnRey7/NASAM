@@ -103,27 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("loading")
     
     try {
-      // Special cases for panelist role (hardcoded credentials)
-      if (idNumber === "panel123" && password === "panel123") {
-        // Panelist hardcoded login
-        const panelistUser: User = {
-          id: "panel-1",
-          name: "Panel Member",
-          email: "panel@example.com",
-          role: "panelist",
-        }
-        
-        setUser(panelistUser)
-        setStatus("authenticated")
-        
-        // Set both localStorage and cookie
-        localStorage.setItem("nas_user", JSON.stringify(panelistUser))
-        document.cookie = `nas_user=${JSON.stringify(panelistUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
-        
-        router.push("/panel-dashboard")
-        return
-      }
-      
       // For regular users, use the API
       const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
@@ -171,8 +150,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect based on role
       if (loggedInUser.role === "admin" || loggedInUser.role === "oas_staff") {
         router.push("/oas-dashboard")
-      } else if (loggedInUser.role === "panelist") {
-        router.push("/panel-dashboard")
+      }
+      else if (loggedInUser.role === "department_head") {
+        router.push("/department-head")
       } else {
         router.push("/dashboard")
       }

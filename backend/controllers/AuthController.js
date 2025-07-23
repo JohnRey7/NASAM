@@ -206,26 +206,29 @@ const AuthController = {
         role: role._id 
       });
 
+      // If email is provided, do not require verification for department head
       if (email) {
-        const code = updateVerificationDetails(user);
-        await sendVerificationEmail(user.email, code);
+        user.verified = true;
+        // No verification email sent
       }
 
       await user.save();
 
-      const token = generateToken({ ...user._doc, role });
-      const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+      // Remove rememberMe and cookie logic for admin registration
+      // const token = generateToken({ ...user._doc, role });
+      // const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
-      res.cookie('jwt', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge,
-        path: '/',
-      });
+      // res.cookie('jwt', token, {
+      //   httpOnly: true,
+      //   secure: process.env.NODE_ENV === 'production',
+      //   sameSite: 'strict',
+      //   maxAge,
+      //   path: '/',
+      // });
 
       return res.status(201).json({
-        message: email ? 'Department head registration successful, please verify your email.' : 'Department head registration successful',
+        message: email ? 'Department head registration successful. This account was created by an admin. Please verify the email.' : 'Department head registration successful. This account was created by an admin.',
+        adminRegistered: true,
         user: { 
           id: user._id, 
           idNumber: user.idNumber, 
