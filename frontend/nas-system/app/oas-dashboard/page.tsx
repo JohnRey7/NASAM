@@ -27,10 +27,10 @@ export default function OASDashboardPage() {
   const { toast } = useToast();
   const [applicants, setApplicants] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [readyForInterviewStudents, setReadyForInterviewStudents] = useState<any[]>([]);
   const [selectedApplicant, setSelectedApplicant] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [assignLoading, setAssignLoading] = useState(false);
-  const [applicantIdNumber, setApplicantIdNumber] = useState("");
   const { user } = useAuth();
 
   useEffect(() => {
@@ -54,15 +54,33 @@ export default function OASDashboardPage() {
   useEffect(() => {
     async function fetchApplicantsAndDepartments() {
       try {
-        const [users, depts] = await Promise.all([
+        const [users, depts, applications] = await Promise.all([
           fetch("/api/roles?role=applicant", { credentials: "include" }).then(res => res.json()),
-          departmentHeadService.getDepartments()
+          departmentHeadService.getDepartments(),
+          fetch("/api/oas/applications", { credentials: "include" }).then(res => res.json())
         ]);
         const applicantArray = Array.isArray(users) ? users : users?.users || users?.data || [];
         setApplicants(applicantArray);
         setDepartments(depts || []);
+        
+        // Filter for "Ready for Interview" students (document_verification status)
+        const applicationsArray = Array.isArray(applications) ? applications : applications?.applications || [];
+        const readyStudents = applicationsArray.filter((app: any) => 
+          app.status === 'document_verification' || app.status === 'approved'
+        ).map((app: any) => ({
+          _id: app.userId || app.user?._id || app._id, // Use actual user ID for assignment
+          applicationId: app._id,
+          firstName: app.firstName,
+          lastName: app.lastName,
+          idNumber: app.user?.idNumber || 'N/A',
+          programOfStudyAndYear: app.programOfStudyAndYear,
+          status: app.status
+        }));
+        
+        setReadyForInterviewStudents(readyStudents);
+        console.log('🎯 Ready for Interview students:', readyStudents);
       } catch (err) {
-        // ignore
+        console.error('Error fetching data:', err);
       }
     }
     fetchApplicantsAndDepartments();
@@ -215,15 +233,21 @@ export default function OASDashboardPage() {
           {/* Admin: Assign applicant to department */}
           <div className="mt-8 p-4 border rounded bg-white">
             <h3 className="font-bold mb-2">Assign Applicant to Department</h3>
+            <p className="text-sm text-gray-600 mb-3">Only students who are "Ready for Interview" can be assigned to departments.</p>
             <div className="flex gap-2 mb-2 items-center">
-              <input
-                type="text"
-                value={applicantIdNumber}
-                onChange={e => setApplicantIdNumber(e.target.value)}
-                placeholder="Enter Applicant ID Number"
-                className="border rounded px-2 py-1"
-                title="Applicant ID Number"
-              />
+              <select 
+                value={selectedApplicant} 
+                onChange={e => setSelectedApplicant(e.target.value)} 
+                className="border rounded px-2 py-1 min-w-[250px]" 
+                title="Select Ready for Interview Student"
+              >
+                <option value="">Select Student (Ready for Interview)</option>
+                {readyForInterviewStudents.map((student: any) => (
+                  <option key={student._id} value={student._id}>
+                    {student.firstName} {student.lastName} - {student.idNumber} ({student.programOfStudyAndYear})
+                  </option>
+                ))}
+              </select>
               <select value={selectedDepartment} onChange={e => setSelectedDepartment(e.target.value)} className="border rounded px-2 py-1" title="Select Department">
                 <option value="">Select Department</option>
                 {departments.map((d: any) => (
@@ -231,37 +255,62 @@ export default function OASDashboardPage() {
                 ))}
               </select>
               <button onClick={async () => {
+                console.log('Assign button clicked!');
+                console.log('Selected applicant:', selectedApplicant);
+                console.log('Selected department:', selectedDepartment);
+                
+                if (!selectedApplicant || !selectedDepartment) {
+                  toast({ title: "Error", description: "Please select both a student and department." });
+                  return;
+                }
+                
                 setAssignLoading(true);
                 try {
-                  // Find user by idNumber
-                  const user = applicants.find((a: any) => a.idNumber === applicantIdNumber);
-                  if (!user) throw new Error("Applicant not found");
-                  await oasDashboardService.assignApplicantToDepartment(user._id || user.id, selectedDepartment);
-                  toast({ title: "Success", description: "Applicant assigned to department." });
-                  setApplicantIdNumber("");
+                  // Find selected student
+                  const student = readyForInterviewStudents.find((s: any) => s._id === selectedApplicant);
+                  console.log('Found student:', student);
+                  
+                  if (!student) {
+                    throw new Error("Student not found in ready for interview list");
+                  }
+                  
+                  console.log('Calling assignApplicantToDepartment with:', student._id, selectedDepartment);
+                  const result = await oasDashboardService.assignApplicantToDepartment(student._id, selectedDepartment);
+                  console.log('Assignment result:', result);
+                  
+                  toast({ title: "Success", description: `${student.firstName} ${student.lastName} assigned to department successfully.` });
+                  setSelectedApplicant("");
                   setSelectedDepartment("");
-                  await reloadApplicants();
+                  
+                  // Refresh the data
+                  console.log('Refreshing ready for interview students...');
+                  const updatedApplications = await fetch("/api/oas/applications", { credentials: "include" }).then(res => res.json());
+                  const applicationsArray = Array.isArray(updatedApplications) ? updatedApplications : updatedApplications?.applications || [];
+                  const readyStudents = applicationsArray.filter((app: any) => 
+                    app.status === 'document_verification' || app.status === 'approved'
+                  ).map((app: any) => ({
+                    _id: app.userId || app.user?._id || app._id, // Use actual user ID for assignment
+                    applicationId: app._id,
+                    firstName: app.firstName,
+                    lastName: app.lastName,
+                    idNumber: app.user?.idNumber || 'N/A',
+                    programOfStudyAndYear: app.programOfStudyAndYear,
+                    status: app.status
+                  }));
+                  setReadyForInterviewStudents(readyStudents);
+                  console.log('Updated ready students:', readyStudents);
                 } catch (err: any) {
+                  console.error('Assignment error:', err);
                   toast({ title: "Error", description: err?.response?.data?.message || err.message || "Failed to assign." });
                 } finally {
                   setAssignLoading(false);
                 }
-              }} disabled={assignLoading || !applicantIdNumber || !selectedDepartment} className="bg-[#800000] text-white px-4 py-1 rounded disabled:opacity-50">
+              }} disabled={assignLoading || !selectedApplicant || !selectedDepartment} className="bg-[#800000] text-white px-4 py-1 rounded disabled:opacity-50">
                 {assignLoading ? "Assigning..." : "Assign"}
               </button>
             </div>
           </div>
-          {/* Debug: Show loaded applicants and entered ID number */}
-          <div className="mt-2 text-xs text-gray-500">
-            <div>Entered ID Number: <span className="font-mono">{applicantIdNumber}</span></div>
-            <div>Loaded Applicants ({applicants.length}):
-              <ul className="max-h-24 overflow-y-auto">
-                {applicants.map((a: any) => (
-                  <li key={a._id || a.id} className="font-mono">{a.idNumber} - {a.name}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
+
         </TabsContent>
       </Tabs>
     </DashboardLayout>

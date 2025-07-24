@@ -21,7 +21,8 @@ async function seedRoles() {
       'application.readAll',
       'document.set',
       'document.get',
-      'document.delete'
+      'document.delete',
+      'interview.readOwn'
     ];
 
     const permissionDocs = [];
@@ -44,7 +45,7 @@ async function seedRoles() {
       {
         name: 'applicant',
         permissions: permissionDocs
-          .filter(p => ['application.create', 'application.readOwn', 'application.updateOwn', 'document.set', 'document.get'].includes(p.name))
+          .filter(p => ['application.create', 'application.readOwn', 'application.updateOwn', 'document.set', 'document.get', 'interview.readOwn'].includes(p.name))
           .map(p => p._id)
       },
       {

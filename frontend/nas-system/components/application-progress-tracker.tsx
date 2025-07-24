@@ -3,12 +3,14 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Clock, FileText, Users, Award } from "lucide-react"
+import { CheckCircle, Clock, FileText, Users, Award, Calendar } from "lucide-react"
+import { applicationService } from "@/services/applicationService"
 
 export function ApplicationProgressTracker() {
   const [applicationStatus, setApplicationStatus] = useState<string>("Pending")
   const [hasDocuments, setHasDocuments] = useState(false)
   const [hasPersonalityTest, setHasPersonalityTest] = useState(false)
+  const [interviewData, setInterviewData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   // Fetch application status and documents
@@ -94,12 +96,24 @@ export function ApplicationProgressTracker() {
             setHasPersonalityTest(false)
           }
         } catch (personalityError) {
-          console.error('❌ Error checking personality test:', personalityError)
+          console.error('❌ Personality test error:', personalityError)
           setHasPersonalityTest(false)
+        }
+
+        // Check interview data
+        try {
+          console.log('🔍 DEBUG: Checking interview data...')
+          const interview = await applicationService.getMyInterview()
+          console.log('🔍 DEBUG: Interview data:', interview)
+          console.log('🔍 DEBUG: Interview structure:', JSON.stringify(interview, null, 2))
+          setInterviewData(interview)
+        } catch (interviewError) {
+          console.error('❌ Interview error:', interviewError)
+          setInterviewData(null)
         }
         
       } catch (error) {
-        console.error('Error fetching application progress:', error)
+        console.error('❌ Error fetching application progress:', error)
         setApplicationStatus("None")
         setHasDocuments(false)
         setHasPersonalityTest(false)
@@ -114,7 +128,7 @@ export function ApplicationProgressTracker() {
     return () => clearInterval(interval)
   }, [])
 
-  // Application progress steps in order - REVERTED TO ORIGINAL TITLES
+  // Application progress steps in order - INCLUDING INTERVIEW STEP
   const progressSteps = [
     {
       title: "Application Form",
@@ -146,11 +160,18 @@ export function ApplicationProgressTracker() {
       icon: <Users className="h-6 w-6" />
     },
     {
+      title: "Interview",
+      description: "Scheduled interview with department head",
+      status: interviewData ? "Pending" : (hasPersonalityTest ? "Pending" : "Locked"),
+      icon: <Calendar className="h-6 w-6" />,
+      interviewDate: interviewData?.interview?.startTime || interviewData?.startTime || null
+    },
+    {
       title: "Application Status",
       description: "Application approval or rejection",
       status: applicationStatus === "None" ? "Not Submitted" :
-              ["approved", "rejected"].includes(applicationStatus)
-                ? "Completed" : "Not Submitted",
+              applicationStatus === "rejected" ? "Completed" :
+              applicationStatus === "approved" && hasPersonalityTest ? "Pending" : "Not Submitted",
       icon: <Award className="h-6 w-6" />
     }
   ]
@@ -271,8 +292,38 @@ export function ApplicationProgressTracker() {
                     </div>
                   )}
 
-                  {/* ✅ Enhanced status messages for Application Status step */}
+                  {/* ✅ Enhanced status messages for Interview step */}
                   {idx === 3 && (
+                    <div className="mt-2 text-xs">
+                      {step.status === "Pending" && step.interviewDate && (
+                        <div>
+                          <span className="text-blue-600">📅 Interview scheduled</span>
+                          <div className="mt-1 font-medium text-blue-800">
+                            {new Date(step.interviewDate).toLocaleString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                          <div className="mt-2 text-yellow-600">
+                            ⏳ Waiting for the Department Head to conduct the interview
+                          </div>
+                        </div>
+                      )}
+                      {step.status === "Pending" && !step.interviewDate && (
+                        <span className="text-yellow-600">⏳ Awaiting interview scheduling</span>
+                      )}
+                      {step.status === "Locked" && (
+                        <span className="text-red-600">🔒 Complete personality test first</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ✅ Enhanced status messages for Application Status step */}
+                  {idx === 4 && (
                     <div className="mt-2 text-xs">
                       {step.status === "Pending" && (
                         <span className="text-yellow-600">⏳ Awaiting final decision</span>

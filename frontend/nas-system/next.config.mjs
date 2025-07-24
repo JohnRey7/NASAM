@@ -10,6 +10,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Add this to hide development indicators
+  devIndicators: {
+    buildActivity: false,
+    buildActivityPosition: 'bottom-left',
+  },
   // Adjust optimization settings with correct types
   experimental: {
     optimizeCss: false,

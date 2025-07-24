@@ -258,11 +258,113 @@ class NotificationService {
       priority: 'medium'
     });
 
-    console.log('✅ Creating personality test completed notification for user:', userId);
+    console.log(' Creating personality test completed notification for user:', userId);
     return await notification.save();
   }
 
-  // ✅ 4. PROGRESS UPDATE NOTIFICATIONS
+  // 4. INTERVIEW SCHEDULING NOTIFICATIONS
+  static async createInterviewScheduledNotification(userId, applicationId, interviewDate, scheduledBy = 'Staff') {
+    try {
+      const formattedDate = new Date(interviewDate).toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const notification = new Notification({
+        userId,
+        applicationId,
+        type: 'interview_scheduled',
+        title: ' Interview Scheduled',
+        message: `Your scholarship interview has been scheduled for ${formattedDate}. Please be prepared and arrive on time. Good luck!`,
+        priority: 'high',
+        metadata: { 
+          interviewDate,
+          scheduledBy,
+          action: 'scheduled'
+        }
+      });
+
+      console.log(' Creating interview scheduled notification for user:', userId);
+      return await notification.save();
+    } catch (error) {
+      console.error(' Error creating interview scheduled notification:', error);
+      throw error;
+    }
+  }
+
+  static async createInterviewRescheduledNotification(userId, applicationId, newInterviewDate, reason = '', rescheduledBy = 'Staff') {
+    try {
+      const formattedDate = new Date(newInterviewDate).toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const reasonText = reason ? ` Reason: ${reason}` : '';
+
+      const notification = new Notification({
+        userId,
+        applicationId,
+        type: 'interview_rescheduled',
+        title: ' Interview Rescheduled',
+        message: `Your scholarship interview has been rescheduled to ${formattedDate}.${reasonText} Please update your calendar accordingly.`,
+        priority: 'high',
+        metadata: { 
+          newInterviewDate,
+          reason,
+          rescheduledBy,
+          action: 'rescheduled'
+        }
+      });
+
+      console.log(' Creating interview rescheduled notification for user:', userId);
+      return await notification.save();
+    } catch (error) {
+      console.error(' Error creating interview rescheduled notification:', error);
+      throw error;
+    }
+  }
+
+  static async createInterviewReminderNotification(userId, applicationId, interviewDate) {
+    try {
+      const formattedDate = new Date(interviewDate).toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const notification = new Notification({
+        userId,
+        applicationId,
+        type: 'interview_reminder',
+        title: ' Interview Reminder',
+        message: `Reminder: Your scholarship interview is scheduled for ${formattedDate}. Please prepare your documents and arrive 15 minutes early.`,
+        priority: 'medium',
+        metadata: { 
+          interviewDate,
+          action: 'reminder'
+        }
+      });
+
+      console.log(' Creating interview reminder notification for user:', userId);
+      return await notification.save();
+    } catch (error) {
+      console.error(' Error creating interview reminder notification:', error);
+      throw error;
+    }
+  }
+
+  // 5. PROGRESS UPDATE NOTIFICATIONS
   static async createProgressUpdateNotification(userId, applicationId, stage, status) {
     const stageMessages = {
       'application_form': {

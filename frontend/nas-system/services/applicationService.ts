@@ -381,9 +381,32 @@ export const applicationService = {
       throw error;
     }
   },
-};
 
-export type ApplicationFormData = {
-  // Define your application form data type
-  [key: string]: any;
+  // Add method to fetch interview data for applicants
+  async getMyInterview() {
+    try {
+      const response = await fetch(`${API_URL}/interview`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // No interview scheduled yet
+          return null;
+        }
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const interview = await response.json();
+      return interview;
+    } catch (error) {
+      console.error('Error fetching interview data:', error);
+      throw error;
+    }
+  },
 };

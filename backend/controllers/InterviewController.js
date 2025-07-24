@@ -2,6 +2,7 @@ const Interview = require('../models/Interview');
 const ApplicationForm = require('../models/ApplicationForm');
 const mongoose = require('mongoose');
 const DocumentUpload = require('../models/DocumentUpload');
+const NotificationService = require('../services/NotificationService');
 
 const InterviewController = {
   // POST: Create an interview for the authenticated user's application
@@ -35,6 +36,115 @@ const InterviewController = {
     } catch (error) {
       console.error('Error in createInterview:', error);
       res.status(400).json({ message: `Failed to create interview: ${error.message}` });
+    }
+  },
+
+  // POST: Create an interview for any applicant (admin/staff)
+  async createInterviewForApplicant(req, res) {
+    try {
+      const { applicationId, interviewDate, notes } = req.body;
+      const staffUserId = req.user.id;
+
+      console.log('🔍 Creating interview for application:', { applicationId, interviewDate, staffUserId });
+
+      // Validate input
+      if (!applicationId || !interviewDate) {
+        return res.status(400).json({ message: 'Application ID and interview date are required' });
+      }
+
+      // Find the application
+      const application = await ApplicationForm.findById(applicationId);
+      if (!application) {
+        return res.status(404).json({ message: 'Application not found' });
+      }
+
+      // Check for existing interview
+      const existingInterview = await Interview.findOne({ applicationId: applicationId })
+        .populate('interviewer', 'name email');
+      
+      if (existingInterview) {
+        // Generate interview ID for existing interview
+        const existingInterviewId = `INT-${new Date().getFullYear()}-${String(existingInterview._id).slice(-6).toUpperCase()}`;
+        
+        console.log('📅 Interview already exists, sending notification to applicant');
+        
+        // Send notification to the applicant about their existing interview
+        try {
+          await NotificationService.createInterviewReminderNotification(
+            application.user, // userId from the application
+            applicationId,
+            existingInterview.startTime,
+            'OAS Staff' // remindedBy
+          );
+          console.log('✅ Interview reminder notification sent to applicant:', application.user);
+        } catch (notificationError) {
+          console.error('⚠️ Failed to send interview reminder notification:', notificationError);
+        }
+        
+        return res.status(200).json({ 
+          message: 'Interview already scheduled for this application. Notification sent to applicant.',
+          interview: existingInterview,
+          interviewId: existingInterviewId,
+          isExisting: true,
+          interviewDate: existingInterview.startTime
+        });
+      }
+
+      // Parse the interview date and create start/end times
+      const interviewStart = new Date(interviewDate);
+      if (isNaN(interviewStart.getTime())) {
+        return res.status(400).json({ message: 'Invalid interview date format' });
+      }
+
+      // Set default interview duration (1 hour)
+      const interviewEnd = new Date(interviewStart.getTime() + 60 * 60 * 1000);
+
+      // Create interview with the staff member as interviewer
+      const interview = new Interview({
+        applicationId: applicationId,
+        interviewer: staffUserId,
+        startTime: interviewStart,
+        endTime: interviewEnd
+      });
+
+      await interview.save();
+
+      // Generate unique interview ID
+      const interviewId = `INT-${new Date().getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`;
+
+      // Populate the interview with application and user data
+      const populatedInterview = await Interview.findById(interview._id)
+        .populate('applicationId')
+        .populate('interviewer', 'name email');
+
+      console.log('✅ Interview created successfully:', {
+        interviewId: interviewId,
+        applicationId: applicationId,
+        interviewDate: interviewStart
+      });
+
+      // Send notification to the applicant
+      try {
+        await NotificationService.createInterviewScheduledNotification(
+          application.user, // userId from the application
+          applicationId,
+          interviewStart,
+          'OAS Staff' // scheduledBy
+        );
+        console.log('✅ Interview notification sent to applicant:', application.user);
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send interview notification:', notificationError);
+        // Don't fail the interview creation if notification fails
+      }
+
+      res.status(201).json({
+        message: 'Interview scheduled successfully',
+        interview: populatedInterview,
+        interviewId: interviewId
+      });
+    } catch (error) {
+      console.error('Error in createInterviewForApplicant:', error);
+      res.status(500).json({ message: `Failed to schedule interview: ${error.message}` });
     }
   },
 
@@ -104,39 +214,45 @@ const InterviewController = {
     }
   },
 
-    // GET: Retrieve the authenticated user's interview
-    async getMyInterview(req, res) {
-        try {
-        const userId = req.user.id;
-        const { page = 1, limit = 10 } = req.query;
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-        const application = await ApplicationForm.findOne({ user: userId });
-        if (!application) return res.status(404).json({ message: 'No application found for this user' });
-        const interviews = await Interview.findOne({ applicationId: application._id })
-            .skip(skip)
-            .limit(parseInt(limit))
-            .sort({ createdAt: -1 })
-            .populate('applicationId', 'firstName lastName status _id')
-            .populate('interviewer', 'name _id');
-        const totalDocs = await Interview.countDocuments({ applicationId: application._id });
-        if (!interviews.length) return res.status(404).json({ message: 'No interviews found for this application' });
-        res.json({
-            message: 'Interviews retrieved successfully',
-            interviews,
-            pagination: {
-            totalDocs,
-            limit: parseInt(limit),
-            page: parseInt(page),
-            totalPages: Math.ceil(totalDocs / parseInt(limit)),
-            hasNextPage: skip + interviews.length < totalDocs,
-            hasPrevPage: page > 1
-            }
+  // GET: Retrieve the authenticated user's interview
+  async getMyInterview(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      // Find user's application
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        return res.status(404).json({ message: 'No application found for this user' });
+      }
+      
+      // Find the interview for this application
+      const interview = await Interview.findOne({ applicationId: application._id })
+        .populate('applicationId', 'firstName lastName status _id')
+        .populate('interviewer', 'name _id');
+      
+      // If no interview found, return null (not an error for applicants)
+      if (!interview) {
+        return res.status(200).json({ 
+          message: 'No interview scheduled yet',
+          interview: null 
         });
-        } catch (error) {
-        console.error('Error in getMyInterview:', error);
-        res.status(500).json({ message: 'Server error' });
+      }
+      
+      // Generate interview ID for display
+      const interviewId = `INT-${new Date().getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`;
+      
+      res.status(200).json({
+        message: 'Interview retrieved successfully',
+        interview: {
+          ...interview.toObject(),
+          interviewId: interviewId
         }
-    },
+      });
+    } catch (error) {
+      console.error('Error in getMyInterview:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
 
   // PATCH: Update interview by ID (admin)
   async updateInterviewById(req, res) {

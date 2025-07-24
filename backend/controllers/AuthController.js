@@ -14,6 +14,9 @@ function generateVerificationCode() {
 
 // Helper: Generate a JWT token for a user
 function generateToken(user) {
+  if (!user.role) {
+    throw new Error('User role is missing or invalid');
+  }
   const payload = { 
     id: user._id, 
     idNumber: user.idNumber, 
@@ -51,6 +54,10 @@ const AuthController = {
       const user = await User.findOne({ idNumber }).populate('role');
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      if (!user.role) {
+        return res.status(500).json({ message: 'User role is missing. Please contact administrator.' });
       }
 
       if (user.disabled) {

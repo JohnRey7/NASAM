@@ -452,7 +452,7 @@ export function ApplicationReview() {
     }
   }
 
-  const handleScheduleInterview = () => {
+  const handleScheduleInterview = async () => {
     if (!interviewDate) {
       toast({
         title: "Error",
@@ -462,14 +462,75 @@ export function ApplicationReview() {
       return
     }
 
-    toast({
-      title: "Interview Scheduled",
-      description: `Interview scheduled for ${selectedApplication.studentName} on ${interviewDate}`,
-    })
+    if (!selectedApplication) {
+      toast({
+        title: "Error",
+        description: "No application selected",
+        variant: "destructive",
+      })
+      return
+    }
 
-    // Close dialog
-    setSelectedApplication(null)
-    setInterviewDate("")
+    try {
+      console.log('Scheduling interview for application:', selectedApplication._id);
+      
+      const response = await fetch('http://localhost:3000/api/admin/interview/schedule', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          applicationId: selectedApplication._id,
+          interviewDate: interviewDate,
+          notes: 'Scheduled via OAS Staff Dashboard'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Interview operation result:', result);
+
+      // Handle both new and existing interviews
+      if (result.isExisting) {
+        // Interview already exists - show existing interview details
+        const existingDate = new Date(result.interviewDate).toLocaleDateString();
+        toast({
+          title: "Interview Already Scheduled",
+          description: `${selectedApplication.firstName} ${selectedApplication.lastName} already has an interview scheduled for ${existingDate}. A reminder notification has been sent to the applicant.`,
+          duration: 7000
+        })
+      } else {
+        // New interview scheduled
+        toast({
+          title: "Interview Scheduled",
+          description: `Interview scheduled for ${selectedApplication.firstName} ${selectedApplication.lastName} on ${new Date(interviewDate).toLocaleDateString()}. Interview ID: ${result.interviewId}`,
+          duration: 5000
+        })
+        
+        // Update the application status to interview_scheduled for new interviews
+        await handleUpdateStatus('interview_scheduled');
+      }
+
+      // Close dialog and reset form
+      setSelectedApplication(null)
+      setInterviewDate("")
+      
+      // Refresh the applications list to show updated status
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Error scheduling interview:', error);
+      toast({
+        title: "Error",
+        description: `Failed to schedule interview: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+      })
+    }
   }
 
   const handleUpdateStatus = (newStatus: string) => {

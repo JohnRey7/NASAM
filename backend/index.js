@@ -160,6 +160,11 @@ app.delete('/api/personality-test/template/:id', authenticate, checkPermission('
 
 // Interview Routes
 app.post('/api/interview', authenticate, checkPermission('interview.create'), InterviewController.createInterview);
+// Test route to verify routing is working
+app.get('/api/admin/test', (req, res) => {
+  res.json({ message: 'Admin route is working', timestamp: new Date() });
+});
+app.post('/api/admin/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
 app.get('/api/interview/all', authenticate, checkPermission('interview.readAll'), InterviewController.getAllInterviews);
 app.get('/api/interview/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById);
 app.get('/api/interview/user/:userId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByUserId);
@@ -284,6 +289,11 @@ app.get('/api/test-verify', (req, res) => {
 // Add this route to your backend/index.js:
 app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationForm.read'), ApplicationController.getDashboardStats);
 
+
+
 // Admin: Assign applicant to department
 app.post('/api/admin/assign-applicant-to-department', authenticate, checkPermission('department.update'), DepartmentController.assignApplicantToDepartment);
+
+// Department Head: Schedule interview with notification
+app.post('/api/department-head/interview/schedule', authenticate, checkPermission('department_head'), InterviewController.createInterviewForApplicant);
 
