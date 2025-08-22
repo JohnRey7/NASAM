@@ -131,10 +131,11 @@ export const departmentHeadService = {
     return response.data;
   },
 
-  async rescheduleInterview(interviewId: string, newDate: string, newTime: string) {
-    const response = await axios.patch(`${API_URL}/interview/${interviewId}`, {
+  async rescheduleInterview(interviewId: string, newDate: string, newTime: string, notes?: string) {
+    const response = await axios.patch(`${API_URL}/department-head/interview/${interviewId}/reschedule`, {
       date: newDate,
-      time: newTime
+      time: newTime,
+      notes: notes
     }, {
       withCredentials: true,
       headers: { 'Content-Type': 'application/json' },

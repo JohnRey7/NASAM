@@ -295,5 +295,8 @@ app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationFo
 app.post('/api/admin/assign-applicant-to-department', authenticate, checkPermission('department.update'), DepartmentController.assignApplicantToDepartment);
 
 // Department Head: Schedule interview with notification
-app.post('/api/department-head/interview/schedule', authenticate, checkPermission('department_head'), InterviewController.createInterviewForApplicant);
+app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
+
+// Department Head: Reschedule interview
+app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate, checkPermission('application.readAll'), InterviewController.rescheduleInterviewForDepartmentHead);
 

@@ -148,6 +148,84 @@ const InterviewController = {
     }
   },
 
+  // PATCH: Reschedule interview for department head
+  async rescheduleInterviewForDepartmentHead(req, res) {
+    try {
+      const { interviewId } = req.params;
+      const { date, time, notes } = req.body;
+      const departmentHeadId = req.user.id;
+
+      console.log('🔄 Department head rescheduling interview:', { interviewId, date, time, departmentHeadId });
+
+      // Validate input
+      if (!mongoose.Types.ObjectId.isValid(interviewId)) {
+        return res.status(400).json({ message: 'Invalid interview ID' });
+      }
+
+      if (!date || !time) {
+        return res.status(400).json({ message: 'Date and time are required' });
+      }
+
+      // Find the interview
+      const interview = await Interview.findById(interviewId)
+        .populate('applicationId');
+      
+      if (!interview) {
+        return res.status(404).json({ message: 'Interview not found' });
+      }
+
+      // Combine date and time into a proper datetime
+      const newDateTime = new Date(`${date}T${time}`);
+      if (isNaN(newDateTime.getTime())) {
+        return res.status(400).json({ message: 'Invalid date or time format' });
+      }
+
+      // Set end time to 1 hour after start time
+      const newEndTime = new Date(newDateTime.getTime() + 60 * 60 * 1000);
+
+      // Update the interview
+      const updatedInterview = await Interview.findByIdAndUpdate(
+        interviewId,
+        {
+          startTime: newDateTime,
+          endTime: newEndTime,
+          notes: notes || interview.notes,
+          updatedAt: new Date()
+        },
+        { new: true, runValidators: true }
+      ).populate('applicationId').populate('interviewer', 'name email');
+
+      console.log('✅ Interview rescheduled successfully:', {
+        interviewId,
+        newDateTime,
+        applicationId: interview.applicationId._id
+      });
+
+      // Send notification to the applicant about the reschedule
+      try {
+        await NotificationService.createInterviewRescheduledNotification(
+          interview.applicationId.user,
+          interview.applicationId._id,
+          newDateTime,
+          'Interview time updated',
+          'Department Head'
+        );
+        console.log('✅ Reschedule notification sent to applicant');
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send reschedule notification:', notificationError);
+        // Don't fail the reschedule if notification fails
+      }
+
+      res.json({
+        message: 'Interview rescheduled successfully',
+        interview: updatedInterview
+      });
+    } catch (error) {
+      console.error('Error in rescheduleInterviewForDepartmentHead:', error);
+      res.status(500).json({ message: `Failed to reschedule interview: ${error.message}` });
+    }
+  },
+
   // GET: Retrieve all interviews with pagination and filtering (admin)
   async getAllInterviews(req, res) {
     try {

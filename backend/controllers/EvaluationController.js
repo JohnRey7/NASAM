@@ -29,6 +29,26 @@ async function createEvaluation(req, res) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Check if the user has a completed interview
+    const Interview = require('../models/Interview');
+    const ApplicationForm = require('../models/ApplicationForm');
+    
+    const application = await ApplicationForm.findOne({ user: evaluateeUser });
+    if (!application) {
+      return res.status(404).json({ message: 'No application found for this user' });
+    }
+    
+    const interview = await Interview.findOne({ applicationId: application._id });
+    if (!interview) {
+      return res.status(400).json({ message: 'No interview found for this applicant. Interview must be completed before evaluation.' });
+    }
+    
+    // Check if interview is completed (has both start and end time and end time is in the past)
+    const now = new Date();
+    if (!interview.endTime || interview.endTime > now) {
+      return res.status(400).json({ message: 'Interview must be completed before evaluation can be created.' });
+    }
+
     // Validate required nested fields
     if (!attendanceAndPunctuality || !qualityOfWorkOutput || !quantityOfWorkOutput || !attitudeAndWorkBehavior || overallRating === undefined) {
       return res.status(400).json({ message: 'All required fields must be provided' });

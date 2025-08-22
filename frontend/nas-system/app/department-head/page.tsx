@@ -674,7 +674,6 @@ export default function DepartmentHeadDashboardPage() {
                                         <div className="bg-white border rounded-lg p-6">
                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                             <div>
-                                              <h3 className="text-lg font-semibold text-gray-900 mb-2">Your Score: <span className="text-green-600">N/A</span></h3>
                                               <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Level: <span className="text-green-600">Low</span></h3>
                                               <div className="mb-4">
                                                 <Label className="font-medium text-gray-700">Guidance:</Label>

@@ -1092,12 +1092,8 @@ export function ApplicationReview() {
                                           You answered {personalityTestData.answers?.length || 0} out of {personalityTestData.questions?.length || personalityTestData.answers?.length || 0} questions.
                                         </p>
 
-                                        {/* Score Display */}
+                                        {/* Risk Level Display */}
                                         <div className="space-y-2">
-                                          <p className="text-lg font-semibold text-gray-800">
-                                            Your Score: <span className="text-green-700">{personalityTestData.score ? Number(personalityTestData.score).toFixed(2) : 'N/A'}</span>
-                                          </p>
-                                          
                                           <p className="text-lg font-semibold text-gray-800">
                                             Risk Level: <span className={`${
                                               personalityTestData.riskLevelIndicator === 'Low' 
