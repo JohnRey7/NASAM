@@ -1,50 +1,148 @@
-const mongoose = require('mongoose');
-const PersonalityTest = require('../models/PersonalityTest');
-const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
-const PersonalityAssessmentTemplate = require('../models/PersonalityTestTemplate');
-const ApplicationForm = require('../models/ApplicationForm');
-const ActivityLogger = require('../services/ActivityLogger');
-const NotificationService = require('../services/NotificationService');
+const PersonalityTestService = require('../services/PersonalityTestService');
 
 const PersonalityTestController = {
   // POST /startPersonalityTest
   async startPersonalityTest(req, res) {
     try {
       const userId = req.user.id;
+      
+      const result = await PersonalityTestService.startPersonalityTest(userId);
+      
+      res.status(201).json(result);
+    } catch (error) {
+      console.error('Error in startPersonalityTest:', error);
+      res.status(error.message.includes('already taken') ? 403 : 404)
+         .json({ message: error.message });
+    }
+  },
 
-      // Find user's application
-      const application = await ApplicationForm.findOne({ user: userId });
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for user' });
-      }
-
-      // Check if user has ever taken a test
-      const existingTest = await PersonalityTest.findOne({
-        applicationId: application._id,
+  // POST /answerPersonalityTest
+  async answerPersonalityTest(req, res) {
+    try {
+      const userId = req.user.id;
+      const { testId, questionId, selectedOption } = req.body;
+      
+      const result = await PersonalityTestService.answerPersonalityTest(userId, {
+        testId, questionId, selectedOption
       });
-      if (existingTest) {
-        return res.status(403).json({ 
-          message: 'User has already taken a personality test and cannot take another' 
-        });
-      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in answerPersonalityTest:', error);
+      res.status(400).json({ message: error.message });
+    }
+  },
 
-      // Get distinct categories from PersonalityAssessmentTemplate
-      const categories = await PersonalityAssessmentTemplate.distinct('type');
-      if (categories.length === 0) {
-        return res.status(404).json({ message: 'No questions available in template' });
-      }
+  // GET /stopPersonalityTest
+  async stopPersonalityTest(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const result = await PersonalityTestService.stopPersonalityTest(userId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in stopPersonalityTest:', error);
+      res.status(404).json({ message: error.message });
+    }
+  },
 
-      // Pick one random question per category
-      const questions = [];
-      for (const category of categories) {
-        const question = await PersonalityAssessmentTemplate.aggregate([
-          { $match: { type: category } },
-          { $sample: { size: 1 } },
-        ]);
-        if (question[0]) {
-          questions.push(question[0]);
-        }
-      }
+  // GET /getMyPersonalityTest
+  async getMyPersonalityTest(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const test = await PersonalityTestService.getMyPersonalityTest(userId);
+      
+      res.json(test);
+    } catch (error) {
+      console.error('Error in getMyPersonalityTest:', error);
+      res.status(404).json({ message: error.message });
+    }
+  },
+
+  // GET /getAllUserPersonalityTest
+  async getAllUserPersonalityTest(req, res) {
+    try {
+      const tests = await PersonalityTestService.getAllUserPersonalityTests();
+      
+      res.json(tests);
+    } catch (error) {
+      console.error('Error in getAllUserPersonalityTest:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
+    }
+  },
+
+  // GET /getPersonalityTestByUserId
+  async getPersonalityTestByUserId(req, res) {
+    try {
+      const { userId } = req.params;
+      
+      const test = await PersonalityTestService.getPersonalityTestByUserId(userId);
+      
+      res.json(test);
+    } catch (error) {
+      console.error('Error in getPersonalityTestByUserId:', error);
+      res.status(error.message.includes('Invalid') ? 400 : 404)
+         .json({ message: error.message });
+    }
+  },
+
+  // GET /personality-test/status - Check if user has completed personality test
+  async getPersonalityTestStatus(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const status = await PersonalityTestService.getPersonalityTestStatus(userId);
+      
+      res.json(status);
+    } catch (error) {
+      console.error('Error in getPersonalityTestStatus:', error);
+      res.status(500).json({ message: `Server error: ${error.message}` });
+    }
+  },
+
+  // DELETE /deletePersonalityTestByUserId
+  async deletePersonalityTestByUserId(req, res) {
+    try {
+      const { userId } = req.params;
+      
+      const result = await PersonalityTestService.deletePersonalityTestByUserId(userId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in deletePersonalityTestByUserId:', error);
+      res.status(error.message.includes('Invalid') ? 400 : 404)
+         .json({ message: error.message });
+    }
+  },
+
+  // GET /personality-test/statistics
+  async getPersonalityTestStatistics(req, res) {
+    try {
+      const statistics = await PersonalityTestService.getPersonalityTestStatistics();
+      
+      res.json(statistics);
+    } catch (error) {
+      console.error('Error in getPersonalityTestStatistics:', error);
+      res.status(500).json({ message: 'Failed to get statistics' });
+    }
+  },
+
+  // GET /personality-test/can-take - Check if user can take the test
+  async canUserTakeTest(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const result = await PersonalityTestService.canUserTakeTest(userId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in canUserTakeTest:', error);
+      res.status(500).json({ message: 'Failed to check test eligibility' });
+    }
+  }
+};
 
       if (questions.length === 0) {
         return res.status(404).json({ message: 'No questions found for categories' });
