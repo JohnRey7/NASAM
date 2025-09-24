@@ -1,225 +1,110 @@
-const DocumentUpload = require('../models/DocumentUpload');
-const path = require('path');
-const fs = require('fs').promises;
-const ApplicationForm = require('../models/ApplicationForm'); // ❌ May not be needed
-const NotificationService = require('../services/NotificationService');
+const DocumentService = require('../services/DocumentService');
 
 const DocumentController = {
   // Upload or update documents for the authenticated user
   async uploadDocuments(req, res) {
     try {
-      const userId = req.user.id;
-      const files = req.files;
-
-      // Validate that at least one file is uploaded
-      if (!files || Object.keys(files).length === 0) {
-        return res.status(400).json({ message: 'At least one document must be uploaded' });
-      }
-
-      // Prepare document data
-      const documentData = {
-        user: userId,
-        studentPicture: null,
-        nbiClearance: [],
-        gradeReport: [],
-        incomeTaxReturn: [],
-        goodMoralCertificate: [],
-        physicalCheckup: [],
-        certificates: [],
-        homeLocationSketch: []
-      };
-
-      // Process uploaded files
-      for (const field in files) {
-        if (field === 'studentPicture' && files[field].length > 0) {
-          // Only take the first file for studentPicture
-          const file = files[field][0];
-          documentData.studentPicture = {
-            filePath: path.relative(path.join(__dirname, '../'), file.path).replace(/\\/g, '/'),
-            originalName: file.originalname,
-            uploadedAt: new Date()
-          };
-        } else if (documentData.hasOwnProperty(field)) {
-          // Handle array fields
-          documentData[field] = files[field].map(file => ({
-            filePath: path.relative(path.join(__dirname, '../'), file.path).replace(/\\/g, '/'),
-            originalName: file.originalname,
-            uploadedAt: new Date()
-          }));
-        } else {
-          console.warn(`Unknown field ${field} received in file upload`);
-        }
-      }
-
-      // Find existing document or create new
-      let document = await DocumentUpload.findOne({ user: userId });
-      if (document) {
-        // Delete old files from storage
-        const oldFiles = [
-          ...(document.studentPicture ? [document.studentPicture] : []),
-          ...document.nbiClearance,
-          ...document.gradeReport,
-          ...document.incomeTaxReturn,
-          ...document.goodMoralCertificate,
-          ...document.physicalCheckup,
-          ...document.certificates,
-          ...document.homeLocationSketch
-        ].map(doc => path.join(__dirname, '../', doc.filePath));
-
-        for (const filePath of oldFiles) {
-          try {
-            await fs.unlink(filePath);
-          } catch (error) {
-            console.warn(`Failed to delete old file ${filePath}:`, error.message);
-          }
-        }
-
-        // Update document (only update fields with new data)
-        Object.keys(documentData).forEach(key => {
-          if (key !== 'user' && documentData[key] !== null && (Array.isArray(documentData[key]) ? documentData[key].length > 0 : true)) {
-            document[key] = documentData[key];
-          }
-        });
-      } else {
-        // Create new document
-        document = new DocumentUpload(documentData);
-      }
-
-      await document.save();
-
-      // After successfully saving documents, add notification:
-      const uploadedTypes = [];
-      if (req.files.studentPicture) uploadedTypes.push('Student Picture');
-      if (req.files.nbiClearance) uploadedTypes.push('NBI Clearance');
-      if (req.files.gradeReport) uploadedTypes.push('Grade Report');
-      if (req.files.incomeTaxReturn) uploadedTypes.push('Income Tax Return');
-      if (req.files.goodMoralCertificate) uploadedTypes.push('Good Moral Certificate');
-      if (req.files.physicalCheckup) uploadedTypes.push('Physical Checkup');
-      if (req.files.homeLocationSketch) uploadedTypes.push('Home Location Sketch');
-
-      // Create notification
-      if (uploadedTypes.length > 0) {
-        const userApplication = await ApplicationForm.findOne({ user: req.user.id });
-        
-        if (userApplication) {
-          await NotificationService.createDocumentUploadedNotification(
-            req.user.id,  // ✅ Pass the user ID first
-            userApplication._id,
-            uploadedTypes
-          );
-        }
-      }
-
-      res.status(201).json({
-        message: 'Documents uploaded successfully',
-        document: {
-          _id: document._id,
-          user: document.user,
-          studentPicture: document.studentPicture,
-          nbiClearance: document.nbiClearance,
-          gradeReport: document.gradeReport,
-          incomeTaxReturn: document.incomeTaxReturn,
-          goodMoralCertificate: document.goodMoralCertificate,
-          physicalCheckup: document.physicalCheckup,
-          certificates: document.certificates,
-          homeLocationSketch: document.homeLocationSketch,
-          createdAt: document.createdAt,
-          updatedAt: document.updatedAt
-        }
-      });
+      const result = await DocumentService.uploadDocuments(req.user.id, req.files);
+      res.json(result);
     } catch (error) {
-      console.error('❌ Error in uploadDocuments:', error);
-      // Clean up uploaded files on error
-      if (req.files) {
-        for (const field in req.files) {
-          for (const file of req.files[field]) {
-            try {
-              await fs.unlink(file.path);
-            } catch (unlinkError) {
-              console.warn(`Failed to clean up file ${file.path}:`, unlinkError.message);
-            }
-          }
-        }
-      }
-      res.status(500).json({
-        success: false,
-        message: 'Failed to upload documents',
-        error: error.message
-      });
+      console.error('Error in uploadDocuments:', error);
+      const statusCode = error.message.includes('must be uploaded') ? 400 : 500;
+      res.status(statusCode).json({ message: error.message });
+    }
+  },
+
+  // Get documents by user ID (admin)
+  async getDocumentsByUserId(req, res) {
+    try {
+      const { userId } = req.params;
+      const result = await DocumentService.getDocumentsByUserId(userId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getDocumentsByUserId:', error);
+      const statusCode = error.message.includes('Invalid') ? 400 :
+                        error.message.includes('not found') ? 404 : 500;
+      res.status(statusCode).json({ message: error.message });
     }
   },
 
   // Get documents for the authenticated user
-  async getDocuments(req, res) {
+  async getMyDocuments(req, res) {
     try {
-      const userId = req.user.id;
-
-      const document = await DocumentUpload.findOne({ user: userId })
-        .populate('user', 'name email');
-
-      if (!document) {
-        return res.status(404).json({ message: 'Documents not found for this user' });
-      }
-
-      res.json({
-        document: {
-          _id: document._id,
-          user: document.user,
-          studentPicture: document.studentPicture,
-          nbiClearance: document.nbiClearance,
-          gradeReport: document.gradeReport,
-          incomeTaxReturn: document.incomeTaxReturn,
-          goodMoralCertificate: document.goodMoralCertificate,
-          physicalCheckup: document.physicalCheckup,
-          certificates: document.certificates,
-          homeLocationSketch: document.homeLocationSketch,
-          createdAt: document.createdAt,
-          updatedAt: document.updatedAt
-        }
-      });
+      const result = await DocumentService.getMyDocuments(req.user.id);
+      res.json(result);
     } catch (error) {
-      console.error('Error in getDocuments:', error);
-      res.status(500).json({ message: `Server error: ${error.message}` });
+      console.error('Error in getMyDocuments:', error);
+      const statusCode = error.message.includes('not found') ? 404 : 500;
+      res.status(statusCode).json({ message: error.message });
     }
   },
 
-  // Delete documents for the authenticated user
-  async deleteDocuments(req, res) {
+  // Delete a specific document file
+  async deleteDocument(req, res) {
     try {
-      const userId = req.user.id;
-
-      const document = await DocumentUpload.findOne({ user: userId });
-      if (!document) {
-        return res.status(404).json({ message: 'Documents not found for this user' });
-      }
-
-      // Delete files from storage
-      const filesToDelete = [
-        ...(document.studentPicture ? [document.studentPicture] : []),
-        ...document.nbiClearance,
-        ...document.gradeReport,
-        ...document.incomeTaxReturn,
-        ...document.goodMoralCertificate,
-        ...document.physicalCheckup,
-        ...document.certificates,
-        ...document.homeLocationSketch
-      ].map(doc => path.join(__dirname, '../', doc.filePath));
-
-      for (const filePath of filesToDelete) {
-        try {
-          await fs.unlink(filePath);
-        } catch (error) {
-          console.warn(`Failed to delete file ${filePath}:`, error.message);
-        }
-      }
-
-      // Delete document from MongoDB
-      await DocumentUpload.deleteOne({ user: userId });
-
-      res.json({ message: 'Documents deleted successfully' });
+      const { field, fileIndex } = req.params;
+      const result = await DocumentService.deleteDocument(req.user.id, field, parseInt(fileIndex));
+      res.json(result);
     } catch (error) {
-      console.error('Error in deleteDocuments:', error);
-      res.status(500).json({ message: `Server error: ${error.message}` });
+      console.error('Error in deleteDocument:', error);
+      const statusCode = error.message.includes('Invalid') ? 400 :
+                        error.message.includes('not found') ? 404 : 500;
+      res.status(statusCode).json({ message: error.message });
+    }
+  },
+
+  // Delete all documents for a user by user ID (admin)
+  async deleteDocumentsByUserId(req, res) {
+    try {
+      const { userId } = req.params;
+      const result = await DocumentService.deleteDocumentsByUserId(userId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in deleteDocumentsByUserId:', error);
+      const statusCode = error.message.includes('Invalid') ? 400 :
+                        error.message.includes('not found') ? 404 : 500;
+      res.status(statusCode).json({ message: error.message });
+    }
+  },
+
+  // Delete all documents for the authenticated user
+  async deleteMyDocuments(req, res) {
+    try {
+      const result = await DocumentService.deleteMyDocuments(req.user.id);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in deleteMyDocuments:', error);
+      const statusCode = error.message.includes('not found') ? 404 : 500;
+      res.status(statusCode).json({ message: error.message });
+    }
+  },
+
+  // Get all documents (admin only)
+  async getAllDocuments(req, res) {
+    try {
+      const result = await DocumentService.getAllDocuments(req.query);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getAllDocuments:', error);
+      const statusCode = error.message.includes('Invalid') ? 400 : 500;
+      res.status(statusCode).json({ message: error.message });
+    }
+  },
+
+  // Download a specific document file
+  async downloadDocument(req, res) {
+    try {
+      const { userId, field, fileIndex } = req.params;
+      const result = await DocumentService.downloadDocument(userId, field, parseInt(fileIndex));
+      
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+      res.setHeader('Content-Type', result.mimetype);
+      res.sendFile(result.filePath);
+    } catch (error) {
+      console.error('Error in downloadDocument:', error);
+      const statusCode = error.message.includes('Invalid') ? 400 :
+                        error.message.includes('not found') ? 404 : 500;
+      res.status(statusCode).json({ message: error.message });
     }
   }
 };

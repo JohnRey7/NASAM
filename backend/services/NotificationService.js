@@ -470,6 +470,18 @@ class NotificationService {
     }
   }
 
+  // Delete all notifications for a user
+  static async deleteAllNotifications(userId) {
+    try {
+      const result = await Notification.deleteMany({ user: userId });
+      console.log(`✅ Deleted ${result.deletedCount} notifications for user ${userId}`);
+      return result;
+    } catch (error) {
+      console.error('❌ Error deleting all notifications:', error);
+      throw error;
+    }
+  }
+
   // Delete old notifications (cleanup utility)
   static async deleteOldNotifications(daysOld = 30) {
     try {

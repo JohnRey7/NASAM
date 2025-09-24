@@ -109,8 +109,8 @@ app.post('/api/auth/change-password', authenticate, AuthController.changePasswor
 app.post('/api/roles', authenticate, checkPermission('role.create'), RoleController.createRole);
 app.get('/api/roles', authenticate, checkPermission('role.read'), RoleController.getAllRoles);
 app.get('/api/roles/:id', authenticate, checkPermission('role.read.id'), RoleController.getRoleById);
-app.patch('/api/roles/:id', authenticate, checkPermission('role.update'), RoleController.updateRole);
-app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleController.deleteRole);
+app.patch('/api/roles/:id', authenticate, checkPermission('role.update'), RoleController.updateRoleById);
+app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleController.deleteRoleById);
 
 // Application routes
 app.post('/api/application', authenticate, checkPermission('applicationForm.create'), ApplicationController.createApplicationForm);
@@ -125,8 +125,9 @@ app.patch('/api/application/user/:userId', authenticate, checkPermission('applic
 app.patch('/api/application', authenticate, checkPermission('applicationForm.updateOwn'), ApplicationController.updateMyApplicationForm);
 app.delete('/api/application/:id', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormById);
 app.delete('/api/application/user/:userId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormByUserId);
-app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
-app.put('/api/application/:id/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatusById);
+// Note: The route without :id parameter needs a different implementation from the one with :id
+// app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatusWithoutId); // TODO: Needs proper method
+app.put('/api/application/:id/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
 app.patch('/api/application/auto-complete', authenticate, checkPermission('applicationForm.update'), ApplicationController.autoCompleteApplication);
 app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
 
@@ -137,24 +138,24 @@ app.get('/api/application/history/:id', authenticate, checkPermission('applicati
 
 // Document routes
 app.put('/api/documents', authenticate, checkPermission('document.set'), uploadDocuments, DocumentController.uploadDocuments);
-app.get('/api/documents', authenticate, checkPermission('document.get'), DocumentController.getDocuments);
-app.delete('/api/documents', authenticate, checkPermission('document.delete'), DocumentController.deleteDocuments);
+app.get('/api/documents', authenticate, checkPermission('document.get'), DocumentController.getMyDocuments);
+app.delete('/api/documents', authenticate, checkPermission('document.delete'), DocumentController.deleteMyDocuments);
 
 // Personality Test routes
 app.post('/api/personality-test/start', authenticate, checkPermission('personality_test.create'), PersonalityTestController.startPersonalityTest);
-app.post('/api/personality-test/answer', authenticate, checkPermission('personality_test.answer'), PersonalityTestController.answerPersonalityTest);
-app.get('/api/personality-test/stop', authenticate, checkPermission('personality_test.stop'), PersonalityTestController.stopPersonalityTest);
-app.get('/api/personality-test/me', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getMyPersonalityTest);
-app.get('/api/personality-test/all', authenticate, checkPermission('personality_test.readAll'), PersonalityTestController.getAllUserPersonalityTest);
-app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getPersonalityTestByUserId);
-app.get('/api/personality-test/status', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getPersonalityTestStatus);
-app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest);
-app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deletePersonalityTestByUserId);
+app.post('/api/personality-test/answer', authenticate, checkPermission('personality_test.answer'), PersonalityTestController.answerQuestion);
+app.get('/api/personality-test/stop', authenticate, checkPermission('personality_test.stop'), PersonalityTestController.stopTest);
+app.get('/api/personality-test/me', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getMyTest);
+app.get('/api/personality-test/all', authenticate, checkPermission('personality_test.readAll'), PersonalityTestController.getAllTests);
+app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getTestByUserId);
+// app.get('/api/personality-test/status', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getPersonalityTestStatus); // TODO: Method doesn't exist
+// app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest); // TODO: Method doesn't exist  
+app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deleteTest);
 
 // Personality Test Template routes
 app.post('/api/personality-test/template', authenticate, checkPermission('personality_test.template.create'), PersonalityTestController.createTemplate);
 app.get('/api/personality-test/template', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getAllTemplates);
-app.get('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getTemplateById);
+// app.get('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getTemplateById); // TODO: Method doesn't exist
 app.patch('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.update'), PersonalityTestController.updateTemplate);
 app.delete('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.delete'), PersonalityTestController.deleteTemplate);
 
@@ -166,29 +167,29 @@ app.get('/api/admin/test', (req, res) => {
 });
 app.post('/api/admin/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
 app.get('/api/interview/all', authenticate, checkPermission('interview.readAll'), InterviewController.getAllInterviews);
-app.get('/api/interview/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById);
+// app.get('/api/interview/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById); // TODO: Method doesn't exist
 app.get('/api/interview/user/:userId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByUserId);
 app.get('/api/interview', authenticate, checkPermission('interview.readOwn'), InterviewController.getMyInterview);
 app.patch('/api/interview/:id', authenticate, checkPermission('interview.update'), InterviewController.updateInterviewById);
-app.patch('/api/interview/user/:userId', authenticate, checkPermission('interview.update'), InterviewController.updateInterviewByUserId);
-app.patch('/api/interview', authenticate, checkPermission('interview.updateOwn'), InterviewController.updateMyInterview);
+app.patch('/api/interview/user/:userId', authenticate, checkPermission('interview.update'), InterviewController.updateInterviewByApplicationId);
+// app.patch('/api/interview', authenticate, checkPermission('interview.updateOwn'), InterviewController.updateMyInterview); // TODO: Method doesn't exist
 app.delete('/api/interview/:id', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewById);
-app.delete('/api/interview/user/:userId', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewByUserId);
-app.delete('/api/interview', authenticate, checkPermission('interview.deleteOwn'), InterviewController.deleteMyInterview);
+app.delete('/api/interview/user/:userId', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewByApplicationId);
+// app.delete('/api/interview', authenticate, checkPermission('interview.deleteOwn'), InterviewController.deleteMyInterview); // TODO: Method doesn't exist
 
 // Review Routes - Interview-based reviews with application and document data
-app.get('/api/review/:interviewId', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewByInterviewId);
-app.get('/api/review', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewList);
+// app.get('/api/review/:interviewId', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewByInterviewId); // TODO: Method doesn't exist
+// app.get('/api/review', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewList); // TODO: Method doesn't exist
 
 
 // Evaluation Routes
 app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
 app.get('/api/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluations);
 app.get('/api/evaluations/:id', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationById);
-app.patch('/api/evaluations/:id', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluation);
-app.delete('/api/evaluations/:id', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluation);
-app.patch('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeKeepingRecord);
-app.get('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.read_timekeeping'), EvaluationController.getTimeKeepingRecord);
+app.patch('/api/evaluations/:id', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluationById);
+app.delete('/api/evaluations/:id', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluationById);
+app.patch('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeRecord);
+app.get('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.read_timekeeping'), EvaluationController.getTimeRecord);
 
 // Department Routes
 app.post('/api/departments', authenticate, checkPermission('department.create'), DepartmentController.createDepartment);

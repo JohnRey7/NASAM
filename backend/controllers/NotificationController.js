@@ -84,8 +84,7 @@ const NotificationController = {
   // Delete all notifications (newly added method)
   async deleteAllNotifications(req, res) {
     try {
-      const Notification = require('../models/Notification');
-      await Notification.deleteMany({ user: req.user.id });
+      await NotificationService.deleteAllNotifications(req.user.id);
       res.json({ 
         success: true, 
         message: 'All notifications deleted successfully' 
