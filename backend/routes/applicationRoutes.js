@@ -1,0 +1,1 @@
+router.get('/me', authenticate, ApplicationController.getMyApplication);

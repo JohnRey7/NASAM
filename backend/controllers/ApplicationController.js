@@ -1828,6 +1828,13 @@ const ApplicationController = {
       console.error('Error in autoCompleteApplication:', error);
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
+  },
+
+  // New method to get the authenticated user's application
+  async getMyApplication(req, res) {
+    const application = await ApplicationForm.findOne({ user: req.user._id });
+    if (!application) return res.status(404).json({ message: 'Not found' });
+    res.json(application);
   }
 };
 
