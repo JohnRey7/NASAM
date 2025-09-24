@@ -167,6 +167,33 @@ const PersonalityTestController = {
                         error.message.includes('not found') ? 404 : 500;
       res.status(statusCode).json({ message: error.message });
     }
+  },
+
+  // GET /template/:id  
+  async getTemplateById(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await PersonalityTestService.getTemplateById(id);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getTemplateById:', error);
+      const statusCode = error.message.includes('Invalid') ? 400 :
+                        error.message.includes('not found') ? 404 : 500;
+      res.status(statusCode).json({ message: error.message });
+    }
+  },
+
+  // GET /personality-test/status - Check if user has completed personality test
+  async getPersonalityTestStatus(req, res) {
+    try {
+      const userId = req.user.id;
+      const result = await PersonalityTestService.getTestStatus(userId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getPersonalityTestStatus:', error);
+      const statusCode = error.message.includes('Invalid') ? 400 : 500;
+      res.status(statusCode).json({ message: error.message });
+    }
   }
 };
 

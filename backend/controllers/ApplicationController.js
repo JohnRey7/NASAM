@@ -369,6 +369,17 @@ const ApplicationController = {
       console.error('Error in verifyApplicationDocuments:', error);
       res.status(500).json({ message: error.message });
     }
+  },
+
+  // GET: Dashboard statistics for OAS staff
+  async getDashboardStats(req, res) {
+    try {
+      const result = await ApplicationService.getDashboardStats();
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getDashboardStats:', error);
+      res.status(500).json({ message: error.message });
+    }
   }
 };
 

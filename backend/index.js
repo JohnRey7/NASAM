@@ -155,7 +155,7 @@ app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('
 // Personality Test Template routes
 app.post('/api/personality-test/template', authenticate, checkPermission('personality_test.template.create'), PersonalityTestController.createTemplate);
 app.get('/api/personality-test/template', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getAllTemplates);
-// app.get('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getTemplateById); // TODO: Method doesn't exist
+// // app.get('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.read'), PersonalityTestController.getTemplateById); // TODO: Method doesn't exist // TODO: Method doesn't exist
 app.patch('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.update'), PersonalityTestController.updateTemplate);
 app.delete('/api/personality-test/template/:id', authenticate, checkPermission('personality_test.template.delete'), PersonalityTestController.deleteTemplate);
 
@@ -228,10 +228,9 @@ const server = app.listen(port, () => {
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Closing server...');
   server.close(() => {
-    mongoose.connection.close(false, () => {
-      console.log('MongoDB connection closed.');
-      process.exit(0);
-    });
+    mongoose.connection.close();
+    console.log('MongoDB connection closed.');
+    process.exit(0);
   });
 });
 
