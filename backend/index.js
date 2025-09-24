@@ -29,6 +29,42 @@ const { checkApplicationAccess, uploadDocuments } = require('./middleware/docume
 const User = require('./models/User');
 process.setMaxListeners(20);
 
+// Startup validation: Verify all controllers are properly loaded
+console.log('Validating controller imports...');
+const controllers = {
+  NotificationController,
+  AuthController,
+  ApplicationController,
+  DocumentController,
+  RoleController,
+  EvaluationController,
+  PersonalityTestController,
+  DepartmentController,
+  InterviewController
+};
+
+let validationErrors = [];
+Object.entries(controllers).forEach(([name, controller]) => {
+  if (!controller || typeof controller !== 'object') {
+    validationErrors.push(`${name} is not properly exported`);
+  } else {
+    const methods = Object.keys(controller);
+    const invalidMethods = methods.filter(method => typeof controller[method] !== 'function');
+    if (invalidMethods.length > 0) {
+      validationErrors.push(`${name} has non-function exports: ${invalidMethods.join(', ')}`);
+    }
+    console.log(`✅ ${name}: ${methods.length} methods loaded`);
+  }
+});
+
+if (validationErrors.length > 0) {
+  console.error('❌ Controller validation failed:');
+  validationErrors.forEach(error => console.error(`  - ${error}`));
+  process.exit(1);
+} else {
+  console.log('✅ All controllers validated successfully\n');
+}
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -210,13 +246,77 @@ app.get('/', (req, res) => {
   res.send('Welcome to backend_nasm');
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  if (err instanceof mongoose.MulterError) {
-    return res.status(400).json({ message: `File upload error: ${err.message}` });
+// Health check endpoint with route validation
+app.get('/api/health', (req, res) => {
+  const routeStats = {
+    timestamp: new Date().toISOString(),
+    status: 'healthy',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    controllers: {
+      NotificationController: Object.keys(NotificationController).length,
+      AuthController: Object.keys(AuthController).length,
+      ApplicationController: Object.keys(ApplicationController).length,
+      DocumentController: Object.keys(DocumentController).length,
+      RoleController: Object.keys(RoleController).length,
+      EvaluationController: Object.keys(EvaluationController).length,
+      PersonalityTestController: Object.keys(PersonalityTestController).length,
+      DepartmentController: Object.keys(DepartmentController).length,
+      InterviewController: Object.keys(InterviewController).length,
+    },
+    totalRoutes: app._router ? app._router.stack.length : 0,
+    environment: process.env.NODE_ENV || 'development'
+  };
+  
+  res.json(routeStats);
+});
+
+// Route validation middleware - helps catch handler issues early
+const validateRouteHandler = (handler, routePath) => {
+  if (typeof handler !== 'function') {
+    throw new Error(`Route handler for ${routePath} is not a function. Got: ${typeof handler}`);
   }
-  res.status(500).json({ message: 'Something went wrong!' });
+  return handler;
+};
+
+// Enhanced global error handler
+app.use((err, req, res, next) => {
+  // Log detailed error information
+  console.error('=== ERROR DETAILS ===');
+  console.error('Timestamp:', new Date().toISOString());
+  console.error('Route:', req.method, req.originalUrl);
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
+  console.error('====================');
+  
+  // Handle specific error types
+  if (err instanceof mongoose.MulterError) {
+    return res.status(400).json({ 
+      message: `File upload error: ${err.message}`,
+      error: 'MULTER_ERROR'
+    });
+  }
+  
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({ 
+      message: 'Validation error',
+      details: err.message,
+      error: 'VALIDATION_ERROR'
+    });
+  }
+  
+  if (err.name === 'CastError') {
+    return res.status(400).json({ 
+      message: 'Invalid ID format',
+      error: 'CAST_ERROR'
+    });
+  }
+  
+  // Generic server error
+  res.status(500).json({ 
+    message: 'Internal server error',
+    error: 'SERVER_ERROR',
+    ...(process.env.NODE_ENV === 'development' && { details: err.message })
+  });
 });
 
 // Graceful shutdown
