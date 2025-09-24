@@ -227,7 +227,7 @@ const server = app.listen(port, () => {
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Closing server...');
   server.close(() => {
-    mongoose.connection.close(false, () => {
+    mongoose.connection.close().then(() => {
       console.log('MongoDB connection closed.');
       process.exit(0);
     });
