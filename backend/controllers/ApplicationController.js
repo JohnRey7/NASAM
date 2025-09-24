@@ -1,210 +1,5 @@
-const ApplicationForm = require('../models/ApplicationForm');
-const ApplicationHistory = require('../models/ApplicationHistory');
-const mongoose = require('mongoose');
-const puppeteer = require('puppeteer');
-const fs = require('fs').promises;
+const ApplicationService = require('../services/ApplicationService');
 const path = require('path');
-const User = require('../models/User');
-const ActivityLogger = require('../services/ActivityLogger');
-const NotificationService = require('../services/NotificationService');
-
-// Helper function to format yearLevel for display
-const formatYearLevel = (yearLevel) => {
-  if (!yearLevel) return 'N/A';
-  const year = Math.floor(yearLevel);
-  const isSummer = yearLevel % 1 !== 0;
-  return isSummer ? `${year}th Year Summer` : `${year}${year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th'} Year`;
-};
-
-// Helper function to generate PDF from ApplicationForm
-async function generateApplicationPDF(application, templatePath) {
-  let browser = null;
-  try {
-    let template;
-    try {
-      template = await fs.readFile(templatePath, 'utf-8');
-    } catch (error) {
-      throw new Error(`Failed to load PDF template: ${error.message}`);
-    }
-
-    const data = {
-      firstName: application.firstName || '',
-      middleName: application.middleName || 'N/A',
-      lastName: application.lastName || '',
-      suffix: application.suffix || 'N/A',
-      emailAddress: application.emailAddress || 'N/A',
-      programOfStudyAndYear: application.programOfStudyAndYear || '',
-      existingScholarship: application.existingScholarship || 'N/A',
-      remainingUnits: application.remainingUnitsIncludingThisTerm || 0,
-      remainingUnitsIncludingThisTerm: application.remainingUnitsIncludingThisTerm || 0,
-      remainingTermsToGraduate: application.remainingTermsToGraduate || 0,
-      citizenship: application.citizenship || '',
-      civilStatus: application.civilStatus || '',
-      annualFamilyIncome: application.annualFamilyIncome || '',
-      currentAddress: application.currentResidenceAddress || 'N/A',
-      residingAt: application.residingAt || '',
-      permanentResidence: application.permanentResidentialAddress || '',
-      contactNumber: application.contactNumber || '',
-      family: {
-        father: {
-          firstName: application.familyBackground?.father?.firstName || '',
-          middleName: application.familyBackground?.father?.middleName || 'N/A',
-          lastName: application.familyBackground?.father?.lastName || '',
-          suffix: application.familyBackground?.father?.suffix || 'N/A',
-          age: application.familyBackground?.father?.age || 0,
-          occupation: application.familyBackground?.father?.occupation || '',
-          grossAnnualIncome: application.familyBackground?.father?.grossAnnualIncome || '',
-          companyName: application.familyBackground?.father?.companyName || 'N/A',
-          companyAddress: application.familyBackground?.father?.companyAddress || 'N/A',
-          homeAddress: application.familyBackground?.father?.homeAddress || 'N/A',
-          contactNumber: application.familyBackground?.father?.contactNumber || ''
-        },
-        mother: {
-          firstName: application.familyBackground?.mother?.firstName || '',
-          middleName: application.familyBackground?.mother?.middleName || 'N/A',
-          lastName: application.familyBackground?.mother?.lastName || '',
-          suffix: application.familyBackground?.mother?.suffix || 'N/A',
-          age: application.familyBackground?.mother?.age || 0,
-          occupation: application.familyBackground?.mother?.occupation || '',
-          grossAnnualIncome: application.familyBackground?.mother?.grossAnnualIncome || '',
-          companyName: application.familyBackground?.mother?.companyName || 'N/A',
-          companyAddress: application.familyBackground?.mother?.companyAddress || 'N/A',
-          homeAddress: application.familyBackground?.mother?.homeAddress || 'N/A',
-          contactNumber: application.familyBackground?.mother?.contactNumber || ''
-        },
-        siblings: application.familyBackground?.siblings || []
-      },
-      education: {
-        elementary: {
-          nameAndAddressOfSchool: application.education?.elementary?.nameAndAddressOfSchool || '',
-          honorOrAwardsReceived: application.education?.elementary?.honorOrAwardsReceived || 'N/A',
-          nameOfOrganizationAndPositionHeld: application.education?.elementary?.nameOfOrganizationAndPositionHeld || 'N/A',
-          generalAverage: application.education?.elementary?.generalAverage || 0,
-          rankAmongGraduates: application.education?.elementary?.rankAmongGraduates || 'N/A',
-          contestTrainingsConferencesParticipated: application.education?.elementary?.contestTrainingsConferencesParticipated || 'N/A'
-        },
-        secondary: {
-          nameAndAddressOfSchool: application.education?.secondary?.nameAndAddressOfSchool || '',
-          honorOrAwardsReceived: application.education?.secondary?.honorOrAwardsReceived || 'N/A',
-          nameOfOrganizationAndPositionHeld: application.education?.secondary?.nameOfOrganizationAndPositionHeld || 'N/A',
-          generalAverage: application.education?.secondary?.generalAverage || 0,
-          rankAmongGraduates: application.education?.secondary?.rankAmongGraduates || 'N/A',
-          contestTrainingsConferencesParticipated: application.education?.secondary?.contestTrainingsConferencesParticipated || 'N/A'
-        },
-        collegeLevel: (application.education?.collegeLevel || []).map(item => ({
-          yearLevel: formatYearLevel(item.yearLevel),
-          firstSemesterAverageFinalGrade: item.firstSemesterAverageFinalGrade || 0,
-          secondSemesterAverageFinalGrade: item.secondSemesterAverageFinalGrade || 0,
-          thirdSemesterAverageFinalGrade: item.thirdSemesterAverageFinalGrade || 0
-        })),
-        currentMembershipInOrganizations: application.education?.currentMembershipInOrganizations || []
-      },
-      references: application.references || []
-    };
-
-    let html = template;
-
-    const escapeHtml = (str) => {
-      const value = str ?? 'N/A';
-      return String(value).replace(/[&<>"']/g, m => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      })[m]);
-    };
-
-    const replaceScalar = (key, value) => {
-      html = html.replace(new RegExp(`{{${key}}}`, 'g'), escapeHtml(value));
-      html = html.replace(new RegExp(`{{{${key}}}}`, 'g'), String(value ?? 'N/A'));
-    };
-
-    for (const key in data) {
-      if (typeof data[key] === 'string' || typeof data[key] === 'number') {
-        replaceScalar(key, data[key]);
-      }
-    }
-
-    for (const parent of ['father', 'mother']) {
-      for (const field in data.family[parent]) {
-        replaceScalar(`family.${parent}.${field}`, data.family[parent][field]);
-      }
-    }
-
-    for (const level of ['elementary', 'secondary']) {
-      for (const field in data.education[level]) {
-        replaceScalar(`education.${level}.${field}`, data.education[level][field]);
-      }
-    }
-
-    const arraySections = [
-      {
-        key: 'family.siblings',
-        regex: /{{#each family\.siblings}}([\s\S]*?){{\/each}}/,
-        fields: ['name', 'age', 'programCurrentlyTakingOrFinished', 'schoolOrOccupation']
-      },
-      {
-        key: 'education.collegeLevel',
-        regex: /{{#each education\.collegeLevel}}([\s\S]*?){{\/each}}/,
-        fields: ['yearLevel', 'firstSemesterAverageFinalGrade', 'secondSemesterAverageFinalGrade', 'thirdSemesterAverageFinalGrade']
-      },
-      {
-        key: 'education.currentMembershipInOrganizations',
-        regex: /{{#each education\.currentMembershipInOrganizations}}([\s\S]*?){{\/each}}/,
-        fields: ['nameOfOrganization', 'position']
-      },
-      {
-        key: 'references',
-        regex: /{{#each references}}([\s\S]*?){{\/each}}/,
-        fields: ['name', 'relationshipToTheApplicant', 'contactNumber']
-      }
-    ];
-
-    for (const { key, regex, fields } of arraySections) {
-      const match = html.match(regex);
-      if (match) {
-        const template = match[1];
-        let content = '';
-        const items = key.split('.').reduce((obj, k) => obj?.[k] || [], data);
-        if (items.length) {
-          items.forEach(item => {
-            let temp = template;
-            fields.forEach(field => {
-              temp = temp.replace(new RegExp(`{{${field}}}`, 'g'), escapeHtml(item[field]));
-              temp = temp.replace(new RegExp(`{{{${field}}}}`, 'g'), String(item[field] ?? 'N/A'));
-            });
-            content += temp;
-          });
-        } else {
-          content = `<p class="no-data">No ${key.split('.').pop()} listed.</p>`;
-        }
-        html = html.replace(regex, content);
-      }
-    }
-
-    html = html.replace(/{{#if ([^}]+)}}([\s\S]*?){{else}}([\s\S]*?){{\/if}}/g, (match, condition, ifContent, elseContent) => {
-      const path = condition.split('.');
-      const value = path.reduce((obj, k) => obj?.[k], data);
-      return value && (Array.isArray(value) ? value.length : value) ? ifContent : elseContent;
-    });
-
-    browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' }
-    });
-
-    return pdfBuffer;
-  } finally {
-    if (browser) {
-      await browser.close().catch(err => console.error('Error closing browser:', err.message));
-    }
-  }
-}
 
 const ApplicationController = {
   // POST: Create a new application for the authenticated user
@@ -213,44 +8,15 @@ const ApplicationController = {
       const userId = req.user.id;
       const data = { ...req.body };
 
-      delete data.status;
-      delete data.approvalsSummary;
-
-      const existingApplication = await ApplicationForm.findOne({ user: userId });
-      if (existingApplication) {
-        return res.status(400).json({ message: 'User already has an application' });
-      }
-
-      const application = new ApplicationForm({
-        user: userId,
-        ...data
-      });
-
-      await application.save();
-
-      // 🔥 ADD: Log application submission
-      await ActivityLogger.logApplicationSubmission(
-        userId, 
-        application._id, 
-        data.typeOfScholarship || 'scholarship'
-      );
-
-      // 🎯 CREATE NOTIFICATION HERE
-      await NotificationService.createApplicationSubmittedNotification(
-        req.user.id,
-        application._id
-      );
-
-      const applicationResponse = await ApplicationForm.findById(application._id)
-        .select('-status -approvalsSummary');
+      const application = await ApplicationService.createApplication(userId, data);
 
       res.status(201).json({
         message: 'Application created successfully',
-        application: applicationResponse
+        application
       });
     } catch (error) {
       console.error('Error in createApplicationForm:', error);
-      res.status(400).json({ message: `Failed to create application: ${error.message}` });
+      res.status(400).json({ message: error.message });
     }
   },
 
@@ -258,19 +24,7 @@ const ApplicationController = {
   async readApplicationFormById(req, res) {
     try {
       const { id } = req.params;
-
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid application ID' });
-      }
-
-      const application = await ApplicationForm.findById(id)
-        .populate('user', 'name idNumber _id')
-        .populate('approvalsSummary.endorsedBy', 'name _id')
-        .populate('approvalsSummary.approvedBy', 'name _id');
-
-      if (!application) {
-        return res.status(404).json({ message: 'Application not found' });
-      }
+      const application = await ApplicationService.getApplicationById(id);
 
       res.json({
         message: 'Application retrieved successfully',
@@ -278,7 +32,8 @@ const ApplicationController = {
       });
     } catch (error) {
       console.error('Error in readApplicationFormById:', error);
-      res.status(500).json({ message: 'Server error' });
+      res.status(error.message.includes('Invalid') ? 400 : 404)
+         .json({ message: error.message });
     }
   },
 
@@ -286,19 +41,7 @@ const ApplicationController = {
   async readApplicationFormByUserId(req, res) {
     try {
       const { userId } = req.params;
-
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid user ID' });
-      }
-
-      const application = await ApplicationForm.findOne({ user: userId })
-        .populate('user', 'name idNumber _id')
-        .populate('approvalsSummary.endorsedBy', 'name _id')
-        .populate('approvalsSummary.approvedBy', 'name _id');
-
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
+      const application = await ApplicationService.getApplicationByUserId(userId);
 
       res.json({
         message: 'Application retrieved successfully',
@@ -306,7 +49,8 @@ const ApplicationController = {
       });
     } catch (error) {
       console.error('Error in readApplicationFormByUserId:', error);
-      res.status(500).json({ message: 'Server error' });
+      res.status(error.message.includes('Invalid') ? 400 : 404)
+         .json({ message: error.message });
     }
   },
 
@@ -314,12 +58,7 @@ const ApplicationController = {
   async readMyApplicationForm(req, res) {
     try {
       const userId = req.user.id;
-
-      const application = await ApplicationForm.findOne({ user: userId });
-
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
+      const application = await ApplicationService.getUserApplication(userId);
 
       res.json({
         message: 'Application retrieved successfully',
@@ -327,7 +66,7 @@ const ApplicationController = {
       });
     } catch (error) {
       console.error('Error in readMyApplicationForm:', error);
-      res.status(500).json({ message: 'Server error' });
+      res.status(404).json({ message: error.message });
     }
   },
 
@@ -335,30 +74,14 @@ const ApplicationController = {
   async getAllApplicationForms(req, res) {
     try {
       const { page = 1, limit = 10, firstName, emailAddress, status } = req.query;
-      const skip = (parseInt(page) - 1) * parseInt(limit);
-      const query = {};
-      if (firstName) query.firstName = { $regex: firstName, $options: 'i' };
-      if (emailAddress) query.emailAddress = { $regex: emailAddress, $options: 'i' };
-      if (status) query.status = status;
-      const applications = await ApplicationForm.find(query)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .sort({ createdAt: -1 })
-        .populate('user', 'name idNumber _id')
-        .populate('approvalsSummary.endorsedBy', 'name _id')
-        .populate('approvalsSummary.approvedBy', 'name _id');
-      const totalDocs = await ApplicationForm.countDocuments(query);
+      const result = await ApplicationService.getAllApplications({
+        page, limit, firstName, emailAddress, status
+      });
+
       res.json({
         message: 'Applications retrieved successfully',
-        applications,
-        pagination: {
-          totalDocs,
-          limit: parseInt(limit),
-          page: parseInt(page),
-          totalPages: Math.ceil(totalDocs / parseInt(limit)),
-          hasNextPage: skip + applications.length < totalDocs,
-          hasPrevPage: page > 1
-        }
+        applications: result.applications,
+        pagination: result.pagination
       });
     } catch (error) {
       console.error('Error in getAllApplicationForms:', error);
@@ -371,37 +94,10 @@ const ApplicationController = {
     try {
       console.log('🔍 Fetching applications for OAS dashboard...');
       
-      const applications = await ApplicationForm.find({})
-        .populate('user', 'name email idNumber')
-        .sort({ createdAt: -1 })
-        .lean();
+      const applications = await ApplicationService.getAllApplicationsForStaff();
 
       console.log(`📊 Found ${applications.length} applications`);
-
-      const formattedApplications = applications.map(app => ({
-        _id: app._id,
-        firstName: app.firstName || '',
-        lastName: app.lastName || '',
-        middleName: app.middleName || '',
-        suffix: app.suffix || '',
-        emailAddress: app.emailAddress || '',
-        programOfStudyAndYear: app.programOfStudyAndYear || 'N/A',
-        existingScholarship: app.existingScholarship || 'None',
-        remainingUnitsIncludingThisTerm: app.remainingUnitsIncludingThisTerm || 'N/A',
-        remainingTermsToGraduate: app.remainingTermsToGraduate || 'N/A',
-        citizenship: app.citizenship || 'N/A',
-        civilStatus: app.civilStatus || 'N/A',
-        annualFamilyIncome: app.annualFamilyIncome || 'N/A',
-        currentResidenceAddress: app.currentResidenceAddress || 'N/A',
-        permanentResidentialAddress: app.permanentResidentialAddress || 'N/A',
-        contactNumber: app.contactNumber || 'N/A',
-        submissionDate: app.createdAt,
-        createdAt: app.createdAt,
-        status: app.status || 'pending',
-        user: app.user
-      }));
-
-      res.json(formattedApplications);
+      res.json(applications);
     } catch (error) {
       console.error('❌ Error fetching applications:', error);
       res.status(500).json({ 
@@ -418,32 +114,7 @@ const ApplicationController = {
       const { id } = req.params;
       const data = { ...req.body };
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid application ID' });
-      }
-
-      delete data.status;
-      delete data.approvalsSummary;
-
-      if (Object.keys(data).length === 0) {
-        return res.status(400).json({ message: 'No valid fields provided for update' });
-      }
-
-      const currentApplication = await ApplicationForm.findById(id);
-      if (!currentApplication) {
-        return res.status(404).json({ message: 'Application not found' });
-      }
-
-      const historyData = currentApplication.toObject();
-      delete historyData._id;
-      const historyEntry = new ApplicationHistory(historyData);
-      await historyEntry.save();
-
-      const updatedApplication = await ApplicationForm.findByIdAndUpdate(
-        id,
-        { $set: data },
-        { new: true, runValidators: true }
-      ).select('-status -approvalsSummary');
+      const updatedApplication = await ApplicationService.updateApplicationById(id, data);
 
       res.json({
         message: 'Application updated successfully',
@@ -451,7 +122,8 @@ const ApplicationController = {
       });
     } catch (error) {
       console.error('Error in updateApplicationFormById:', error);
-      res.status(400).json({ message: `Failed to update application: ${error.message}` });
+      res.status(error.message.includes('Invalid') ? 400 : 404)
+         .json({ message: error.message });
     }
   },
 
@@ -461,32 +133,7 @@ const ApplicationController = {
       const { userId } = req.params;
       const data = { ...req.body };
 
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid user ID' });
-      }
-
-      delete data.status;
-      delete data.approvalsSummary;
-
-      if (Object.keys(data).length === 0) {
-        return res.status(400).json({ message: 'No valid fields provided for update' });
-      }
-
-      const currentApplication = await ApplicationForm.findOne({ user: userId });
-      if (!currentApplication) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
-      const historyData = currentApplication.toObject();
-      delete historyData._id;
-      const historyEntry = new ApplicationHistory(historyData);
-      await historyEntry.save();
-
-      const updatedApplication = await ApplicationForm.findOneAndUpdate(
-        { user: userId },
-        { $set: data },
-        { new: true, runValidators: true }
-      ).select('-status -approvalsSummary');
+      const updatedApplication = await ApplicationService.updateApplicationByUserId(userId, data);
 
       res.json({
         message: 'Application updated successfully',
@@ -494,7 +141,8 @@ const ApplicationController = {
       });
     } catch (error) {
       console.error('Error in updateApplicationFormByUserId:', error);
-      res.status(400).json({ message: `Failed to update application: ${error.message}` });
+      res.status(error.message.includes('Invalid') ? 400 : 404)
+         .json({ message: error.message });
     }
   },
 
@@ -504,28 +152,7 @@ const ApplicationController = {
       const userId = req.user.id;
       const data = { ...req.body };
 
-      delete data.status;
-      delete data.approvalsSummary;
-
-      if (Object.keys(data).length === 0) {
-        return res.status(400).json({ message: 'No valid fields provided for update' });
-      }
-
-      const currentApplication = await ApplicationForm.findOne({ user: userId });
-      if (!currentApplication) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      } 
-
-      const historyData = currentApplication.toObject();
-      delete historyData._id;
-      const historyEntry = new ApplicationHistory(historyData);
-      await historyEntry.save();
-
-      const updatedApplication = await ApplicationForm.findOneAndUpdate(
-        { user: userId },
-        { $set: data },
-        { new: true, runValidators: true }
-      ).select('-status -approvalsSummary');
+      const updatedApplication = await ApplicationService.updateUserApplication(userId, data);
 
       res.json({
         message: 'Application updated successfully',
@@ -533,7 +160,7 @@ const ApplicationController = {
       });
     } catch (error) {
       console.error('Error in updateMyApplicationForm:', error);
-      res.status(400).json({ message: `Failed to update application: ${error.message}` });
+      res.status(400).json({ message: error.message });
     }
   },
 
@@ -541,27 +168,14 @@ const ApplicationController = {
   async deleteApplicationFormById(req, res) {
     try {
       const { id } = req.params;
+      
+      const result = await ApplicationService.deleteApplicationById(id);
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid application ID' });
-      }
-
-      const application = await ApplicationForm.findById(id);
-      if (!application) {
-        return res.status(404).json({ message: 'Application not found' });
-      }
-
-      const historyData = application.toObject();
-      delete historyData._id;
-      const historyEntry = new ApplicationHistory(historyData);
-      await historyEntry.save();
-
-      await ApplicationForm.findByIdAndDelete(id);
-
-      res.json({ message: 'Application deleted successfully' });
+      res.json(result);
     } catch (error) {
       console.error('Error in deleteApplicationFormById:', error);
-      res.status(500).json({ message: 'Server error' });
+      res.status(error.message.includes('Invalid') ? 400 : 404)
+         .json({ message: error.message });
     }
   },
 
@@ -569,106 +183,14 @@ const ApplicationController = {
   async deleteApplicationFormByUserId(req, res) {
     try {
       const { userId } = req.params;
+      
+      const result = await ApplicationService.deleteApplicationByUserId(userId);
 
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: 'Invalid user ID' });
-      }
-
-      const application = await ApplicationForm.findOne({ user: userId });
-      if (!application) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
-      const historyData = application.toObject();
-      delete historyData._id;
-      const historyEntry = new ApplicationHistory(historyData);
-      await historyEntry.save();
-
-      await ApplicationForm.findOneAndDelete({ user: userId });
-
-      res.json({ message: 'Application deleted successfully' });
+      res.json(result);
     } catch (error) {
       console.error('Error in deleteApplicationFormByUserId:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  },
-
-  // DELETE: Delete only application form (keep documents)
-  async deleteApplicationFormOnly(req, res) {
-    try {
-      const { applicationId } = req.params;
-      console.log('🗑️ Delete APPLICATION FORM ONLY for:', applicationId);
-
-      if (!mongoose.Types.ObjectId.isValid(applicationId)) {
-        return res.status(400).json({ success: false, message: 'Invalid application ID format' });
-      }
-
-      const application = await ApplicationForm.findById(applicationId).populate('user', 'name email');
-      if (!application) {
-        return res.status(404).json({ success: false, message: 'Application not found' });
-      }
-
-      console.log('✅ Deleting APPLICATION FORM ONLY for:', application.firstName, application.lastName);
-
-      // ✅ ONLY delete the application form - KEEP DOCUMENTS
-      await ApplicationForm.findByIdAndDelete(applicationId);
-
-      console.log('✅ Application form deleted - Documents preserved');
-
-      res.json({
-        success: true,
-        message: `Application form for ${application.firstName} ${application.lastName} has been deleted. Documents are preserved for reuse.`,
-        deletedData: {
-          applicationId: application._id,
-          studentName: `${application.firstName} ${application.lastName}`,
-          documentsPreserved: true
-        }
-      });
-
-    } catch (error) {
-      console.error('❌ Error deleting application form:', error);
-      res.status(500).json({ success: false, message: 'Failed to delete application form', error: error.message });
-    }
-  },
-
-  // DELETE: Delete only documents (keep application form)
-  async deleteDocumentsOnly(req, res) {
-    try {
-      const { applicationId } = req.params;
-      console.log('🗑️ Delete DOCUMENTS ONLY for:', applicationId);
-
-      if (!mongoose.Types.ObjectId.isValid(applicationId)) {
-        return res.status(400).json({ success: false, message: 'Invalid application ID format' });
-      }
-
-      const application = await ApplicationForm.findById(applicationId).populate('user', 'name email');
-      if (!application) {
-        return res.status(404).json({ success: false, message: 'Application not found' });
-      }
-
-      // ✅ ONLY delete the documents - KEEP APPLICATION FORM
-      try {
-        const DocumentUpload = require('../models/DocumentUpload');
-        const docResult = await DocumentUpload.deleteOne({ user: application.user._id });
-        console.log('🗑️ Documents deleted:', docResult.deletedCount, 'records');
-        
-        if (docResult.deletedCount === 0) {
-          return res.status(404).json({ success: false, message: 'No documents found to delete' });
-        }
-      } catch (docError) {
-        return res.status(500).json({ success: false, message: 'Failed to delete documents', error: docError.message });
-      }
-
-      console.log('✅ Documents deleted - Application form preserved');
-
-      res.json({
-        success: true,
-        message: `Documents for ${application.firstName} ${application.lastName} have been deleted. Application form is preserved.`
-      });
-
-    } catch (error) {
-      console.error('❌ Error deleting documents:', error);
-      res.status(500).json({ success: false, message: 'Failed to delete documents', error: error.message });
+      res.status(error.message.includes('Invalid') ? 400 : 404)
+         .json({ message: error.message });
     }
   },
 
@@ -678,49 +200,17 @@ const ApplicationController = {
       const userId = req.user.id;
       const { endorsedBy, approvedBy } = req.body;
 
-      if (!endorsedBy && !approvedBy) {
-        return res.status(400).json({ message: 'At least one of endorsedBy or approvedBy must be provided' });
-      }
-
-      const approvalsSummary = {};
-      if (endorsedBy) {
-        if (!mongoose.Types.ObjectId.isValid(endorsedBy)) {
-          return res.status(400).json({ message: 'Invalid endorsedBy ID' });
-        }
-        approvalsSummary.endorsedBy = endorsedBy;
-      }
-      if (approvedBy) {
-        if (!mongoose.Types.ObjectId.isValid(approvedBy)) {
-          return res.status(400).json({ message: 'Invalid approvedBy ID' });
-        }
-        approvalsSummary.approvedBy = approvedBy;
-      }
-
-      const currentApplication = await ApplicationForm.findOne({ user: userId });
-      if (!currentApplication) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
-      const historyData = currentApplication.toObject();
-      delete historyData._id;
-      const historyEntry = new ApplicationHistory(historyData);
-      await historyEntry.save();
-
-      const updatedApplication = await ApplicationForm.findOneAndUpdate(
-        { user: userId },
-        { $set: { approvalsSummary } },
-        { new: true, runValidators: true }
-      ).select('approvalsSummary')
-        .populate('approvalsSummary.endorsedBy', 'name _id')
-        .populate('approvalsSummary.approvedBy', 'name _id');
+      const approvalsSummary = await ApplicationService.setApprovalSummary(userId, {
+        endorsedBy, approvedBy
+      });
 
       res.json({
         message: 'Approvals summary updated successfully',
-        approvalsSummary: updatedApplication.approvalsSummary
+        approvalsSummary
       });
     } catch (error) {
       console.error('Error in setApprovalSummary:', error);
-      res.status(400).json({ message: `Failed to update approvals summary: ${error.message}` });
+      res.status(400).json({ message: error.message });
     }
   },
 
@@ -729,45 +219,34 @@ const ApplicationController = {
     try {
       const userId = req.user.id;
       const { status } = req.body;
-
-      if (!status) {
-        return res.status(400).json({ message: 'Status is required' });
-      }
-
-      if (!['Pending', 'Approved', 'Document Verification', 'Interview Scheduled', 'Rejected'].includes(status)) {
-        return res.status(400).json({ message: 'Invalid status value' });
-      }
       
-      const currentApplication = await ApplicationForm.findOne({ user: userId });
-      if (!currentApplication) {
-        return res.status(404).json({ message: 'No application found for this user' });
-      }
-
-      const historyData = currentApplication.toObject();
-      delete historyData._id;
-      const historyEntry = new ApplicationHistory(historyData);
-      await historyEntry.save();
-
-      const updatedApplication = await ApplicationForm.findOneAndUpdate(
-        { user: userId },
-        { $set: { status } },
-        { new: true, runValidators: true }
-      ).select('status');
-
-      // 🎯 CREATE STATUS CHANGE NOTIFICATION
-      await NotificationService.createStatusChangeNotification(
-        currentApplication.user,
-        currentApplication._id,
-        status
-      );
+      const updatedStatus = await ApplicationService.setStatus(userId, status);
 
       res.json({
         message: 'Status updated successfully',
-        status: updatedApplication.status
+        status: updatedStatus
       });
     } catch (error) {
       console.error('Error in setStatus:', error);
-      res.status(400).json({ message: `Failed to update status: ${error.message}` });
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  // PUT: Set status for a specific application by ID (for OAS staff)
+  async setStatusById(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const result = await ApplicationService.setStatusById(id, status, req.user.id);
+
+      res.json({
+        message: 'Status updated successfully',
+        application: result
+      });
+    } catch (error) {
+      console.error('Error in setStatusById:', error);
+      res.status(400).json({ message: error.message });
     }
   },
 
