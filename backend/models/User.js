@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   department: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
   disabled: { type: Boolean, default: false },
   verified: { type: Boolean, default: false },
+  is_deleted: { type: Boolean, default: false },
   emailVerification: {
     code: String,
     expiresAt: Date,

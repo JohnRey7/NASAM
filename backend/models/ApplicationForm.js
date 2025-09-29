@@ -160,7 +160,8 @@ const applicationFormSchema = new mongoose.Schema({
   approvalsSummary: {
     endorsedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-  }
+  },
+  is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 

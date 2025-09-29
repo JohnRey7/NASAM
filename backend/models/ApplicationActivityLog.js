@@ -58,7 +58,8 @@ const applicationActivityLogSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
     index: true
-  }
+  },
+  is_deleted: { type: Boolean, default: false }
 }, { 
   timestamps: true,
   collection: 'applicationactivitylogs'

@@ -8,7 +8,8 @@ const personalityAssessmentTemplateSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
         index: true
-    }
+    },
+    is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 const PersonalityAssessmentTemplate = mongoose.model('PersonalityAssessmentTemplate', personalityAssessmentTemplateSchema);

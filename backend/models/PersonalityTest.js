@@ -33,7 +33,8 @@ const personalityTestSchema = new mongoose.Schema({
         type: String,
         enum: ['Low', 'Medium', 'High'],
         default: 'Low'
-    }
+    },
+    is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 const PersonalityTest = mongoose.model('PersonalityTest', personalityTestSchema, 'personality_tests');

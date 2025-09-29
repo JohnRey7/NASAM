@@ -48,7 +48,8 @@ const notificationSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ApplicationForm'
     }
-  }
+  },
+  is_deleted: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

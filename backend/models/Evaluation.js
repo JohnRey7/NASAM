@@ -195,7 +195,8 @@ const evaluationSchema = new mongoose.Schema({
       message: 'overallRating must be between 0 and 5'
     },
     get: v => v ? parseFloat(v.toString()) : v
-  }
+  },
+  is_deleted: { type: Boolean, default: false }
 }, { 
   timestamps: true,
   indexes: [

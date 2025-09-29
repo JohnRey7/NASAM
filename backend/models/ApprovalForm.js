@@ -11,7 +11,8 @@ const acceptanceFormSchema = new mongoose.Schema({
   designation: { type: String, required: true },
   department: { type: String, required: true },
   endorsedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  departmentOfficeHead: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  departmentOfficeHead: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 const AcceptanceForm = mongoose.model('AcceptanceForm', acceptanceFormSchema);

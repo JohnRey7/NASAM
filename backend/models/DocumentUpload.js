@@ -47,6 +47,7 @@ const fileUploadSchema = new mongoose.Schema({
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
     }],
+    is_deleted: { type: Boolean, default: false }
 
 }, { timestamps: true });
 

@@ -15,7 +15,8 @@ const departmentSchema = new mongoose.Schema({
     trim: true,
     minlength: [3, 'Department name must be at least 3 characters'],
     maxlength: [100, 'Department name cannot exceed 100 characters']
-  }
+  },
+  is_deleted: { type: Boolean, default: false }
 }, {
   timestamps: true
 });
