@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 const Department = require('../models/Department');
 const User = require('../models/User');
-const ApplicationForm = require('../models/ApplicationForm');
 const Role = require('../models/Role');
+const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 
 class DepartmentService {
   static async createDepartment(departmentData) {
@@ -184,123 +184,174 @@ class DepartmentService {
     }
   }
 
-  static async getApplicantsForDepartmentHead(departmentHead) {
+  // Department Head Management
+  static async setDepartmentHeadById(departmentCode, userId) {
     try {
-      console.log('🔍 Department Head User Data:', {
-        id: departmentHead?._id,
-        name: departmentHead?.name,
-        email: departmentHead?.email,
-        department: departmentHead?.department,
-        role: departmentHead?.role
-      });
-      
-      if (!departmentHead) {
-        console.log('❌ No department head user found in request');
-        throw new Error('Department head user not found in request');
-      }
-      
-      if (!departmentHead.department) {
-        console.log('❌ Department head does not have a department assigned');
-        throw new Error('Department head does not have a department assigned');
+      if (!departmentCode) {
+        throw new Error('Department code is required');
       }
 
-      const applicantRole = await Role.findOne({ name: 'applicant' });
-      console.log('🔍 Applicant Role Found:', applicantRole ? { id: applicantRole._id, name: applicantRole.name } : 'NOT FOUND');
-      
-      if (!applicantRole) {
-        console.log('❌ Applicant role not found in database');
-        throw new Error('Applicant role not found');
+      departmentCode = departmentCode.toUpperCase();
+
+      // Validate departmentCode
+      if (!/^[A-Za-z0-9]{2,10}$/.test(departmentCode)) {
+        throw new Error('Invalid department code');
       }
-      
-      // Find users assigned to this department
-      console.log('🔍 Searching for users with:', {
-        role: applicantRole._id,
-        department: departmentHead.department
-      });
-      
-      const assignedUsers = await User.find({
-        role: applicantRole._id,
-        department: departmentHead.department
-      }).select('_id name idNumber email');
-      
-      console.log('🔍 Users found with applicant role and department:', assignedUsers.length);
-      
-      // Also check all users with applicant role (regardless of department)
-      const allApplicants = await User.find({
-        role: applicantRole._id
-      }).select('_id name idNumber email department');
-      
-      console.log('🔍 All users with applicant role:', allApplicants.map(u => ({
-        id: u._id,
-        name: u.name,
-        department: u.department
-      })));
-      
-      // Get application data for these users
-      const applicantsWithApplications = [];
-      for (const user of assignedUsers) {
-        const application = await ApplicationForm.findOne({ user: user._id });
-        if (application) {
-          applicantsWithApplications.push({
-            _id: user._id,
-            id: user._id,
-            name: user.name,
-            idNumber: user.idNumber,
-            email: user.email,
-            firstName: application.firstName,
-            lastName: application.lastName,
-            programOfStudyAndYear: application.programOfStudyAndYear,
-            status: application.status
-          });
+
+      // Find department
+      const department = await Department.findOne({ departmentCode, is_deleted: false });
+      if (!department) {
+        throw new Error('Department not found');
+      }
+
+      // If userId is null/undefined, remove department head
+      if (!userId || userId === null) {
+        if (!department.departmentHead) {
+          return {
+            message: 'Department head already not assigned',
+            department: await Department.findById(department._id)
+          };
+        }
+
+        // Remove current department head
+        const previousHead = await User.findById(department.departmentHead);
+        if (previousHead) {
+          const userRole = await Role.findOne({ name: 'user' }) || await Role.findOne({ name: 'applicant' });
+          if (userRole) {
+            previousHead.role = userRole._id;
+            previousHead.department = null;
+            await previousHead.save();
+          }
+        }
+
+        department.departmentHead = null;
+        await department.save();
+
+        return {
+          message: 'Department head removed successfully',
+          department: await Department.findById(department._id)
+        };
+      }
+
+      // Validate userId if provided
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Find user
+      const user = await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: userId }));
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Find department_head role
+      const departmentHeadRole = await Role.findOne({ name: 'department_head' });
+      if (!departmentHeadRole) {
+        throw new Error('Department head role not found');
+      }
+
+      // Remove previous department head if exists
+      if (department.departmentHead) {
+        const previousHead = await User.findById(department.departmentHead);
+        if (previousHead) {
+          // Find regular user role
+          const userRole = await Role.findOne({ name: 'user' }) || await Role.findOne({ name: 'applicant' });
+          if (userRole) {
+            previousHead.role = userRole._id;
+            await previousHead.save();
+          }
         }
       }
-      
-      console.log('Found applicants for department head:', applicantsWithApplications);
-      return applicantsWithApplications;
+
+      // Set new department head
+      department.departmentHead = userId;
+      await department.save();
+
+      // Update user role to department_head
+      user.role = departmentHeadRole._id;
+      user.department = department._id;
+      await user.save();
+
+      return {
+        message: 'Department head set successfully',
+        department: await Department.findById(department._id).populate('departmentHead', 'name email idNumber'),
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: departmentHeadRole.name
+        }
+      };
     } catch (error) {
-      console.error('Error getting applicants for department head:', error);
+      console.error('Error setting department head by ID:', error);
       throw error;
     }
   }
 
-  static async assignApplicantToDepartment(userId, departmentCode) {
+  static async setDepartmentHeadByIdNumber(departmentCode, idNumber) {
     try {
-      console.log('🔍 Assignment Request:', { userId, departmentCode });
-      
-      if (!userId || !departmentCode) {
-        throw new Error('userId and departmentCode are required');
+      if (!departmentCode) {
+        throw new Error('Department code is required');
       }
-      
-      const user = await User.findById(userId);
-      console.log('🔍 User Found:', user ? { id: user._id, name: user.name, currentDepartment: user.department } : 'NOT FOUND');
-      
+
+      // If idNumber is null/undefined, remove department head
+      if (!idNumber || idNumber === null) {
+        return await DepartmentService.setDepartmentHeadById(departmentCode, null);
+      }
+
+      // Find user by idNumber
+      const user = await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({
+        idNumber: idNumber
+      }));
+
       if (!user) {
-        throw new Error('User not found');
+        throw new Error('User not found with provided idNumber');
       }
-      
-      const department = await Department.findOne({ departmentCode });
-      console.log('🔍 Department Found:', department ? { id: department._id, code: department.departmentCode, name: department.name } : 'NOT FOUND');
-      
-      if (!department) {
-        throw new Error('Department not found');
-      }
-      
-      console.log('🔄 Assigning user to department...');
-      user.department = department._id;
-      await user.save();
-      
-      // Verify the assignment was saved
-      const updatedUser = await User.findById(userId);
-      console.log('✅ Assignment Complete:', { 
-        userId: updatedUser._id, 
-        userName: updatedUser.name, 
-        assignedDepartment: updatedUser.department,
-        departmentCode: departmentCode 
-      });
-      
-      return { message: 'Applicant assigned to department successfully', user: updatedUser };
+
+      // Use the existing setDepartmentHeadById method
+      return await DepartmentService.setDepartmentHeadById(departmentCode, user._id);
     } catch (error) {
-      console.error('Error assigning applicant to department:', error);
+      console.error('Error setting department head by idNumber:', error);
+      throw error;
+    }
+  }
+
+  // Soft Delete Methods
+  static async softDeleteDepartment(departmentCode) {
+    try {
+      const result = await SoftDeleteUtils.softDeleteByQuery(Department, { departmentCode });
+      return { message: 'Department soft deleted successfully', data: result };
+    } catch (error) {
+      console.error('Error soft deleting department:', error);
+      throw error;
+    }
+  }
+
+  static async restoreDepartment(departmentCode) {
+    try {
+      const result = await SoftDeleteUtils.restoreByQuery(Department, { departmentCode });
+      return { message: 'Department restored successfully', data: result };
+    } catch (error) {
+      console.error('Error restoring department:', error);
+      throw error;
+    }
+  }
+
+  static async permanentDeleteDepartment(departmentCode) {
+    try {
+      const result = await Department.findOneAndDelete({ departmentCode });
+      return { message: 'Department permanently deleted', data: result };
+    } catch (error) {
+      console.error('Error permanently deleting department:', error);
+      throw error;
+    }
+  }
+
+  static async getSoftDeletedDepartments(query = {}) {
+    try {
+      return await SoftDeleteUtils.getSoftDeleted(Department, query);
+    } catch (error) {
+      console.error('Error getting soft deleted departments:', error);
       throw error;
     }
   }

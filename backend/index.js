@@ -13,6 +13,7 @@ const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const NotificationController = require('./controllers/NotificationController');
 const AuthController = require('./controllers/AuthController');
+const UserController = require('./controllers/UserController');
 const ApplicationController = require('./controllers/ApplicationController');
 const DocumentController = require('./controllers/DocumentController');
 const RoleController = require('./controllers/RoleController');
@@ -26,6 +27,7 @@ const authenticate = require('./middleware/authenticate');
 const checkPermission = require('./middleware/checkPermission');
 const { checkApplicationAccess, uploadDocuments } = require('./middleware/documentMiddleware');
 const User = require('./models/User');
+const RoleService = require('./services/RoleService');
 process.setMaxListeners(20);
 
 const app = express();
@@ -58,6 +60,17 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000,
     });
     console.log('Connected to MongoDB Atlas (nasm_database)');
+    
+    // Initialize permissions, roles, and admin account
+    try {
+      console.log('Initializing permissions and roles...');
+      await RoleService.initializePermissions();
+      await RoleService.initializeRoles();
+      await RoleService.initializeAdminAccount();
+      console.log('System initialization completed successfully');
+    } catch (initError) {
+      console.error('System initialization error:', initError);
+    }
   } catch (err) {
     console.error('MongoDB connection error:', err);
     setTimeout(connectDB, 5000);
@@ -65,23 +78,44 @@ const connectDB = async () => {
 };
 connectDB();
 
+// Basic route
+app.get('/', (req, res) => {
+  res.send('Welcome to backend_nasm');
+});
+
 // Routes
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
-app.post('/api/auth/register/dept-head', authenticate, checkPermission('register.departmentHead'), AuthController.registerDepartmentHead);
 app.post('/api/auth/logout', authenticate, AuthController.logout);
 app.post('/api/auth/reset-password', AuthController.resetPassword);
-
-// Soft delete routes for users
-app.delete('/api/users/:id/soft', authenticate, checkPermission('user.delete'), AuthController.softDeleteUser);
-app.put('/api/users/:id/restore', authenticate, checkPermission('user.delete'), AuthController.restoreUser);
-app.delete('/api/users/:id/permanent', authenticate, checkPermission('user.delete'), AuthController.permanentDeleteUser);
-app.get('/api/users/deleted', authenticate, checkPermission('user.read'), AuthController.getSoftDeletedUsers);
 app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
+
+// User management routes (admin only)
+app.post('/api/users', authenticate, checkPermission('user.create'), UserController.createUser);
+app.get('/api/users/disabled', authenticate, checkPermission('user.read'), UserController.getDisabledUsers);
+app.get('/api/users/deleted', authenticate, checkPermission('user.read'), UserController.getSoftDeletedUsers);
+app.get('/api/users/idnumber/:idNumber', authenticate, checkPermission('user.read'), UserController.getUserByIdNumber);
+app.get('/api/users', authenticate, checkPermission('user.read'), UserController.getAllUsers);
+app.get('/api/users/:id', authenticate, checkPermission('user.read'), UserController.getUserById);
+app.patch('/api/users/idnumber/:idNumber', authenticate, checkPermission('user.update'), UserController.updateUserByIdNumber);
+app.patch('/api/users/:id', authenticate, checkPermission('user.update'), UserController.updateUser);
+app.delete('/api/users/idnumber/:idNumber', authenticate, checkPermission('user.delete'), UserController.deleteUserByIdNumber);
+app.delete('/api/users/:id', authenticate, checkPermission('user.delete'), UserController.deleteUser);
+
+// User disable/enable routes
+app.patch('/api/users/:id/disable', authenticate, checkPermission('user.update'), UserController.disableUser);
+app.patch('/api/users/:id/enable', authenticate, checkPermission('user.update'), UserController.enableUser);
+app.patch('/api/users/idnumber/:idNumber/disable', authenticate, checkPermission('user.update'), UserController.disableUserByIdNumber);
+app.patch('/api/users/idnumber/:idNumber/enable', authenticate, checkPermission('user.update'), UserController.enableUserByIdNumber);
+
+// User soft delete routes
+app.delete('/api/users/:id/soft', authenticate, checkPermission('user.delete'), UserController.deleteUser);
+app.put('/api/users/:id/restore', authenticate, checkPermission('user.delete'), UserController.restoreUser);
+app.delete('/api/users/:id/permanent', authenticate, checkPermission('user.delete'), UserController.permanentDeleteUser);
 
 // Role routes
 app.post('/api/roles', authenticate, checkPermission('role.create'), RoleController.createRole);
@@ -219,17 +253,13 @@ app.put('/api/departments/:departmentCode/restore', authenticate, checkPermissio
 app.delete('/api/departments/:departmentCode/permanent', authenticate, checkPermission('department.delete'), DepartmentController.permanentDeleteDepartment);
 app.get('/api/departments/deleted', authenticate, checkPermission('department.read'), DepartmentController.getSoftDeletedDepartments);
 
-// Department Head: Get applicants in their department
-app.get('/api/department-head/applicants', authenticate, checkPermission('department_head'), DepartmentController.getApplicantsForDepartmentHead);
+// Department Head Management Routes (use null values to remove head)
+app.post('/api/departments/:departmentCode/head/id', authenticate, checkPermission('department.update'), DepartmentController.setDepartmentHeadById);
+app.post('/api/departments/:departmentCode/head/idnumber', authenticate, checkPermission('department.update'), DepartmentController.setDepartmentHeadByIdNumber);
 
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {
   await fileUtils.downloadFile(req.params.fileName, req, res);
-});
-
-// Basic route
-app.get('/', (req, res) => {
-  res.send('Welcome to backend_nasm');
 });
 
 // Global error handler
@@ -241,20 +271,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Graceful shutdown
-const server = app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
-
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Closing server...');
-  server.close(() => {
-    mongoose.connection.close(false, () => {
-      console.log('MongoDB connection closed.');
-      process.exit(0);
-    });
-  });
-});
 
 // Activity history routes
 app.get('/api/activity/history', authenticate, ApplicationController.getMyActivityHistory);
@@ -321,14 +337,24 @@ app.get('/api/test-verify', (req, res) => {
 // Dashboard stats route
 app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationForm.read'), ApplicationController.getDashboardStats);
 
-
-
-// Admin: Assign applicant to department
-app.post('/api/admin/assign-applicant-to-department', authenticate, checkPermission('department.update'), DepartmentController.assignApplicantToDepartment);
-
 // Department Head: Schedule interview with notification
 app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
 
 // Department Head: Reschedule interview
 app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate, checkPermission('application.readAll'), InterviewController.rescheduleInterviewForDepartmentHead);
 
+// Graceful shutdown
+const server = app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Closing server...');
+  server.close(() => {
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed.');
+      process.exit(0);
+    });
+  });
+});
+s

@@ -6,7 +6,8 @@ const applicationFormSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
     index: true
-  },
+  }, // I was about to add is_college when an earthquake happened
+  is_college: { type: Boolean, default: true },
   emailAddress: {
     type: String,
     sparse: true,  // This allows multiple null values
@@ -124,7 +125,7 @@ const applicationFormSchema = new mongoose.Schema({
     collegeLevel: [{
       yearLevel: {
         type: Number,
-        required: true,
+        required: false,
         validate: {
           validator: Number.isInteger,
           message: '{VALUE} is not an integer value'

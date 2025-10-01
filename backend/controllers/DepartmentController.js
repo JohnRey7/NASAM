@@ -93,46 +93,109 @@ async function deleteDepartment(req, res) {
   }
 }
 
-// Get all applicants assigned to the logged-in department head's department
-async function getApplicantsForDepartmentHead(req, res) {
+// Soft delete a department
+async function softDeleteDepartment(req, res) {
   try {
-    const applicants = await DepartmentService.getApplicantsForDepartmentHead(req.user);
+    const { departmentCode } = req.params;
+    const result = await DepartmentService.softDeleteDepartment(departmentCode);
     
-    res.json(applicants);
+    res.status(200).json(result);
   } catch (error) {
-    console.error('Error in getApplicantsForDepartmentHead:', error);
-    if (error.message.includes('not found') || error.message.includes('not assigned')) {
-      return res.status(400).json({ message: error.message });
-    }
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error in softDeleteDepartment:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
   }
 }
 
-// Assign a user (applicant) to a department
-async function assignApplicantToDepartment(req, res) {
+// Restore a soft-deleted department
+async function restoreDepartment(req, res) {
   try {
-    const { userId, departmentCode } = req.body;
-    const result = await DepartmentService.assignApplicantToDepartment(userId, departmentCode);
+    const { departmentCode } = req.params;
+    const result = await DepartmentService.restoreDepartment(departmentCode);
     
-    res.json(result);
+    res.status(200).json(result);
   } catch (error) {
-    console.error('Error in assignApplicantToDepartment:', error);
-    if (error.message.includes('required')) {
+    console.error('Error in restoreDepartment:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+}
+
+// Permanently delete a department
+async function permanentDeleteDepartment(req, res) {
+  try {
+    const { departmentCode } = req.params;
+    const result = await DepartmentService.permanentDeleteDepartment(departmentCode);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in permanentDeleteDepartment:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+}
+
+// Get soft-deleted departments
+async function getSoftDeletedDepartments(req, res) {
+  try {
+    const result = await DepartmentService.getSoftDeletedDepartments(req.query);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in getSoftDeletedDepartments:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+}
+
+// Set department head by user ID (null to remove)
+async function setDepartmentHeadById(req, res) {
+  try {
+    const { departmentCode } = req.params;
+    const { userId } = req.body;
+    
+    // userId can be null to remove department head
+    const result = await DepartmentService.setDepartmentHeadById(departmentCode, userId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in setDepartmentHeadById:', error);
+    if (error.message.includes('Invalid') || error.message.includes('required')) {
       return res.status(400).json({ message: error.message });
     }
     if (error.message.includes('not found')) {
       return res.status(404).json({ message: error.message });
     }
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: `Server error: ${error.message}` });
   }
 }
 
-module.exports = {
+// Set department head by idNumber (null to remove)
+async function setDepartmentHeadByIdNumber(req, res) {
+  try {
+    const { departmentCode } = req.params;
+    const { idNumber } = req.body;
+
+    // idNumber can be null to remove department head
+    const result = await DepartmentService.setDepartmentHeadByIdNumber(departmentCode, idNumber);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in setDepartmentHeadByIdNumber:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    if (error.message.includes('required')) {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(400).json({ message: `Error: ${error.message}` });
+  }
+}module.exports = {
   createDepartment,
   getAllDepartments,
   getDepartmentByCode,
   updateDepartment,
   deleteDepartment,
-  getApplicantsForDepartmentHead,
-  assignApplicantToDepartment
+  softDeleteDepartment,
+  restoreDepartment,
+  permanentDeleteDepartment,
+  getSoftDeletedDepartments,
+  setDepartmentHeadById,
+  setDepartmentHeadByIdNumber
 };

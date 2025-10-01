@@ -6,48 +6,76 @@ const User = require('../models/User');
 const argon2 = require('argon2');
 
 class RoleService {
-  // Initialize permissions
+  // Initialize permissions automatically from index.js routes
   static async initializePermissions() {
     try {
+      // Check if permissions collection is empty
+      const permissionCount = await Permission.countDocuments();
+      if (permissionCount > 0) {
+        console.log('Permissions already exist, skipping initialization');
+        return { message: 'Permissions already initialized' };
+      }
+
+      // Auto-extracted permissions from index.js routes
       const permissions = [
         'administrator',
-        'application.create',
-        'application.delete',
-        'application.read',
-        'application.readAll',
-        'application.readOwn',
-        'application.update',
-        'application.updateOwn',
-        'department.create',
-        'department.delete',
-        'department.read',
-        'department.update',
-        'document.delete',
-        'document.get',
-        'document.set',
-        'evaluation.create',
-        'evaluation.delete',
-        'evaluation.read',
-        'evaluation.read_timekeeping',
-        'evaluation.update',
-        'evaluation.update_timekeeping',
-        'personality_test.answer',
-        'personality_test.create',
-        'personality_test.delete',
-        'personality_test.read',
-        'personality_test.readAll',
-        'personality_test.readOwn',
-        'personality_test.stop',
-        'personality_test.template.create',
-        'personality_test.template.delete',
-        'personality_test.template.read',
-        'personality_test.template.update',
-        'personality_test.update',
+        'register.departmentHead',
+        'user.delete',
+        'user.read',
         'role.create',
-        'role.delete',
         'role.read',
         'role.read.id',
-        'role.update'
+        'role.update',
+        'role.delete',
+        'applicationForm.create',
+        'application.export',
+        'applicationForm.readOwn',
+        'applicationForm.read',
+        'applicationForm.update',
+        'applicationForm.updateOwn',
+        'applicationForm.delete',
+        'applicationForm.status.set',
+        'applicationForm.approvals.set',
+        'applicationHistory.readOwn',
+        'applicationHistory.read',
+        'document.set',
+        'document.get',
+        'document.delete',
+        'document.read',
+        'personality_test.create',
+        'personality_test.answer',
+        'personality_test.stop',
+        'personality_test.readOwn',
+        'personality_test.readAll',
+        'personality_test.read',
+        'personality_test.update',
+        'personality_test.delete',
+        'personality_test.template.create',
+        'personality_test.template.read',
+        'personality_test.template.update',
+        'personality_test.template.delete',
+        'interview.create',
+        'application.readAll',
+        'interview.readAll',
+        'interview.read',
+        'interview.readOwn',
+        'interview.update',
+        'interview.updateOwn',
+        'interview.delete',
+        'interview.deleteOwn',
+        'evaluation.create',
+        'evaluation.read',
+        'evaluation.update',
+        'evaluation.delete',
+        'evaluation.update_timekeeping',
+        'evaluation.read_timekeeping',
+        'department.create',
+        'department.read',
+        'department.update',
+        'department.delete',
+        'activity.readAll',
+        'user.create',
+        'user.update'
       ];
 
       for (const perm of permissions) {
