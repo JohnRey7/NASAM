@@ -96,6 +96,66 @@ const NotificationController = {
         message: 'Failed to delete notifications' 
       });
     }
+  },
+
+  // Soft delete a notification
+  async softDeleteNotification(req, res) {
+    try {
+      const { notificationId } = req.params;
+      const result = await NotificationService.softDeleteNotification(notificationId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in softDeleteNotification:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Restore a soft-deleted notification
+  async restoreNotification(req, res) {
+    try {
+      const { notificationId } = req.params;
+      const result = await NotificationService.restoreNotification(notificationId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in restoreNotification:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Permanently delete a notification
+  async permanentDeleteNotification(req, res) {
+    try {
+      const { notificationId } = req.params;
+      const result = await NotificationService.permanentDeleteNotification(notificationId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in permanentDeleteNotification:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Get soft-deleted notifications
+  async getSoftDeletedNotifications(req, res) {
+    try {
+      const result = await NotificationService.getSoftDeletedNotifications(req.query);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getSoftDeletedNotifications:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
   }
 };
 

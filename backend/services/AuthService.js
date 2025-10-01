@@ -170,73 +170,6 @@ class AuthService {
     };
   }
 
-  // Register department head
-  static async registerDepartmentHead(userData) {
-    const { name, idNumber, email, password, departmentCode } = userData;
-    
-    if (!name || !idNumber || !password || !departmentCode) {
-      throw new Error('Name, ID number, password, and department code are required');
-    }
-
-    if (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ idNumber }))) {
-      throw new Error('ID number already exists');
-    }
-    
-    if (email && (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ email })))) {
-      throw new Error('Email already exists');
-    }
-
-    console.log('Department Head registration attempt:', { name, idNumber, email, departmentCode });
-    
-    // Find the department by departmentCode
-    const departmentDoc = await Department.findOne({ departmentCode });
-    if (!departmentDoc) {
-      console.log('Department not found:', departmentCode);
-      throw new Error('Invalid department code');
-    }
-
-    // Find the department head role
-    const role = await Role.findOne({ name: "department_head" });
-    if (!role) {
-      throw new Error('Department head role not found');
-    }
-
-    const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
-    const user = new User({ 
-      name, 
-      idNumber, 
-      email, 
-      password: hashedPassword, 
-      department: departmentDoc._id,
-      role: role._id 
-    });
-
-    // If email is provided, do not require verification for department head
-    if (email) {
-      user.verified = true;
-      // No verification email sent
-    }
-
-    await user.save();
-
-    return {
-      message: email ? 'Department head registration successful. This account was created by an admin. Please verify the email.' : 'Department head registration successful. This account was created by an admin.',
-      adminRegistered: true,
-      user: { 
-        id: user._id, 
-        idNumber: user.idNumber, 
-        department: {
-          id: departmentDoc._id,
-          code: departmentDoc.departmentCode,
-          name: departmentDoc.name
-        },
-        role: { 
-          id: role._id, 
-          name: role.name 
-        }
-      }
-    };
-  }
 
   // Logout user
   static async logout(token) {
@@ -352,85 +285,112 @@ class AuthService {
   }
 
   // Change password
-  static async changePassword(userId, currentPassword, newPassword, currentToken) {
+  
+
+  static async forgotPasswordVerifyEmail(email) {
     try {
-      // Validate inputs
-      if (!currentPassword || !newPassword) {
-        throw new Error('Current password and new password are required');
+      if (!email) {
+        throw new Error('Email is required');
       }
 
-      // Find user
-      const user = await User.findById(userId);
+      // Find user by email
+      const user = await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ email }));
+      
       if (!user) {
-        throw new Error('User not found');
+        throw new Error('User not found with this email address');
       }
 
-      // Verify current password
-      const isMatch = await argon2.verify(user.password, currentPassword);
-      if (!isMatch) {
-        throw new Error('Current password is incorrect');
+      if (user.disabled) {
+        throw new Error('Account is disabled. Please contact administrator.');
       }
 
-      // Hash new password
-      const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
-      user.password = hashedPassword;
+      // Check rate limiting for email operations
+      AuthService.checkEmailRateLimit(user);
+
+      // Generate verification code for password reset
+      const resetCode = AuthService.generateVerificationCode();
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
+      
+      // Store reset code in emailVerification field
+      user.emailVerification = {
+        ...user.emailVerification,
+        code: resetCode,
+        expiresAt,
+        lastSentAt: new Date(),
+        verified: false,
+        isPasswordReset: true // Flag to indicate this is for password reset
+      };
+
       await user.save();
 
-      // Invalidate current session
-      if (currentToken) {
-        await new BlacklistedToken({ token: currentToken }).save();
-      }
-
-      return { message: 'Password changed successfully' };
+      // Send verification email with reset code
+      await sendVerificationEmail(email, resetCode, 'password-reset');
+      
+      return { 
+        message: 'Password reset verification code has been sent to your email',
+        email: email
+      };
     } catch (error) {
-      console.error('Error changing password:', error);
+      console.error('Error resetting password:', error);
       throw error;
     }
   }
 
-  static async getCurrentUser(userId) {
+  // Verify reset code and update password
+  static async forgotPasswordChangePassword(email, code, newPassword) {
     try {
-      const user = await User.findById(userId)
-        .select('-password -emailVerification')
-        .populate({
-          path: 'course',
-          select: 'courseId name'
-        })
-        .populate({
-          path: 'role',
-          populate: {
-            path: 'permissions',
-            select: 'name'
-          }
-        });
+      if (!email || !code || !newPassword) {
+        throw new Error('Email, verification code, and new password are required');
+      }
+
+      // Find user by email
+      const user = await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ email }));
       
       if (!user) {
         throw new Error('User not found');
       }
-      
-      if (user.disabled) {
-        throw new Error('Account is disabled');
+
+      if (!user.emailVerification) {
+        throw new Error('No verification code found for this user');
       }
+
+      const { code: storedCode, expiresAt, isPasswordReset } = user.emailVerification;
+
+      // Check if this is a password reset verification
+      if (!isPasswordReset) {
+        throw new Error('Invalid verification code for password reset');
+      }
+
+      // Verify the code
+      if (code !== storedCode) {
+        throw new Error('Invalid verification code');
+      }
+
+      // Check if code has expired
+      if (Date.now() > new Date(expiresAt).getTime()) {
+        throw new Error('Verification code has expired');
+      }
+
+      // Hash the new password
+      const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
       
-      return {
-        user: {
-          id: user._id,
-          idNumber: user.idNumber,
-          name: user.name,
-          email: user.email,
-          course: user.course,
-          role: {
-            id: user.role._id,
-            name: user.role.name,
-            permissions: user.role.permissions.map(p => ({
-              id: p._id,
-              name: p.name
-            }))
-          }
-        }
+      // Update user password and clear verification data
+      user.password = hashedPassword;
+      user.emailVerification = {
+        verified: true,
+        code: null,
+        expiresAt: null,
+        isPasswordReset: false,
+        lastSentAt: user.emailVerification.lastSentAt
+      };
+
+      await user.save();
+
+      return { 
+        message: 'Password has been reset successfully'
       };
     } catch (error) {
-      console.error('Error getting current user:', error);
+      console.error('Error verifying reset code and updating password:', error);
       throw error;
     }
   }

@@ -280,6 +280,66 @@ const InterviewController = {
       console.error('Error in getReviewList:', error);
       res.status(500).json({ message: 'Server error' });
     }
+  },
+
+  // Soft delete an interview
+  async softDeleteInterview(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await InterviewService.softDeleteInterview(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in softDeleteInterview:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Restore a soft-deleted interview
+  async restoreInterview(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await InterviewService.restoreInterview(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in restoreInterview:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Permanently delete an interview
+  async permanentDeleteInterview(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await InterviewService.permanentDeleteInterview(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in permanentDeleteInterview:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Get soft-deleted interviews
+  async getSoftDeletedInterviews(req, res) {
+    try {
+      const result = await InterviewService.getSoftDeletedInterviews(req.query);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getSoftDeletedInterviews:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
   }
 };
 

@@ -131,6 +131,66 @@ async function getTimeKeepingRecord(req, res) {
   }
 }
 
+// Soft delete an evaluation
+async function softDeleteEvaluation(req, res) {
+  try {
+    const { id } = req.params;
+    const result = await EvaluationService.softDeleteEvaluation(id);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error in softDeleteEvaluation:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Restore a soft-deleted evaluation
+async function restoreEvaluation(req, res) {
+  try {
+    const { id } = req.params;
+    const result = await EvaluationService.restoreEvaluation(id);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error in restoreEvaluation:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Permanently delete an evaluation
+async function permanentDeleteEvaluation(req, res) {
+  try {
+    const { id } = req.params;
+    const result = await EvaluationService.permanentDeleteEvaluation(id);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error in permanentDeleteEvaluation:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Get soft-deleted evaluations
+async function getSoftDeletedEvaluations(req, res) {
+  try {
+    const result = await EvaluationService.getSoftDeletedEvaluations(req.query);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getSoftDeletedEvaluations:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   createEvaluation,
   getAllEvaluations,
@@ -138,5 +198,9 @@ module.exports = {
   updateEvaluation,
   deleteEvaluation,
   updateTimeKeepingRecord,
-  getTimeKeepingRecord
+  getTimeKeepingRecord,
+  softDeleteEvaluation,
+  restoreEvaluation,
+  permanentDeleteEvaluation,
+  getSoftDeletedEvaluations
 };

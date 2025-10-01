@@ -87,8 +87,8 @@ app.get('/', (req, res) => {
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
 app.post('/api/auth/logout', authenticate, AuthController.logout);
-app.post('/api/auth/reset-password', AuthController.resetPassword);
-app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
+app.post('/api/auth/forgot-password/verify-email', AuthController.forgotPasswordVerifyEmail);
+app.post('/api/auth/forgot-password/change-password', AuthController.forgotPasswordChangePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
@@ -124,10 +124,11 @@ app.get('/api/roles/:id', authenticate, checkPermission('role.read.id'), RoleCon
 app.patch('/api/roles/:id', authenticate, checkPermission('role.update'), RoleController.updateRole);
 app.delete('/api/roles/:id', authenticate, checkPermission('role.delete'), RoleController.deleteRole);
 
-// Soft delete routes for roles
+// Role soft delete routes
 app.delete('/api/roles/:id/soft', authenticate, checkPermission('role.delete'), RoleController.softDeleteRole);
 app.put('/api/roles/:id/restore', authenticate, checkPermission('role.delete'), RoleController.restoreRole);
 app.delete('/api/roles/:id/permanent', authenticate, checkPermission('role.delete'), RoleController.permanentDeleteRole);
+app.get('/api/roles/deleted', authenticate, checkPermission('role.read'), RoleController.getSoftDeletedRoles);
 app.get('/api/roles/deleted', authenticate, checkPermission('role.read'), RoleController.getSoftDeletedRoles);
 
 // Application routes
@@ -144,15 +145,16 @@ app.patch('/api/application', authenticate, checkPermission('applicationForm.upd
 app.delete('/api/application/:id', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormById);
 app.delete('/api/application/user/:userId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormByUserId);
 
-// Soft delete routes for applications
-app.delete('/api/application/:id/soft', authenticate, checkPermission('applicationForm.delete'), ApplicationController.softDeleteApplication);
-app.put('/api/application/:id/restore', authenticate, checkPermission('applicationForm.delete'), ApplicationController.restoreApplication);
-app.delete('/api/application/:id/permanent', authenticate, checkPermission('applicationForm.delete'), ApplicationController.permanentDeleteApplication);
-app.get('/api/applications/deleted', authenticate, checkPermission('applicationForm.read'), ApplicationController.getSoftDeletedApplications);
 app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
 app.put('/api/application/:id/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatusById);
 app.patch('/api/application/auto-complete', authenticate, checkPermission('applicationForm.update'), ApplicationController.autoCompleteApplication);
 app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
+
+// Application soft delete routes
+app.delete('/api/application/:id/soft', authenticate, checkPermission('applicationForm.delete'), ApplicationController.softDeleteApplication);
+app.put('/api/application/:id/restore', authenticate, checkPermission('applicationForm.delete'), ApplicationController.restoreApplication);
+app.delete('/api/application/:id/permanent', authenticate, checkPermission('applicationForm.delete'), ApplicationController.permanentDeleteApplication);
+app.get('/api/applications/deleted', authenticate, checkPermission('applicationForm.read'), ApplicationController.getSoftDeletedApplications);
 
 // Application History routes
 app.get('/api/application/history', authenticate, checkPermission('applicationHistory.readOwn'), ApplicationController.getMyApplicationHistory);
@@ -164,7 +166,7 @@ app.put('/api/documents', authenticate, checkPermission('document.set'), uploadD
 app.get('/api/documents', authenticate, checkPermission('document.get'), DocumentController.getDocuments);
 app.delete('/api/documents', authenticate, checkPermission('document.delete'), DocumentController.deleteDocuments);
 
-// Soft delete routes for documents
+// Document soft delete routes
 app.delete('/api/documents/:id/soft', authenticate, checkPermission('document.delete'), DocumentController.softDeleteDocument);
 app.put('/api/documents/:id/restore', authenticate, checkPermission('document.delete'), DocumentController.restoreDocument);
 app.delete('/api/documents/:id/permanent', authenticate, checkPermission('document.delete'), DocumentController.permanentDeleteDocument);
@@ -231,8 +233,6 @@ app.patch('/api/evaluations/:id', authenticate, checkPermission('evaluation.upda
 app.delete('/api/evaluations/:id', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluation);
 
 // Soft delete routes for evaluations
-app.delete('/api/evaluations/:id/soft', authenticate, checkPermission('evaluation.delete'), EvaluationController.softDeleteEvaluation);
-app.put('/api/evaluations/:id/restore', authenticate, checkPermission('evaluation.delete'), EvaluationController.restoreEvaluation);
 app.delete('/api/evaluations/:id/soft', authenticate, checkPermission('evaluation.delete'), EvaluationController.softDeleteEvaluation);
 app.put('/api/evaluations/:id/restore', authenticate, checkPermission('evaluation.delete'), EvaluationController.restoreEvaluation);
 app.delete('/api/evaluations/:id/permanent', authenticate, checkPermission('evaluation.delete'), EvaluationController.permanentDeleteEvaluation);
@@ -357,4 +357,3 @@ process.on('SIGTERM', () => {
     });
   });
 });
-s

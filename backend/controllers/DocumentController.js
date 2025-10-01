@@ -52,6 +52,66 @@ const DocumentController = {
       }
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
+  },
+
+  // Soft delete a document
+  async softDeleteDocument(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await DocumentService.softDeleteDocument(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in softDeleteDocument:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Restore a soft-deleted document
+  async restoreDocument(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await DocumentService.restoreDocument(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in restoreDocument:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Permanently delete a document
+  async permanentDeleteDocument(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await DocumentService.permanentDeleteDocument(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in permanentDeleteDocument:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Get soft-deleted documents
+  async getSoftDeletedDocuments(req, res) {
+    try {
+      const result = await DocumentService.getSoftDeletedDocuments(req.query);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getSoftDeletedDocuments:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
   }
 };
 

@@ -60,20 +60,6 @@ const AuthController = {
     }
   },
 
-  async registerDepartmentHead(req, res) {
-    try {
-      const result = await AuthService.registerDepartmentHead(req.body);
-
-      return res.status(201).json(result);
-    } catch (error) {
-      console.error(error);
-      if (error.message.includes('required') || error.message.includes('already exists') || error.message.includes('Invalid') || error.message.includes('not found')) {
-        return res.status(400).json({ message: error.message });
-      }
-      return res.status(500).json({ message: 'Server error' });
-    }
-  },
-
   async logout(req, res) {
     try {
       const token = req.cookies.jwt;
@@ -90,6 +76,45 @@ const AuthController = {
     } catch (error) {
       console.error(error);
       if (error.message.includes('No token') || error.message.includes('already invalidated')) {
+        return res.status(400).json({ message: error.message });
+      }
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  async forgotPasswordVerifyEmail(req, res) {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+
+      const result = await AuthService.forgotPasswordVerifyEmail(email);
+      return res.json(result);
+    } catch (error) {
+      console.error('Forgot password verify email error:', error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  async forgotPasswordChangePassword(req, res) {
+    try {
+      const { email, code, newPassword } = req.body;
+      
+      if (!email || !code || !newPassword) {
+        return res.status(400).json({ 
+          message: 'Email, verification code, and new password are required' 
+        });
+      }
+
+      const result = await AuthService.forgotPasswordChangePassword(email, code, newPassword);
+      return res.json(result);
+    } catch (error) {
+      console.error('Forgot password change password error:', error);
+      if (error.message.includes('not found') || 
+          error.message.includes('Invalid') || 
+          error.message.includes('expired')) {
         return res.status(400).json({ message: error.message });
       }
       return res.status(500).json({ message: 'Server error' });
@@ -159,43 +184,7 @@ const AuthController = {
     }
   },
 
-  async changePassword(req, res) {
-    try {
-      const { currentPassword, newPassword } = req.body;
-      const userId = req.user.id;
-
-      const result = await AuthService.changePassword(userId, currentPassword, newPassword);
-
-      // Invalidate current JWT by blacklisting it
-      const token = req.cookies.jwt;
-      if (token) {
-        await AuthService.blacklistToken(token);
-        res.clearCookie('jwt', {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          path: '/',
-        });
-      }
-
-      return res.json(result);
-    } catch (error) {
-      console.error(error);
-      if (error.message.includes('required') || error.message.includes('at least 8 characters') || error.message.includes('cannot be the same')) {
-        return res.status(400).json({ message: error.message });
-      }
-      if (error.message.includes('not found')) {
-        return res.status(404).json({ message: error.message });
-      }
-      if (error.message.includes('disabled')) {
-        return res.status(403).json({ message: error.message });
-      }
-      if (error.message.includes('incorrect')) {
-        return res.status(401).json({ message: error.message });
-      }
-      return res.status(500).json({ message: 'Server error' });
-    }
-  },
+  
 
   async getCurrentUser(req, res) {
     try {

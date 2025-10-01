@@ -87,6 +87,63 @@ const RoleController = {
       }
       res.status(500).json({ message: 'Server error' });
     }
+  },
+
+  // Soft delete a role
+  async softDeleteRole(req, res) {
+    try {
+      const result = await RoleService.softDeleteRole(req.params.id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error(error);
+      if (error.message.includes('Invalid') || error.message.includes('not found')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Restore a soft-deleted role
+  async restoreRole(req, res) {
+    try {
+      const result = await RoleService.restoreRole(req.params.id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error(error);
+      if (error.message.includes('Invalid') || error.message.includes('not found')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Permanently delete a role
+  async permanentDeleteRole(req, res) {
+    try {
+      const result = await RoleService.permanentDeleteRole(req.params.id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error(error);
+      if (error.message.includes('Invalid') || error.message.includes('not found')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Get soft-deleted roles
+  async getSoftDeletedRoles(req, res) {
+    try {
+      const result = await RoleService.getSoftDeletedRoles(req.query);
+      
+      res.json(result);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
+    }
   }
 };
 

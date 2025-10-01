@@ -697,6 +697,66 @@ const ApplicationController = {
       }
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
+  },
+
+  // Soft delete an application
+  async softDeleteApplication(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await ApplicationService.softDeleteApplication(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in softDeleteApplication:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Restore a soft-deleted application
+  async restoreApplication(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await ApplicationService.restoreApplication(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in restoreApplication:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Permanently delete an application
+  async permanentDeleteApplication(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await ApplicationService.permanentDeleteApplication(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in permanentDeleteApplication:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Get soft-deleted applications
+  async getSoftDeletedApplications(req, res) {
+    try {
+      const result = await ApplicationService.getSoftDeletedApplications(req.query);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getSoftDeletedApplications:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
   }
 };
 

@@ -233,6 +233,66 @@ const PersonalityTestController = {
       }
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
+  },
+
+  // Soft delete a personality test
+  async softDeletePersonalityTest(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await PersonalityTestService.softDeletePersonalityTest(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in softDeletePersonalityTest:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Restore a soft-deleted personality test
+  async restorePersonalityTest(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await PersonalityTestService.restorePersonalityTest(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in restorePersonalityTest:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Permanently delete a personality test
+  async permanentDeletePersonalityTest(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await PersonalityTestService.permanentDeletePersonalityTest(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in permanentDeletePersonalityTest:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Get soft-deleted personality tests
+  async getSoftDeletedPersonalityTests(req, res) {
+    try {
+      const result = await PersonalityTestService.getSoftDeletedPersonalityTests(req.query);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getSoftDeletedPersonalityTests:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
   }
 };
 
