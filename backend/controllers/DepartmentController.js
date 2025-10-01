@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Department = require('../models/Department');
+const AuditLogService = require('../services/AuditLogService');
 
 // Create a new department
 async function createDepartment(req, res) {
@@ -26,6 +27,12 @@ async function createDepartment(req, res) {
     // Create department
     const department = new Department({ departmentCode, name });
     await department.save();
+
+    await AuditLogService.createLog({
+      userId: req.user.id,   // from your auth middleware (the staff/admin performing this)
+      action: `Created department (${departmentCode})`,
+      module: 'Department Management'
+    });
 
     res.status(201).json(department);
   } catch (error) {

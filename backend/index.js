@@ -22,6 +22,8 @@ const PersonalityTestController = require('./controllers/PersonalityTestControll
 const DepartmentController = require("./controllers/DepartmentController");
 const InterviewController = require("./controllers/InterviewController");
 
+const AuditLogController = require('./controllers/AuditLogController');
+
 const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
 const checkPermission = require('./middleware/checkPermission');
@@ -74,13 +76,6 @@ app.use(cookieParser());
 // MongoDB Connection with retry logic
 const connectDB = async () => {
   try {
-    console.log('Attempting to connect to MongoDB...');
-    console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Found' : 'NOT FOUND');
-    
-    if (!process.env.MONGODB_URI) {
-      throw new Error('MONGODB_URI environment variable is not defined');
-    }
-    
     await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
     });
@@ -95,7 +90,7 @@ connectDB();
 // Routes
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
-app.post('/api/auth/register/dept-head', authenticate, checkPermission('register.departmentHead'), AuthController.registerDepartmentHead);
+app.post('/api/auth/register/dept-head', AuthController.registerDepartmentHead);
 app.post('/api/auth/logout', AuthController.logout);
 app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
@@ -103,6 +98,39 @@ app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
 app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
+
+// Audit Log routes
+// View logs
+app.get(
+  '/auditlogs',
+  authenticate,
+  checkPermission('auditlog.read'),
+  AuditLogController.getLogs
+);
+
+// Export logs (PDF)
+app.get(
+  '/auditlogs/export/pdf',
+  authenticate,
+  checkPermission('auditlog.export'),
+  AuditLogController.exportLogsPDF
+);
+
+// Export logs (Excel/CSV)
+app.get(
+  '/auditlogs/export/excel',
+  authenticate,
+  checkPermission('auditlog.export'),
+  AuditLogController.exportLogsExcel
+);
+
+// Archive log
+app.patch(
+  '/auditlogs/archive/:id',
+  authenticate,
+  checkPermission('auditlog.archive'),
+  AuditLogController.archiveLog
+);
 
 
 // Role routes
@@ -126,8 +154,6 @@ app.patch('/api/application', authenticate, checkPermission('applicationForm.upd
 app.delete('/api/application/:id', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormById);
 app.delete('/api/application/user/:userId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormByUserId);
 app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
-app.put('/api/application/:id/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatusById);
-app.patch('/api/application/auto-complete', authenticate, checkPermission('applicationForm.update'), ApplicationController.autoCompleteApplication);
 app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
 
 // Application History routes
@@ -147,7 +173,6 @@ app.get('/api/personality-test/stop', authenticate, checkPermission('personality
 app.get('/api/personality-test/me', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getMyPersonalityTest);
 app.get('/api/personality-test/all', authenticate, checkPermission('personality_test.readAll'), PersonalityTestController.getAllUserPersonalityTest);
 app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getPersonalityTestByUserId);
-app.get('/api/personality-test/status', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getPersonalityTestStatus);
 app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest);
 app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deletePersonalityTestByUserId);
 
@@ -160,11 +185,6 @@ app.delete('/api/personality-test/template/:id', authenticate, checkPermission('
 
 // Interview Routes
 app.post('/api/interview', authenticate, checkPermission('interview.create'), InterviewController.createInterview);
-// Test route to verify routing is working
-app.get('/api/admin/test', (req, res) => {
-  res.json({ message: 'Admin route is working', timestamp: new Date() });
-});
-app.post('/api/admin/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
 app.get('/api/interview/all', authenticate, checkPermission('interview.readAll'), InterviewController.getAllInterviews);
 app.get('/api/interview/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById);
 app.get('/api/interview/user/:userId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByUserId);
@@ -175,11 +195,6 @@ app.patch('/api/interview', authenticate, checkPermission('interview.updateOwn')
 app.delete('/api/interview/:id', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewById);
 app.delete('/api/interview/user/:userId', authenticate, checkPermission('interview.delete'), InterviewController.deleteInterviewByUserId);
 app.delete('/api/interview', authenticate, checkPermission('interview.deleteOwn'), InterviewController.deleteMyInterview);
-
-// Review Routes - Interview-based reviews with application and document data
-app.get('/api/review/:interviewId', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewByInterviewId);
-app.get('/api/review', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewList);
-
 
 // Evaluation Routes
 app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
@@ -196,9 +211,6 @@ app.get('/api/departments', authenticate, checkPermission('department.read'), De
 app.get('/api/departments/:departmentCode', authenticate, checkPermission('department.read'), DepartmentController.getDepartmentByCode);
 app.patch('/api/departments/:departmentCode', authenticate, checkPermission('department.update'), DepartmentController.updateDepartment);
 app.delete('/api/departments/:departmentCode', authenticate, checkPermission('department.delete'), DepartmentController.deleteDepartment);
-
-// Department Head: Get applicants in their department
-app.get('/api/department-head/applicants', authenticate, checkPermission('department_head'), DepartmentController.getApplicantsForDepartmentHead);
 
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {
@@ -288,15 +300,4 @@ app.get('/api/test-verify', (req, res) => {
 
 // Add this route to your backend/index.js:
 app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationForm.read'), ApplicationController.getDashboardStats);
-
-
-
-// Admin: Assign applicant to department
-app.post('/api/admin/assign-applicant-to-department', authenticate, checkPermission('department.update'), DepartmentController.assignApplicantToDepartment);
-
-// Department Head: Schedule interview with notification
-app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
-
-// Department Head: Reschedule interview
-app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate, checkPermission('application.readAll'), InterviewController.rescheduleInterviewForDepartmentHead);
 

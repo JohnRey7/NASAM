@@ -6,6 +6,8 @@ const Role = require('../models/Role');
 const Department = require('../models/Department');
 const BlacklistedToken = require('../models/BlacklistedToken');
 const sendVerificationEmail = require('../utils/sendVerificationEmail');
+const validatePassword = require('../utils/validatePassword');
+const AuditLogService = require('../services/AuditLogService');
 
 // Helper: Generate a 6-digit verification code
 function generateVerificationCode() {
@@ -84,6 +86,12 @@ const AuthController = {
         path: '/',
       });
 
+      await AuditLogService.createLog({
+        userId: user._id,
+        action: 'User Login',
+        module: 'Authentication',
+      });
+
       return res.json({
         message: 'Login successful',
         user: { 
@@ -105,7 +113,13 @@ const AuthController = {
     try {
       const { name, idNumber, email, password, courseId, rememberMe } = req.body;
       if (!name || !idNumber || !password || !courseId) {
-        return res.status(400).json({ message: 'Name, ID number, password, course ID, and are required' });
+        return res.status(400).json({ message: 'Name, ID number, password, and course ID are required' });
+      }
+
+      // ✅ Password rules check
+      const { valid, message } = validatePassword(password);
+      if (!valid) {
+        return res.status(400).json({ message });
       }
 
       if (await User.findOne({ idNumber })) {
@@ -156,7 +170,7 @@ const AuthController = {
         maxAge,
         path: '/',
       });
-
+      
       return res.status(201).json({
         message: email ? 'Registration successful, please verify your email.' : 'Registration successful',
         user: { 
@@ -175,86 +189,110 @@ const AuthController = {
   },
 
   async registerDepartmentHead(req, res) {
-    try {
-      const { name, idNumber, email, password, departmentCode, rememberMe } = req.body;
-      if (!name || !idNumber || !password || !departmentCode) {
-        return res.status(400).json({ message: 'Name, ID number, password, and department code are required' });
-      }
+  try {
+    const { name, idNumber, email, password, departmentCode } = req.body;
+    console.log("[REGISTER] Incoming request:", { name, idNumber, email, departmentCode });
 
-      if (await User.findOne({ idNumber })) {
-        return res.status(400).json({ message: 'ID number already exists' });
-      }
-      if (email && (await User.findOne({ email }))) {
-        return res.status(400).json({ message: 'Email already exists' });
-      }
-
-      console.log('Department Head registration attempt:', { name, idNumber, email, departmentCode });
-      
-      // Find the department by departmentCode
-      const departmentDoc = await Department.findOne({ departmentCode });
-      if (!departmentDoc) {
-        console.log('Department not found:', departmentCode);
-        return res.status(400).json({ message: 'Invalid department code' });
-      }
-
-      // Find the department head role
-      const role = await Role.findOne({ name: "department_head" });
-      if (!role) {
-        return res.status(400).json({ message: 'Department head role not found' });
-      }
-
-      const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
-      const user = new User({ 
-        name, 
-        idNumber, 
-        email, 
-        password: hashedPassword, 
-        department: departmentDoc._id,
-        role: role._id 
-      });
-
-      // If email is provided, do not require verification for department head
-      if (email) {
-        user.verified = true;
-        // No verification email sent
-      }
-
-      await user.save();
-
-      // Remove rememberMe and cookie logic for admin registration
-      // const token = generateToken({ ...user._doc, role });
-      // const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-
-      // res.cookie('jwt', token, {
-      //   httpOnly: true,
-      //   secure: process.env.NODE_ENV === 'production',
-      //   sameSite: 'strict',
-      //   maxAge,
-      //   path: '/',
-      // });
-
-      return res.status(201).json({
-        message: email ? 'Department head registration successful. This account was created by an admin. Please verify the email.' : 'Department head registration successful. This account was created by an admin.',
-        adminRegistered: true,
-        user: { 
-          id: user._id, 
-          idNumber: user.idNumber, 
-          department: {
-            id: departmentDoc._id,
-            code: departmentDoc.departmentCode,
-            name: departmentDoc.name
-          },
-          role: { 
-            id: role._id, 
-            name: role.name 
-          }
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: 'Server error' });
+    // ✅ Check required fields
+    if (!name || !idNumber || !password || !departmentCode) {
+      console.warn("[REGISTER] Missing required fields");
+      return res.status(400).json({ message: 'Name, ID number, password, and department code are required' });
     }
-  },
+
+    // ✅ Password rules check
+    const { valid, message } = validatePassword(password);
+    console.log("[REGISTER] Password validation result:", { valid, message });
+    if (!valid) {
+      return res.status(400).json({ message });
+    }
+
+    // ✅ Check duplicates
+    if (await User.findOne({ idNumber })) {
+      console.warn("[REGISTER] Duplicate ID number:", idNumber);
+      return res.status(400).json({ message: 'ID number already exists' });
+    }
+    if (email && (await User.findOne({ email }))) {
+      console.warn("[REGISTER] Duplicate email:", email);
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
+    console.log("[REGISTER] Department Head registration attempt:", { name, idNumber, email, departmentCode });
+
+    // ✅ Find department
+    const departmentDoc = await Department.findOne({ departmentCode });
+    console.log("[REGISTER] Department query result:", departmentDoc);
+    if (!departmentDoc) {
+      console.warn("[REGISTER] Department not found:", departmentCode);
+      return res.status(400).json({ message: 'Invalid department code' });
+    }
+
+    // ✅ Find role
+    const role = await Role.findOne({ name: "department_head" });
+    console.log("[REGISTER] Role query result:", role);
+    if (!role) {
+      console.warn("[REGISTER] Department head role not found in DB");
+      return res.status(400).json({ message: 'Department head role not found' });
+    }
+
+    // ✅ Hash password
+    const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
+    console.log("[REGISTER] Password hashed successfully");
+
+    // ✅ Create user
+    const user = new User({ 
+      name, 
+      idNumber, 
+      email, 
+      password: hashedPassword, 
+      department: departmentDoc._id,
+      role: role._id 
+    });
+    if (email) {
+      user.verified = true; // Auto-verify for dept head
+      console.log("[REGISTER] Email provided, auto-verified");
+    }
+
+    await user.save();
+    console.log("[REGISTER] User saved successfully:", user._id);
+
+    // ✅ Audit log
+    if (req.user && req.user.id) {
+      await AuditLogService.createLog({
+        userId: req.user.id,   // the admin performing this action
+        action: `Registered Department Head (${idNumber}) for department ${departmentDoc.departmentCode}`,
+        module: 'User Management'
+      });
+      console.log("[REGISTER] Audit log created successfully");
+    } else {
+      console.warn("[REGISTER] No admin user found in req.user");
+    }
+
+    // ✅ Response
+    console.log("[REGISTER] Registration success:", user._id);
+    return res.status(201).json({
+      message: email 
+        ? 'Department head registration successful. This account was created by an admin. Please verify the email.' 
+        : 'Department head registration successful. This account was created by an admin.',
+      adminRegistered: true,
+      user: { 
+        id: user._id, 
+        idNumber: user.idNumber, 
+        department: {
+          id: departmentDoc._id,
+          code: departmentDoc.departmentCode,
+          name: departmentDoc.name
+        },
+        role: { 
+          id: role._id, 
+          name: role.name 
+        }
+      },
+    });
+  } catch (error) {
+    console.error("[REGISTER] Server error:", error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+},
 
   async logout(req, res) {
     try {
@@ -267,12 +305,21 @@ const AuthController = {
         return res.status(400).json({ message: 'Token already invalidated' });
       }
 
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log("Decoded JWT: ", decoded);
+      
       await new BlacklistedToken({ token }).save();
       res.clearCookie('jwt', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         path: '/',
+      });
+
+     await AuditLogService.createLog({
+        userId: decoded.id, 
+        action: 'User Logout', 
+        module: 'Authentication'
       });
 
       return res.json({ message: 'Logout successful' });
@@ -407,24 +454,19 @@ const AuthController = {
   async changePassword(req, res) {
     try {
       const { currentPassword, newPassword } = req.body;
-      const userId = req.user.id; // Assumes JWT middleware sets req.user
-
       if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: 'Current and new passwords are required' });
+        return res.status(400).json({ message: 'Current password and new password are required' });
       }
 
-      // Validate new password strength (example: minimum 8 characters)
-      if (newPassword.length < 8) {
-        return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+      // ✅ Validate new password rules
+      const { valid, message } = validatePassword(newPassword);
+      if (!valid) {
+        return res.status(400).json({ message });
       }
 
-      const user = await User.findById(userId);
+      const user = await User.findById(req.user.id);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
-      }
-
-      if (user.disabled) {
-        return res.status(403).json({ message: 'Account is disabled' });
       }
 
       const isMatch = await argon2.verify(user.password, currentPassword);
@@ -432,15 +474,14 @@ const AuthController = {
         return res.status(401).json({ message: 'Current password is incorrect' });
       }
 
-      // Prevent reuse of same password
       if (await argon2.verify(user.password, newPassword)) {
         return res.status(400).json({ message: 'New password cannot be the same as current password' });
       }
 
-      user.password = await argon2.hash(newPassword, { type: argon2.argon2id });
+      const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
+      user.password = hashedPassword;
       await user.save();
 
-      // Invalidate current JWT by blacklisting it
       const token = req.cookies.jwt;
       if (token) {
         await new BlacklistedToken({ token }).save();
@@ -499,48 +540,6 @@ const AuthController = {
           }
         },
       });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: 'Server error' });
-    }
-  },
-
-  async changePassword(req, res) {
-    try {
-      const { currentPassword, newPassword } = req.body;
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: 'Current password and new password are required' });
-      }
-
-      const user = await User.findById(req.user.id);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      // Verify current password
-      const isMatch = await argon2.verify(user.password, currentPassword);
-      if (!isMatch) {
-        return res.status(401).json({ message: 'Current password is incorrect' });
-      }
-
-      // Hash new password
-      const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
-      user.password = hashedPassword;
-      await user.save();
-
-      // Invalidate all existing sessions
-      const token = req.cookies.jwt;
-      if (token) {
-        await new BlacklistedToken({ token }).save();
-      }
-      res.clearCookie('jwt', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/',
-      });
-
-      return res.json({ message: 'Password changed successfully' });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: 'Server error' });
