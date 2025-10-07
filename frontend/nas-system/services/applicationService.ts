@@ -20,6 +20,15 @@ export interface ApplicationFormData {
   residingAt: string;
   permanentResidentialAddress: string;
   contactNumber: string;
+  // New fields for eligibility validation based on SRS
+  isCitUSeniorHighGraduate: boolean;
+  yearLevel: string;
+  citUResidency?: {
+    semesterCount?: number;
+    weightedAverageGrade?: number;
+    hasFailingMarks?: boolean;
+    minimumUnitsCompleted?: number;
+  };
   familyBackground: {
     father: {
       firstName: string;

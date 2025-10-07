@@ -100,6 +100,8 @@ app.put('/api/auth/email', authenticate, AuthController.updateEmail);
 // Profile update route (save personal info including gender)
 app.put('/api/users/profile', authenticate, AuthController.updateProfile);
 app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
+app.post('/api/auth/forgot-password', AuthController.forgotPassword);
+app.post('/api/auth/reset-password', AuthController.resetPassword);
 
 // Audit Log routes
 // View logs

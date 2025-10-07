@@ -35,6 +35,7 @@ async function generateApplicationPDF(application, templatePath) {
       suffix: application.suffix || 'N/A',
       emailAddress: application.emailAddress || 'N/A',
       programOfStudyAndYear: application.programOfStudyAndYear || '',
+      yearLevel: application.yearLevel || 'N/A',
       existingScholarship: application.existingScholarship || 'N/A',
       remainingUnits: application.remainingUnitsIncludingThisTerm || 0,
       remainingUnitsIncludingThisTerm: application.remainingUnitsIncludingThisTerm || 0,
@@ -46,6 +47,14 @@ async function generateApplicationPDF(application, templatePath) {
       residingAt: application.residingAt || '',
       permanentResidence: application.permanentResidentialAddress || '',
       contactNumber: application.contactNumber || '',
+      // New eligibility fields
+      isCitUSeniorHighGraduate: application.isCitUSeniorHighGraduate || false,
+      citUResidency: {
+        semesterCount: application.citUResidency?.semesterCount || 'N/A',
+        weightedAverageGrade: application.citUResidency?.weightedAverageGrade || 'N/A',
+        hasFailingMarks: application.citUResidency?.hasFailingMarks || false,
+        minimumUnitsCompleted: application.citUResidency?.minimumUnitsCompleted || 'N/A'
+      },
       family: {
         father: {
           firstName: application.familyBackground?.father?.firstName || '',
@@ -137,6 +146,11 @@ async function generateApplicationPDF(application, templatePath) {
       for (const field in data.education[level]) {
         replaceScalar(`education.${level}.${field}`, data.education[level][field]);
       }
+    }
+
+    // Handle citUResidency nested object
+    for (const field in data.citUResidency) {
+      replaceScalar(`citUResidency.${field}`, data.citUResidency[field]);
     }
 
     const arraySections = [

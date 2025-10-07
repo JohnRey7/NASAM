@@ -8,6 +8,9 @@ const BlacklistedToken = require('../models/BlacklistedToken');
 const sendVerificationEmail = require('../utils/sendVerificationEmail');
 const validatePassword = require('../utils/validatePassword');
 const AuditLogService = require('../services/AuditLogService');
+const sendPasswordResetEmail = require('../utils/sendPasswordResetEmail');
+const PasswordResetToken = require('../models/PasswordResetToken');
+const crypto = require('crypto');
 
 // Helper: Generate a 6-digit verification code
 function generateVerificationCode() {
@@ -575,9 +578,83 @@ const AuthController = {
       return res.json({ message: 'Profile updated', user: { id: user._id, name: user.name, idNumber: user.idNumber, email: user.email, gender: user.gender } });
     } catch (error) {
       console.error('updateProfile error', error);
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: 'Email address is required' });
+      }
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+      }
+
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await new PasswordResetToken({
+        userId: user._id,
+        token: hashedToken,
+        expiresAt,
+      }).save();
+
+      await sendPasswordResetEmail(user.email, resetToken);
+
+      return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+    } catch (error) {
+      console.error('Forgot Password Error:', error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  async resetPassword(req, res) {
+    try {
+      const { token, newPassword } = req.body;
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: 'Token and new password are required' });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+      }
+
+      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+      const resetTokenDoc = await PasswordResetToken.findOne({
+        token: hashedToken,
+        expiresAt: { $gt: Date.now() },
+      });
+
+      if (!resetTokenDoc) {
+        return res.status(400).json({ message: 'Invalid or expired password reset token' });
+      }
+
+      const user = await User.findById(resetTokenDoc.userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      user.password = await argon2.hash(newPassword, { type: argon2.argon2id });
+      await user.save();
+
+      await PasswordResetToken.findByIdAndDelete(resetTokenDoc._id);
+
+      const currentJwt = req.cookies.jwt;
+      if (currentJwt) {
+        await new BlacklistedToken({ token: currentJwt }).save();
+        res.clearCookie('jwt');
+      }
+
+      return res.json({ message: 'Password has been reset successfully. Please log in with your new password.' });
+    } catch (error) {
+      console.error('Reset Password Error:', error);
       return res.status(500).json({ message: 'Server error' });
     }
   },
 };
 
 module.exports = AuthController;
+
