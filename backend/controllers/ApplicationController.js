@@ -7,6 +7,7 @@ const path = require('path');
 const User = require('../models/User');
 const ActivityLogger = require('../services/ActivityLogger');
 const NotificationService = require('../services/NotificationService');
+const AuditLogService = require('../services/AuditLogService');
 
 // Helper function to format yearLevel for display
 const formatYearLevel = (yearLevel) => {
@@ -385,6 +386,8 @@ const ApplicationController = {
         middleName: app.middleName || '',
         suffix: app.suffix || '',
         emailAddress: app.emailAddress || '',
+        // Prefer the application gender; fall back to the linked user's gender if available
+        gender: app.gender || (app.user && app.user.gender) || 'Prefer not to say',
         programOfStudyAndYear: app.programOfStudyAndYear || 'N/A',
         existingScholarship: app.existingScholarship || 'None',
         remainingUnitsIncludingThisTerm: app.remainingUnitsIncludingThisTerm || 'N/A',
@@ -397,7 +400,8 @@ const ApplicationController = {
         contactNumber: app.contactNumber || 'N/A',
         submissionDate: app.createdAt,
         createdAt: app.createdAt,
-        status: app.status || 'pending',
+        // Normalize status to a canonical lowercase underscore format so frontend filters match
+        status: (app.status || 'pending').toString().toLowerCase().replace(/\s+/g, '_'),
         user: app.user
       }));
 
@@ -1628,11 +1632,11 @@ const ApplicationController = {
     try {
       console.log('✅ Backend: Getting dashboard stats...');
 
-      // Count applications by status
+      // Count applications by status (normalize casing)
       const stats = await ApplicationForm.aggregate([
         {
           $group: {
-            _id: '$status',
+            _id: { $toLower: { $ifNull: ['$status', 'pending'] } },
             count: { $sum: 1 }
           }
         }
@@ -1687,6 +1691,270 @@ const ApplicationController = {
         message: 'Failed to get dashboard stats',
         error: error.message
       });
+    }
+  },
+
+  // GET: lightweight counts endpoint for OAS staff (total + per-status)
+  async getApplicationCounts(req, res) {
+    try {
+      // Aggregate counts by status in a single query (normalize casing)
+      const stats = await ApplicationForm.aggregate([
+        { $group: { _id: { $toLower: { $ifNull: ['$status', 'pending'] } }, count: { $sum: 1 } } }
+      ]);
+
+      // Build a normalized map including expected statuses
+      const statuses = {
+        pending: 0,
+        form_verified: 0,
+        document_verification: 0,
+        interview_scheduled: 0,
+        approved: 0,
+        rejected: 0,
+        unknown: 0
+      };
+
+      let total = 0;
+      (stats || []).forEach(s => {
+        const key = s._id || 'unknown';
+        if (Object.prototype.hasOwnProperty.call(statuses, key)) {
+          statuses[key] = s.count;
+        } else {
+          // accumulate unexpected statuses into 'unknown'
+          statuses.unknown += s.count;
+        }
+        total += s.count;
+      });
+
+      res.json({
+        success: true,
+        data: {
+          totalApplicants: total,
+          counts: statuses
+        }
+      });
+    } catch (error) {
+      console.error('❌ Backend: Error getting application counts:', error);
+      res.status(500).json({ success: false, message: 'Failed to get application counts', error: error.message });
+    }
+  },
+
+  // GET: Get analytics for OAS staff (applications overview, GPA, income, program breakdowns)
+  async getAnalytics(req, res) {
+    try {
+      console.log('✅ Backend: Getting analytics for OAS...');
+
+        // Use a facet aggregation to compute multiple metrics in a single query
+      const results = await ApplicationForm.aggregate([
+        // Join with users to pick up gender from the user record if application.gender is missing
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'user',
+            foreignField: '_id',
+            as: 'userDoc'
+          }
+        },
+        { $unwind: { path: '$userDoc', preserveNullAndEmptyArrays: true } },
+        // Project only fields we need
+        {
+          $project: {
+            status: 1,
+            program: '$programOfStudyAndYear',
+            annualFamilyIncome: 1,
+            collegeLevel: '$education.collegeLevel',
+            // Use application.gender first, then user's gender, then null
+            normalizedGender: {
+              $cond: [
+                { $in: [ { $toLower: { $ifNull: ['$gender', '$userDoc.gender'] } }, ['male', 'female'] ] },
+                { $ifNull: ['$gender', '$userDoc.gender'] },
+                'Unknown'
+              ]
+            }
+          }
+        },
+        {
+          $facet: {
+            totalApplicants: [ { $count: 'count' } ],
+
+            statusCounts: [
+              // normalize status casing to lowercase
+              { $group: { _id: { $toLower: { $ifNull: ['$status', 'pending'] } }, count: { $sum: 1 } } },
+              { $sort: { count: -1 } }
+            ],
+
+            programCounts: [
+              { $group: { _id: '$program', count: { $sum: 1 } } },
+              { $sort: { count: -1 } }
+            ],
+
+            incomeCounts: [
+              { $group: { _id: '$annualFamilyIncome', count: { $sum: 1 } } },
+              { $sort: { count: -1 } }
+            ],
+            genderCounts: [
+              { $group: { _id: '$normalizedGender', count: { $sum: 1 } } },
+              { $sort: { count: -1 } }
+            ],
+
+            // Compute applicant-level GPA averages
+            gpaStats: [
+              // Compute per-applicant average from collegeLevel entries
+              {
+                $project: {
+                  perEntryAvg: {
+                    $map: {
+                      input: { $ifNull: ['$collegeLevel', []] },
+                      as: 'cl',
+                      in: {
+                        $let: {
+                          vars: {
+                            sum: {
+                              $add: [
+                                { $ifNull: ['$$cl.firstSemesterAverageFinalGrade', null] },
+                                { $ifNull: ['$$cl.secondSemesterAverageFinalGrade', null] },
+                                { $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', null] }
+                              ]
+                            },
+                            cnt: {
+                              $add: [
+                                { $cond: [{ $ifNull: ['$$cl.firstSemesterAverageFinalGrade', false] }, 1, 0] },
+                                { $cond: [{ $ifNull: ['$$cl.secondSemesterAverageFinalGrade', false] }, 1, 0] },
+                                { $cond: [{ $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', false] }, 1, 0] }
+                              ]
+                            }
+                          },
+                          in: {
+                            $cond: [{ $gt: ['$$cnt', 0] }, { $divide: ['$$sum', '$$cnt'] }, null]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              // compute applicant average across entries
+              {
+                $addFields: {
+                  applicantAvg: { $avg: '$perEntryAvg' }
+                }
+              },
+              { $match: { applicantAvg: { $ne: null } } },
+              {
+                $group: {
+                  _id: null,
+                  avgGPA: { $avg: '$applicantAvg' },
+                  gpaList: { $push: '$applicantAvg' },
+                  count: { $sum: 1 }
+                }
+              }
+            ],
+
+            // For GPA distribution using explicit buckets (ranges)
+            gpaBuckets: [
+              // Recompute per-applicant avg then bucket
+              {
+                $project: {
+                  applicantAvg: {
+                    $let: {
+                      vars: {
+                        perEntryAvg: {
+                          $map: {
+                            input: { $ifNull: ['$collegeLevel', []] },
+                            as: 'cl',
+                            in: {
+                              $let: {
+                                vars: {
+                                  sum: {
+                                    $add: [
+                                      { $ifNull: ['$$cl.firstSemesterAverageFinalGrade', null] },
+                                      { $ifNull: ['$$cl.secondSemesterAverageFinalGrade', null] },
+                                      { $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', null] }
+                                    ]
+                                  },
+                                  cnt: {
+                                    $add: [
+                                      { $cond: [{ $ifNull: ['$$cl.firstSemesterAverageFinalGrade', false] }, 1, 0] },
+                                      { $cond: [{ $ifNull: ['$$cl.secondSemesterAverageFinalGrade', false] }, 1, 0] },
+                                      { $cond: [{ $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', false] }, 1, 0] }
+                                    ]
+                                  }
+                                },
+                                in: { $cond: [{ $gt: ['$$cnt', 0] }, { $divide: ['$$sum', '$$cnt'] }, null] }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      in: { $avg: '$$perEntryAvg' }
+                    }
+                  }
+                }
+              },
+              { $match: { applicantAvg: { $ne: null } } },
+              {
+                $bucket: {
+                  groupBy: '$applicantAvg',
+                  boundaries: [0, 1.6, 2.1, 2.6, 3.1, 3.6, 4.1, 100],
+                  default: 'Other',
+                  output: { count: { $sum: 1 } }
+                }
+              }
+            ]
+          }
+        }
+      ]).allowDiskUse(true);
+
+      const facet = (results && results[0]) || {};
+
+      const totalApplicants = (facet.totalApplicants && facet.totalApplicants[0] && facet.totalApplicants[0].count) || 0;
+
+      const statusCounts = {};
+      (facet.statusCounts || []).forEach(s => { statusCounts[s._id || 'unknown'] = s.count; });
+
+      const programs = (facet.programCounts || []).map(p => ({ program: p._id || 'Unknown', count: p.count }));
+
+      const incomeCounts = {};
+      (facet.incomeCounts || []).forEach(i => { incomeCounts[i._id || 'Unknown'] = i.count; });
+
+  const genderCounts = {};
+  (facet.genderCounts || []).forEach(g => { genderCounts[g._id || 'Prefer not to say'] = g.count; });
+
+      const avgGPA = (facet.gpaStats && facet.gpaStats[0] && facet.gpaStats[0].avgGPA) ? Number((facet.gpaStats[0].avgGPA).toFixed(2)) : null;
+      const gpaCount = (facet.gpaStats && facet.gpaStats[0] && facet.gpaStats[0].count) || 0;
+
+      // Format GPA buckets with human readable labels
+      const bucketLabels = [
+        '≤ 1.5',
+        '1.6 - 2.0',
+        '2.1 - 2.5',
+        '2.6 - 3.0',
+        '3.1 - 3.5',
+        '3.6 - 4.0',
+        '4.1+'
+      ];
+
+      const rawBuckets = facet.gpaBuckets || [];
+      const gpaDistribution = rawBuckets.map((b, idx) => ({
+        range: bucketLabels[idx] || String(b._id),
+        count: b.count || 0
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          totalApplicants,
+          statusCounts,
+          programs,
+          averageGPA: avgGPA,
+          gpaCount,
+          gpaDistribution,
+          incomeCounts,
+          genderCounts
+        }
+      });
+    } catch (error) {
+      console.error('❌ Backend: Error getting analytics:', error);
+      res.status(500).json({ success: false, message: 'Failed to get analytics', error: error.message });
     }
   },
 

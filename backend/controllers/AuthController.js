@@ -530,6 +530,10 @@ const AuthController = {
           name: user.name,
           email: user.email,
           course: user.course,
+          address: user.address || null,
+          contact: user.contact || null,
+          birthday: user.birthday || null,
+          gender: user.gender || null,
           role: {
             id: user.role._id,
             name: user.role.name,
@@ -542,6 +546,35 @@ const AuthController = {
       });
     } catch (error) {
       console.error(error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  async updateProfile(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+      const { name, idNumber, address, contact, birthday, gender } = req.body;
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+
+      if (name) user.name = name;
+      if (idNumber) user.idNumber = idNumber;
+      if (address !== undefined) user.address = address;
+      if (contact !== undefined) user.contact = contact;
+      if (birthday !== undefined) user.birthday = birthday;
+      // Only allow 'Male' or 'Female' values; if undefined, do not change
+      if (gender !== undefined) {
+        if (gender === 'Male' || gender === 'Female') user.gender = gender;
+        else return res.status(400).json({ message: 'Invalid gender value' });
+      }
+
+      await user.save();
+
+      return res.json({ message: 'Profile updated', user: { id: user._id, name: user.name, idNumber: user.idNumber, email: user.email, gender: user.gender } });
+    } catch (error) {
+      console.error('updateProfile error', error);
       return res.status(500).json({ message: 'Server error' });
     }
   },

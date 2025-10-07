@@ -97,6 +97,8 @@ app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
+// Profile update route (save personal info including gender)
+app.put('/api/users/profile', authenticate, AuthController.updateProfile);
 app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
 
 // Audit Log routes
@@ -300,4 +302,24 @@ app.get('/api/test-verify', (req, res) => {
 
 // Add this route to your backend/index.js:
 app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationForm.read'), ApplicationController.getDashboardStats);
+// Analytics endpoint for OAS staff (applications overview & charts)
+app.get('/api/oas/analytics', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAnalytics);
+
+// Lightweight counts endpoint used by Applications UI
+app.get('/api/oas/application-counts', authenticate, checkPermission('applicationForm.read'), ApplicationController.getApplicationCounts);
+
+// Dev-only debug route: return raw application ids and statuses for verification
+app.get('/api/oas/debug/applications', async (req, res) => {
+  if (process.env.DEBUG_ALLOW !== 'true') {
+    return res.status(403).json({ success: false, message: 'Debug disabled' });
+  }
+  try {
+    const ApplicationForm = require('./models/ApplicationForm');
+    const docs = await ApplicationForm.find({}).select('_id status').lean();
+    return res.json({ success: true, count: docs.length, applications: docs });
+  } catch (err) {
+    console.error('Debug route error', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 
