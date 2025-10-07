@@ -110,7 +110,7 @@ const applicationFormSchema = new mongoose.Schema({
       name: { type: String, required: true },
       age: {
         type: Number,
-        required: true,
+        required: false,
         validate: {
           validator: Number.isInteger,
           message: '{VALUE} is not an integer value'
@@ -160,6 +160,12 @@ const applicationFormSchema = new mongoose.Schema({
     relationshipToTheApplicant: { type: String, required: true },
     contactNumber: { type: String, required: true }
   }],
+    gender: {
+      type: String,
+      enum: ['Male', 'Female'],
+      required: false,
+      index: true
+    },
   status: {
     type: String,
     enum: ['pending', 'form_verified', 'document_verification', 'interview_scheduled', 'approved', 'rejected'],

@@ -17,6 +17,13 @@ const userSchema = new mongoose.Schema({
     lastSentAt: Date,
     pendingEmail: String,
   },
+  // Optional gender field. Restrict new values to 'Male' or 'Female'.
+  gender: {
+    type: String,
+    enum: ['Male', 'Female'],
+    index: true,
+    required: false,
+  },
 });
 
 

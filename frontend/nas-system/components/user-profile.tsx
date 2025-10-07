@@ -79,7 +79,8 @@ export function UserProfile() {
     email: "",
     address: "",
     contact: "",
-    birthday: ""
+    birthday: "",
+    gender: ""
   })
 
   // Fetch user data when component mounts
@@ -105,7 +106,8 @@ export function UserProfile() {
             email: data.user?.email || "", // Get email from backend response
             address: data.user?.address || "",
             contact: data.user?.contact || "",
-            birthday: data.user?.birthday || ""
+            birthday: data.user?.birthday || "",
+            gender: data.user?.gender || ""
           }
           
           console.log("Setting form data to:", updatedFormData) // Debug log
@@ -160,7 +162,8 @@ export function UserProfile() {
           idNumber: formData.studentId,
           address: formData.address,
           contact: formData.contact,
-          birthday: formData.birthday
+          birthday: formData.birthday,
+          gender: formData.gender || undefined
         }),
       })
 
@@ -587,6 +590,18 @@ export function UserProfile() {
                         value={formData.birthday}
                         onChange={handleInputChange}
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gender</Label>
+                      <Select value={formData.gender} onValueChange={(val) => setFormData(prev => ({ ...prev, gender: val }))}>
+                        <SelectTrigger id="gender">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>

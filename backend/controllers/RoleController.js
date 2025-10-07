@@ -170,6 +170,16 @@ const RoleController = {
   // Get all roles
   async getAllRoles(req, res) {
     try {
+      // If a role query param is provided, return users for that role (used by frontend to fetch applicants)
+      if (req.query.role) {
+        const roleName = req.query.role;
+        const roleDoc = await Role.findOne({ name: roleName });
+        if (!roleDoc) return res.status(404).json({ message: 'Role not found' });
+
+        const users = await User.find({ role: roleDoc._id }).select('name email idNumber gender role').lean();
+        return res.json({ users });
+      }
+
       const page = parseInt(req.query.page) || 1;
       const limit = Math.min(parseInt(req.query.limit) || 10, 25);
       const skip = (page - 1) * limit;

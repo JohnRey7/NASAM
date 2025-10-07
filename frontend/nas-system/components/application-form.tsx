@@ -36,6 +36,7 @@ const defaultFormData: ApplicationFormData = {
   residingAt: '',
   permanentResidentialAddress: '',
   contactNumber: '',
+  gender: '',
   // New fields for eligibility validation
   isCitUSeniorHighGraduate: false,
   yearLevel: '',
@@ -963,6 +964,22 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     disabled={isReadOnly}
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                    disabled={isReadOnly}
+                  >
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="civil-status">Civil Status</Label>
