@@ -6,6 +6,9 @@ const Role = require('../models/Role');
 const Department = require('../models/Department');
 const BlacklistedToken = require('../models/BlacklistedToken');
 const sendVerificationEmail = require('../utils/sendVerificationEmail');
+const sendPasswordResetEmail = require('../utils/sendPasswordResetEmail');
+const PasswordResetToken = require('../models/PasswordResetToken');
+const crypto = require('crypto');
 
 // Helper: Generate a 6-digit verification code
 function generateVerificationCode() {
@@ -505,47 +508,83 @@ const AuthController = {
     }
   },
 
-  async changePassword(req, res) {
+  async forgotPassword(req, res) {
     try {
-      const { currentPassword, newPassword } = req.body;
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: 'Current password and new password are required' });
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: 'Email address is required' });
       }
 
-      const user = await User.findById(req.user.id);
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+      }
+
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await new PasswordResetToken({
+        userId: user._id,
+        token: hashedToken,
+        expiresAt,
+      }).save();
+
+      await sendPasswordResetEmail(user.email, resetToken);
+
+      return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+    } catch (error) {
+      console.error('Forgot Password Error:', error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  async resetPassword(req, res) {
+    try {
+      const { token, newPassword } = req.body;
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: 'Token and new password are required' });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+      }
+
+      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+      const resetTokenDoc = await PasswordResetToken.findOne({
+        token: hashedToken,
+        expiresAt: { $gt: Date.now() },
+      });
+
+      if (!resetTokenDoc) {
+        return res.status(400).json({ message: 'Invalid or expired password reset token' });
+      }
+
+      const user = await User.findById(resetTokenDoc.userId);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Verify current password
-      const isMatch = await argon2.verify(user.password, currentPassword);
-      if (!isMatch) {
-        return res.status(401).json({ message: 'Current password is incorrect' });
-      }
-
-      // Hash new password
-      const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
-      user.password = hashedPassword;
+      user.password = await argon2.hash(newPassword, { type: argon2.argon2id });
       await user.save();
 
-      // Invalidate all existing sessions
-      const token = req.cookies.jwt;
-      if (token) {
-        await new BlacklistedToken({ token }).save();
-      }
-      res.clearCookie('jwt', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/',
-      });
+      await PasswordResetToken.findByIdAndDelete(resetTokenDoc._id);
 
-      return res.json({ message: 'Password changed successfully' });
+      const currentJwt = req.cookies.jwt;
+      if (currentJwt) {
+        await new BlacklistedToken({ token: currentJwt }).save();
+        res.clearCookie('jwt');
+      }
+
+      return res.json({ message: 'Password has been reset successfully. Please log in with your new password.' });
     } catch (error) {
-      console.error(error);
+      console.error('Reset Password Error:', error);
       return res.status(500).json({ message: 'Server error' });
     }
   },
 };
 
 module.exports = AuthController;
+

@@ -6,14 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import React, { useState } from "react";
 import RegisterDepartmentHeadForm from "../department-head/RegisterDepartmentHeadForm";
+import DepartmentManagement from "@/components/DepartmentManagement";
 
 export function ToolsCard() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [successDialog, setSuccessDialog] = useState(false);
   const [errorDialog, setErrorDialog] = useState(false);
-  // Remove local form state for department head creation
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [departmentManagementOpen, setDepartmentManagementOpen] = useState(false);
 
   // const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setForm({ ...form, [e.target.name]: e.target.value });
@@ -54,7 +55,7 @@ export function ToolsCard() {
           <Button variant="outline" className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" /> Manage Courses
           </Button>
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button variant="outline" className="flex items-center gap-2" onClick={() => setDepartmentManagementOpen(true)}>
             <Users className="h-5 w-5" /> Manage Departments
           </Button>
           <Button variant="outline" className="flex items-center gap-2">
@@ -102,6 +103,12 @@ export function ToolsCard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Department Management Dialog */}
+      <DepartmentManagement 
+        open={departmentManagementOpen} 
+        onOpenChange={setDepartmentManagementOpen} 
+      />
     </Card>
   );
 } 

@@ -38,7 +38,7 @@ const applicationFormSchema = new mongoose.Schema({
   civilStatus: { type: String, required: true },
   annualFamilyIncome: {
     type: String,
-    enum: ['<100k', '100k-200k', '200k-300k', '300k-400k', '400k-500k', '>500k'],
+    enum: ['<100k', '100k-200k', '200k-300k', '>300k'],
     required: true
   },
   currentResidenceAddress: { type: String },
@@ -49,6 +49,22 @@ const applicationFormSchema = new mongoose.Schema({
   },
   permanentResidentialAddress: { type: String, required: true },
   contactNumber: { type: String, required: true },
+  
+  // New fields for eligibility validation based on SRS
+  isCitUSeniorHighGraduate: { type: Boolean, required: true },
+  yearLevel: {
+    type: String,
+    enum: ['First Year', 'Second Year', 'Third Year', 'Fourth Year', 'Fifth Year'],
+    required: true
+  },
+  // For Non-CIT-U graduates - residency requirements
+  citUResidency: {
+    semesterCount: { type: Number }, // Number of semesters completed at CIT-U
+    weightedAverageGrade: { type: Number }, // Must be >= 3.5
+    hasFailingMarks: { type: Boolean },
+    minimumUnitsCompleted: { type: Number } // 15 for regular, 6 for summer
+  },
+  
   familyBackground: {
     father: {
       firstName: { type: String, required: true },
