@@ -47,6 +47,25 @@ const fileUploadSchema = new mongoose.Schema({
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
     }],
+    // End of semester updated grade on AIMS
+    endTermSemesterGrade: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now },
+        gradeSubjects: [
+            {
+                subjectCode: { type: String, required: true },
+                subjectTitle: { type: String, required: true },
+                units: { type: Number, required: false },
+                grade: { type: String, required: true }
+            }
+        ]
+    }],
+    // Semester Start time and End time (4-5 months) (in order)
+    semesterDuration: [{
+        start: { type: Date, required: true },
+        end: { type: Date, required: true }
+    }],
     is_deleted: { type: Boolean, default: false }
 
 }, { timestamps: true });

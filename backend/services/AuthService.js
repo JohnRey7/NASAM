@@ -10,12 +10,12 @@ const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 
 class AuthService {
   // Helper: Generate a 6-digit verification code
-  generateVerificationCode() {
+  static generateVerificationCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   // Helper: Generate a JWT token for a user
-  generateToken(user) {
+  static generateToken(user) {
     if (!user.role) {
       throw new Error('User role is missing or invalid');
     }
@@ -29,7 +29,7 @@ class AuthService {
   }
 
   // Helper: Update a user's verification details
-  updateVerificationDetails(user, pendingEmail = null) {
+  static updateVerificationDetails(user, pendingEmail = null) {
     const code = AuthService.generateVerificationCode();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -46,7 +46,7 @@ class AuthService {
   }
 
   // Helper: Check rate limiting for email operations
-  checkEmailRateLimit(user) {
+  static checkEmailRateLimit(user) {
     const now = Date.now();
     const lastSent = user.emailVerification?.lastSentAt?.getTime() || 0;
     const cooldown = 5 * 60 * 1000; // 5 minutes
@@ -65,8 +65,8 @@ class AuthService {
       throw new Error('ID number and password are required');
     }
 
-    const user = await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ idNumber })).populate('role');
-    if (!user) {
+    const user = await User.findOne({ idNumber });
+    if (!user || user.is_deleted) {
       throw new Error('Invalid credentials');
     }
 

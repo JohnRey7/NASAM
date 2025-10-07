@@ -16,6 +16,7 @@ const AuthController = require('./controllers/AuthController');
 const UserController = require('./controllers/UserController');
 const ApplicationController = require('./controllers/ApplicationController');
 const DocumentController = require('./controllers/DocumentController');
+const DocumentUploadController = require('./controllers/DocumentUploadController');
 const RoleController = require('./controllers/RoleController');
 const EvaluationController = require('./controllers/EvaluationController');
 const PersonalityTestController = require('./controllers/PersonalityTestController');
@@ -26,6 +27,7 @@ const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
 const checkPermission = require('./middleware/checkPermission');
 const { checkApplicationAccess, uploadDocuments } = require('./middleware/documentMiddleware');
+const { uploadDocumentsMiddleware } = require('./middleware/documentUploadMiddleware');
 const User = require('./models/User');
 const RoleService = require('./services/RoleService');
 process.setMaxListeners(20);
@@ -95,7 +97,7 @@ app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
 app.put('/api/auth/email', authenticate, AuthController.updateEmail);
 
 // User management routes (admin only)
-app.post('/api/users', authenticate, checkPermission('user.create'), UserController.createUser);
+app.post('/api/user', authenticate, checkPermission('user.create'), UserController.createUser);
 app.get('/api/users/disabled', authenticate, checkPermission('user.read'), UserController.getDisabledUsers);
 app.get('/api/users/deleted', authenticate, checkPermission('user.read'), UserController.getSoftDeletedUsers);
 app.get('/api/users/idnumber/:idNumber', authenticate, checkPermission('user.read'), UserController.getUserByIdNumber);
@@ -171,6 +173,24 @@ app.delete('/api/documents/:id/soft', authenticate, checkPermission('document.de
 app.put('/api/documents/:id/restore', authenticate, checkPermission('document.delete'), DocumentController.restoreDocument);
 app.delete('/api/documents/:id/permanent', authenticate, checkPermission('document.delete'), DocumentController.permanentDeleteDocument);
 app.get('/api/documents/deleted', authenticate, checkPermission('document.read'), DocumentController.getSoftDeletedDocuments);
+
+// DocumentUpload routes (enhanced document management)
+app.post('/api/document-uploads', authenticate, uploadDocumentsMiddleware, DocumentUploadController.uploadDocuments);
+app.get('/api/document-uploads', authenticate, DocumentUploadController.getDocuments);
+app.get('/api/document-uploads/all', authenticate, checkPermission('document.read'), DocumentUploadController.getAllDocuments);
+app.get('/api/document-uploads/user/:userId', authenticate, checkPermission('document.read'), DocumentUploadController.getDocumentsByUserId);
+app.patch('/api/document-uploads/:userId', authenticate, uploadDocumentsMiddleware, DocumentUploadController.updateDocument);
+app.delete('/api/document-uploads/:userId', authenticate, DocumentUploadController.deleteDocument);
+
+// End term semester grade specific routes
+app.post('/api/document-uploads/end-term-grade', authenticate, uploadDocumentsMiddleware, checkPermission('document.upload.endTermGrade'),DocumentUploadController.addEndTermSemesterGrade);
+app.patch('/api/document-uploads/:userId/end-term-grade/:gradeId', authenticate, uploadDocumentsMiddleware, checkPermission('document.upload.endTermGrade'), DocumentUploadController.updateEndTermSemesterGrade);
+
+// DocumentUpload soft delete routes
+app.delete('/api/document-uploads/:userId/soft', authenticate, checkPermission('document.delete'), DocumentUploadController.softDeleteDocument);
+app.put('/api/document-uploads/:userId/restore', authenticate, checkPermission('document.delete'), DocumentUploadController.restoreDocument);
+app.delete('/api/document-uploads/:userId/permanent', authenticate, checkPermission('document.delete'), DocumentUploadController.permanentDeleteDocument);
+app.get('/api/document-uploads/deleted', authenticate, checkPermission('document.read'), DocumentUploadController.getSoftDeletedDocuments);
 
 // Personality Test routes
 app.post('/api/personality-test/start', authenticate, checkPermission('personality_test.create'), PersonalityTestController.startPersonalityTest);
