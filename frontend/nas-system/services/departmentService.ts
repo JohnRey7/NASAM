@@ -30,12 +30,24 @@ export interface DepartmentListResponse {
 const departmentService = {
   // Get all departments with pagination and search
   async getAllDepartments(page: number = 1, limit: number = 10, search: string = ''): Promise<DepartmentListResponse> {
-    const response = await axios.get(`${API_URL}/api/departments`, {
-      params: { page, limit, search },
-      withCredentials: true,
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return response.data;
+    console.log('🏢 Fetching departments:', { page, limit, search });
+    console.log('🏢 API URL:', `${API_URL}/api/departments`);
+    
+    try {
+      const response = await axios.get(`${API_URL}/api/departments`, {
+        params: { page, limit, search },
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      console.log('🏢 Department response:', response.data);
+      console.log('🏢 Number of departments:', response.data?.data?.length || 0);
+      
+      return response.data;
+    } catch (error) {
+      console.error('🏢 Error fetching departments:', error);
+      throw error;
+    }
   },
 
   // Get department by code

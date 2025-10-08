@@ -356,7 +356,9 @@ class PersonalityTestService {
       // Find application for user
       const application = await ApplicationForm.findOne({ user: userId });
       if (!application) {
-        throw new Error('No application found for user');
+        const error = new Error('No application found for user');
+        error.status = 404;
+        throw error;
       }
 
       // Find test
@@ -376,7 +378,9 @@ class PersonalityTestService {
         });
 
       if (!test) {
-        throw new Error('No personality test found');
+        const error = new Error('No personality test found');
+        error.status = 404;
+        throw error;
       }
 
       return test;

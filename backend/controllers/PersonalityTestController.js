@@ -89,13 +89,13 @@ const PersonalityTestController = {
       res.json(test);
     } catch (error) {
       console.error('Error in getPersonalityTestByUserId:', error);
-      if (error.message.includes('not found')) {
+      if (error.message.includes('not found') || error.status === 404) {
         return res.status(404).json({ message: error.message });
       }
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
-
+  
   // PATCH /updatePersonalityTest/:testId
   async updatePersonalityTest(req, res) {
     try {

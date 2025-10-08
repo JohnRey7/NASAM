@@ -38,6 +38,7 @@ const defaultFormData: ApplicationFormData = {
   contactNumber: '',
   gender: '',
   // New fields for eligibility validation
+  shsgraduateCIT: false, // Backend field name
   isCitUSeniorHighGraduate: false,
   yearLevel: '',
   citUResidency: {
@@ -420,12 +421,12 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       }
     }));
   };
-
   const handleSave = async () => {
     setIsSaving(true);
     try {
       const completeFormData = {
         ...formData,
+        shsgraduateCIT: formData.isCitUSeniorHighGraduate, // Map to backend field name
         familyBackground: {
           ...formData.familyBackground,
           siblings: siblings.map(sibling => ({ name: sibling.name, age: sibling.age }))
@@ -485,19 +486,39 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      // Map frontend field to backend field
+      const submissionData = {
+        ...formData,
+        shsgraduateCIT: formData.isCitUSeniorHighGraduate, // Map to backend field name
+        familyBackground: {
+          ...formData.familyBackground,
+          siblings: siblings
+        },
+        education: {
+          ...formData.education,
+          collegeLevel: collegeLevels,
+          currentMembershipInOrganizations: organizations
+        },
+        references: references
+      };
+
       if (applicationId) {
         // Update existing application
-        await applicationService.updateApplicationById(applicationId, formData);
+        await applicationService.updateApplicationById(applicationId, submissionData);
         toast({ title: "Success", description: "Application updated successfully.", duration: 3000 });
         setShowConfirm(true);
       } else {
         // Create new application
-        await applicationService.submitApplication(formData);
+        await applicationService.submitApplication(submissionData);
         toast({ title: "Success", description: "Application submitted successfully.", duration: 3000 });
       }
     } catch (error) {
-      // handle error
-      setError('Failed to submit or update application');
+      console.error('Submit error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit application. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }

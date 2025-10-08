@@ -21,14 +21,13 @@ class ApplicationService {
   // Helper function to create application history
   static async createApplicationHistory(application) {
     const historyData = application.toObject();
-    delete historyData._id;
     const historyEntry = new ApplicationHistory(historyData);
     await historyEntry.save();
     return historyEntry;
   }
 
   // Helper function to sanitize data
-  sanitizeApplicationData(data) {
+  static sanitizeApplicationData(data) {
     const sanitizedData = { ...data };
     delete sanitizedData.status;
     delete sanitizedData.approvalsSummary;
@@ -154,18 +153,47 @@ class ApplicationService {
 
   // Get all applications for staff dashboard
   static async getAllApplicationsForStaff() {
-    const applications = await ApplicationForm.find({ is_deleted: false })
+    console.log('🔍 Starting database query for applications...');
+    
+    // First, let's check total count without filters
+    const totalCount = await ApplicationForm.countDocuments({});
+    const deletedCount = await ApplicationForm.countDocuments({ is_deleted: true });
+    const activeCount = await ApplicationForm.countDocuments({ is_deleted: false });
+    
+    console.log(`📊 Database stats: Total=${totalCount}, Deleted=${deletedCount}, Active=${activeCount}`);
+    
+    // Temporarily include applications without is_deleted field
+    const applications = await ApplicationForm.find({ 
+      $or: [
+        { is_deleted: false },
+        { is_deleted: { $exists: false } }
+      ]
+    })
       .populate('user', 'name email idNumber')
       .sort({ createdAt: -1 })
       .lean();
 
-    return applications.map(app => ({
+    console.log(`📊 Found ${applications.length} applications for staff dashboard`);
+    console.log('📋 Application IDs:', applications.map(app => app._id));
+    
+    // Let's also check if there are applications without the is_deleted field
+    const appsWithoutDeletedField = await ApplicationForm.find({ is_deleted: { $exists: false } })
+      .populate('user', 'name email idNumber')
+      .sort({ createdAt: -1 })
+      .lean();
+    console.log(`📋 Applications without is_deleted field: ${appsWithoutDeletedField.length}`);
+    if (appsWithoutDeletedField.length > 0) {
+      console.log('📋 IDs without is_deleted field:', appsWithoutDeletedField.map(app => app._id));
+    }
+
+    const formattedApps = applications.map(app => ({
       _id: app._id,
       firstName: app.firstName || '',
       lastName: app.lastName || '',
       middleName: app.middleName || '',
       suffix: app.suffix || '',
       emailAddress: app.emailAddress || '',
+      gender: app.gender || 'Unknown', // Add gender field
       programOfStudyAndYear: app.programOfStudyAndYear || 'N/A',
       existingScholarship: app.existingScholarship || 'None',
       remainingUnitsIncludingThisTerm: app.remainingUnitsIncludingThisTerm || 'N/A',
@@ -181,6 +209,9 @@ class ApplicationService {
       status: app.status || 'pending',
       user: app.user
     }));
+
+    console.log(`✅ Returning ${formattedApps.length} formatted applications`);
+    return formattedApps;
   }
 
   // Update application by ID
@@ -904,6 +935,16 @@ class ApplicationService {
         residingAt: application.residingAt || '',
         permanentResidence: application.permanentResidentialAddress || '',
         contactNumber: application.contactNumber || '',
+        // Add gender field
+        gender: application.gender || 'N/A',
+        // Add CIT-U residency fields
+        isCitUSeniorHighGraduate: application.isCitUSeniorHighGraduate || false,
+        citUResidency: {
+          semesterCount: application.citUResidency?.semesterCount || 0,
+          weightedAverageGrade: application.citUResidency?.weightedAverageGrade || 0,
+          hasFailingMarks: application.citUResidency?.hasFailingMarks || false,
+          minimumUnitsCompleted: application.citUResidency?.minimumUnitsCompleted || 0
+        },
         family: {
           father: {
             firstName: application.familyBackground?.father?.firstName || '',
@@ -997,6 +1038,11 @@ class ApplicationService {
         }
       }
 
+      // Handle citUResidency fields
+      for (const field in data.citUResidency) {
+        replaceScalar(`citUResidency.${field}`, data.citUResidency[field]);
+      }
+
       const arraySections = [
         {
           key: 'family.siblings',
@@ -1042,10 +1088,18 @@ class ApplicationService {
         }
       }
 
+      // Handle {{#if}} statements
       html = html.replace(/{{#if ([^}]+)}}([\s\S]*?){{else}}([\s\S]*?){{\/if}}/g, (match, condition, ifContent, elseContent) => {
         const path = condition.split('.');
         const value = path.reduce((obj, k) => obj?.[k], data);
         return value && (Array.isArray(value) ? value.length : value) ? ifContent : elseContent;
+      });
+
+      // Handle {{#unless}} statements
+      html = html.replace(/{{#unless ([^}]+)}}([\s\S]*?){{\/unless}}/g, (match, condition, unlessContent) => {
+        const path = condition.split('.');
+        const value = path.reduce((obj, k) => obj?.[k], data);
+        return !value || (Array.isArray(value) && value.length === 0) ? unlessContent : '';
       });
 
       browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });

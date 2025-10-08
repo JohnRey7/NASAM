@@ -391,13 +391,21 @@ export function ApplicationReview() {
   const [counts, setCounts] = useState<any | null>(null)
 
   useEffect(() => {
+    console.log('🚀 Starting to fetch applications...');
     applicationService.getAllApplicationsForStaff()  // CHANGED THIS LINE
       .then((apps) => {
+        console.log('✅ Raw applications received:', apps);
+        console.log('✅ Number of applications:', apps?.length || 0);
+        
         // Sort FIFO: oldest first by submissionDate or createdAt
         const sorted = [...apps].sort((a, b) => new Date(a.submissionDate || a.createdAt).getTime() - new Date(b.submissionDate || b.createdAt).getTime())
+        console.log('✅ Sorted applications:', sorted);
         setApplications(sorted)
       })
-      .catch((err) => setError(err.message || "Failed to load applications"))
+      .catch((err) => {
+        console.error('❌ Error fetching applications:', err);
+        setError(err.message || "Failed to load applications")
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -439,6 +447,18 @@ export function ApplicationReview() {
     }
     return true;
   });
+
+  // Debug logging
+  console.log('🔍 DEBUG - Total applications loaded:', applications.length);
+  console.log('🔍 DEBUG - Current filter:', filter);
+  console.log('🔍 DEBUG - Search term:', searchTerm);
+  console.log('🔍 DEBUG - Filtered applications:', filteredApplications.length);
+  console.log('🔍 DEBUG - Applications data:', applications.map(app => ({
+    id: app._id,
+    name: `${app.firstName} ${app.lastName}`,
+    status: app.status,
+    userIdNumber: app.user?.idNumber
+  })));
 
   const getStatusBadge = (status: string) => {
     const normalized = status?.toLowerCase?.() || "";

@@ -270,12 +270,11 @@ export function DepartmentHeadApplicationReview({ applications = [] }: { applica
     }
 
     try {
-      await departmentHeadService.scheduleInterview({
-        applicantId: selectedApplication.userId || selectedApplication._id,
-        date: interviewDate,
-        time: "09:00", // Default time
-        notes: "Interview scheduled by Department Head"
-      });
+      await departmentHeadService.scheduleInterview(
+        selectedApplication.userId || selectedApplication._id,
+        interviewDate,
+        "Interview scheduled by Department Head"
+      );
 
       toast({
         title: "Interview Scheduled",
@@ -407,7 +406,7 @@ export function DepartmentHeadApplicationReview({ applications = [] }: { applica
                         <Dialog>
                           <DialogTrigger asChild>
                             <button 
-                              className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50 hover:bg-gray-100 h-10 w-10 h-8 w-8"
+                              className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50 hover:bg-gray-100 h-8 w-8"
                               type="button" 
                               aria-haspopup="dialog" 
                               aria-expanded="false" 
@@ -627,7 +626,7 @@ export function DepartmentHeadApplicationReview({ applications = [] }: { applica
                         </Dialog>
 
                         <button 
-                          className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50 hover:bg-gray-100 h-10 w-10 h-8 w-8"
+                          className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50 hover:bg-gray-100 h-8 w-8"
                           onClick={() => handleDownloadApplicationPDF(application)}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square h-4 w-4">

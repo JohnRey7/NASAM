@@ -125,18 +125,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json()
       console.log("Login response data:", data) // Debug log
       
-      // Check if the user has the 'applicant', 'oas_staff', or 'admin' role (from backend)
-      const allowedRoles = ["applicant", "oas_staff", "admin", "department_head"];
-      if (!data.user || !data.user.role || !allowedRoles.includes(data.user.role.name)) {
-        throw new Error("Only applicants, OAS staff, or admins can log in here. Please use the correct portal for your role.");
+      // Check if the user data exists
+      console.log("User role data:", data.user?.role); // Debug log
+      
+      if (!data.user) {
+        throw new Error("User information is missing. Please contact administrator.");
       }
       
-      // Map backend user data to frontend user format (store only role name)
+      // Map backend user data to frontend user format
       const loggedInUser: User = {
         id: data.user.id,
         name: data.user?.name || "Student",
         email: data.user.email || "",
-        role: data.user.role.name, // Store only the role name (string)
+        role: data.user.role?.name || "applicant", // Default to applicant if role name is missing
       }
       
       console.log("Logged in user data:", loggedInUser) // Debug log

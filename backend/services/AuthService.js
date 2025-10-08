@@ -65,7 +65,7 @@ class AuthService {
       throw new Error('ID number and password are required');
     }
 
-    const user = await User.findOne({ idNumber });
+    const user = await User.findOne({ idNumber }).populate('role');
     if (!user || user.is_deleted) {
       throw new Error('Invalid credentials');
     }

@@ -21,6 +21,7 @@ export interface ApplicationFormData {
   permanentResidentialAddress: string;
   contactNumber: string;
   // New fields for eligibility validation based on SRS
+  shsgraduateCIT: boolean; // Backend field name
   isCitUSeniorHighGraduate: boolean;
   yearLevel: string;
   citUResidency?: {
@@ -371,6 +372,8 @@ export const applicationService = {
   // Add this new method for OAS staff
   async getAllApplicationsForStaff() {
     try {
+      console.log('🌐 Making API call to:', `${API_URL}/oas/applications`);
+      
       const response = await fetch(`${API_URL}/oas/applications`, {
         method: 'GET',
         credentials: 'include',
@@ -379,12 +382,19 @@ export const applicationService = {
         },
       });
 
+      console.log('🌐 API Response status:', response.status);
+      console.log('🌐 API Response ok:', response.ok);
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('🌐 API Error response:', errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const applications = await response.json();
+      console.log('🌐 API Response data:', applications);
+      console.log('🌐 Number of applications received:', applications?.length || 0);
+      
       return applications;
     } catch (error) {
       console.error('Error fetching applications for staff:', error);

@@ -40,9 +40,13 @@ export default function DepartmentManagement({ open, onOpenChange }: DepartmentM
 
   // Load departments
   const loadDepartments = async (page = 1, search = '') => {
+    console.log('🏢 Loading departments...', { page, search });
     setLoading(true);
     try {
       const response = await departmentService.getAllDepartments(page, 10, search);
+      console.log('🏢 Department response received:', response);
+      console.log('🏢 Setting departments:', response.data);
+      
       setDepartments(response.data);
       setCurrentPage(response.page);
       setTotalPages(response.pages);

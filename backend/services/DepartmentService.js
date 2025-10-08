@@ -54,23 +54,54 @@ class DepartmentService {
         throw new Error('Invalid limit');
       }
 
-      // Build query
-      const query = search
-        ? {
-            $or: [
-              { name: { $regex: search, $options: 'i' } },
-              { departmentCode: { $regex: search, $options: 'i' } }
-            ]
-          }
-        : {};
+      // Debug: Check department counts
+      const totalCount = await Department.countDocuments({});
+      const deletedCount = await Department.countDocuments({ is_deleted: true });
+      const activeCount = await Department.countDocuments({ is_deleted: false });
+      const withoutDeletedField = await Department.countDocuments({ is_deleted: { $exists: false } });
+      
+      console.log(`🏢 Department stats: Total=${totalCount}, Deleted=${deletedCount}, Active=${activeCount}, WithoutDeletedField=${withoutDeletedField}`);
+
+      // Build query - include departments without is_deleted field
+      let departmentQuery = {
+        $or: [
+          { is_deleted: false },
+          { is_deleted: { $exists: false } }
+        ]
+      };
+
+      // Add search if provided
+      if (search) {
+        departmentQuery = {
+          $and: [
+            {
+              $or: [
+                { name: { $regex: search, $options: 'i' } },
+                { departmentCode: { $regex: search, $options: 'i' } }
+              ]
+            },
+            {
+              $or: [
+                { is_deleted: false },
+                { is_deleted: { $exists: false } }
+              ]
+            }
+          ]
+        };
+      }
+
+      console.log('🏢 Department query:', JSON.stringify(departmentQuery, null, 2));
 
       // Fetch departments
-      const departments = await Department.find({ ...query, is_deleted: false })
+      const departments = await Department.find(departmentQuery)
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum)
-        .lean();
+        .sort({ createdAt: -1 });
 
-      const total = await Department.countDocuments(query);
+      // Get total count for pagination
+      const total = await Department.countDocuments(departmentQuery);
+
+      console.log(`🏢 Found ${departments.length} departments, total: ${total}`);
 
       return {
         data: departments,

@@ -1,7 +1,6 @@
 require('dotenv').config({ path: './.env' });
 
 // Debug: Check if environment variables are loaded
-console.log('Environment check:');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('PORT:', process.env.PORT);
 console.log('MONGODB_URI exists:', !!process.env.MONGODB_URI);
@@ -11,6 +10,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
+const cors = require('cors');
 const NotificationController = require('./controllers/NotificationController');
 const AuthController = require('./controllers/AuthController');
 const UserController = require('./controllers/UserController');
@@ -47,6 +47,15 @@ app.use(helmet({
     },
   },
 }));
+
+// CORS configuration for development
+app.use(cors({
+  origin: ['http://localhost:3001', 'http://127.0.0.1:3001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -343,13 +352,13 @@ app.get('/api/test-verify', (req, res) => {
 
 // Dashboard stats route
 app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationForm.read'), ApplicationController.getDashboardStats);
+// Application counts route for OAS staff
+app.get('/api/oas/application-counts', authenticate, checkPermission('applicationForm.read'), ApplicationController.getApplicationCounts);
 // Analytics endpoint for OAS staff (applications overview & charts)
 app.get('/api/oas/analytics', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAnalytics);
 
 // Department Head: Schedule interview with notification
 app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
-
-// Department Head: Reschedule interview
 app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate, checkPermission('application.readAll'), InterviewController.rescheduleInterviewForDepartmentHead);
 
 // Graceful shutdown

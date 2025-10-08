@@ -1,4 +1,5 @@
 const AuthService = require('../services/AuthService');
+const AuditLogService = require('../services/AuditLogService');
 
 const AuthController = {
   async login(req, res) {
@@ -14,7 +15,7 @@ const AuthController = {
       });
 
       await AuditLogService.createLog({
-        userId: user._id,
+        userId: result.user.id,
         action: 'User Login',
         module: 'Authentication',
       });
@@ -64,33 +65,7 @@ const AuthController = {
       }
       return res.status(500).json({ message: 'Server error' });
     }
-
-    // ✅ Response
-    console.log("[REGISTER] Registration success:", user._id);
-    return res.status(201).json({
-      message: email 
-        ? 'Department head registration successful. This account was created by an admin. Please verify the email.' 
-        : 'Department head registration successful. This account was created by an admin.',
-      adminRegistered: true,
-      user: { 
-        id: user._id, 
-        idNumber: user.idNumber, 
-        department: {
-          id: departmentDoc._id,
-          code: departmentDoc.departmentCode,
-          name: departmentDoc.name
-        },
-        role: { 
-          id: role._id, 
-          name: role.name 
-        }
-      },
-    });
-  } catch (error) {
-    console.error("[REGISTER] Server error:", error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-},
+  },
 
   async logout(req, res) {
     try {

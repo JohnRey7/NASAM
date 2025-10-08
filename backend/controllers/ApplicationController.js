@@ -1,4 +1,5 @@
 const ApplicationService = require('../services/ApplicationService');
+const ApplicationForm = require('../models/ApplicationForm');
 
 const ApplicationController = {
   // POST: Create a new application for the authenticated user

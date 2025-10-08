@@ -12,16 +12,19 @@ async function createDepartment(req, res) {
       return res.status(400).json({ message: error.message });
     }
     if (error.message.includes('required')) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ message: `Validation error: ${error.message}` });
     }
-    res.status(400).json({ message: `Validation error: ${error.message}` });
+    res.status(500).json({ message: 'Server error' });
   }
 }
 
 // Get all departments (paginated, with search)
 async function getAllDepartments(req, res) {
   try {
+    console.log('DepartmentController: Getting all departments with query:', req.query);
     const result = await DepartmentService.getAllDepartments(req.query);
+    console.log('DepartmentController: Service returned:', result);
+    console.log('DepartmentController: Number of departments:', result?.data?.length || 0);
     
     res.status(200).json(result);
   } catch (error) {
@@ -29,7 +32,7 @@ async function getAllDepartments(req, res) {
     if (error.message.includes('Invalid')) {
       return res.status(400).json({ message: error.message });
     }
-    res.status(500).json({ message: `Server error: ${error.message}` });
+    res.status(500).json({ message: 'Server error' });
   }
 }
 
@@ -186,7 +189,9 @@ async function setDepartmentHeadByIdNumber(req, res) {
     }
     res.status(400).json({ message: `Error: ${error.message}` });
   }
-}module.exports = {
+}
+
+module.exports = {
   createDepartment,
   getAllDepartments,
   getDepartmentByCode,
