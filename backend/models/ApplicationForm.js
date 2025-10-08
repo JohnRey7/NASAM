@@ -6,7 +6,9 @@ const applicationFormSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
     index: true
-  },
+  }, // I was about to add is_college when an earthquake happened
+  // is_college: { type: Boolean, default: true },
+  shsgraduateCIT: { type: Boolean, required: true },
   emailAddress: {
     type: String,
     sparse: true,  // This allows multiple null values
@@ -107,7 +109,7 @@ const applicationFormSchema = new mongoose.Schema({
       contactNumber: { type: String, required: true }
     },
     siblings: [{
-      name: { type: String, required: true },
+      name: { type: String, required: false },
       age: {
         type: Number,
         required: false,
@@ -140,7 +142,7 @@ const applicationFormSchema = new mongoose.Schema({
     collegeLevel: [{
       yearLevel: {
         type: Number,
-        required: true,
+        required: false,
         validate: {
           validator: Number.isInteger,
           message: '{VALUE} is not an integer value'
@@ -182,7 +184,8 @@ const applicationFormSchema = new mongoose.Schema({
   approvalsSummary: {
     endorsedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-  }
+  },
+  is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 

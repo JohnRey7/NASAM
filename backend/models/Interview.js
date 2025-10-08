@@ -26,7 +26,8 @@ const interviewSchema = new mongoose.Schema({
       },
       message: 'End time must be after start time'
     }
-  }
+  },
+  is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 const Interview = mongoose.model('Interview', interviewSchema);

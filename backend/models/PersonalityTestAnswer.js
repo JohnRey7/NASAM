@@ -13,7 +13,8 @@ const personalityAssessmentAnswersSchema = new mongoose.Schema({
         required: true,
         index: true
     },
-    answer: { type: String, required: true }
+    answer: { type: String, required: true },
+    is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 const PersonalityAssessmentAnswers = mongoose.model('PersonalityAssessmentAnswers', personalityAssessmentAnswersSchema, 'personality_assessment_answers');

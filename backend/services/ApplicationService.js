@@ -1,0 +1,1235 @@
+const ApplicationForm = require('../models/ApplicationForm');
+const ApplicationHistory = require('../models/ApplicationHistory');
+const mongoose = require('mongoose');
+const puppeteer = require('puppeteer');
+const fs = require('fs').promises;
+const path = require('path');
+const User = require('../models/User');
+const ActivityLogger = require('./ActivityLogger');
+const NotificationService = require('./NotificationService');
+const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
+
+class ApplicationService {
+  // Helper function to format yearLevel for display
+  static formatYearLevel(yearLevel) {
+    if (!yearLevel) return 'N/A';
+    const year = Math.floor(yearLevel);
+    const isSummer = yearLevel % 1 !== 0;
+    return isSummer ? `${year}th Year Summer` : `${year}${year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th'} Year`;
+  }
+
+  // Helper function to create application history
+  static async createApplicationHistory(application) {
+    const historyData = application.toObject();
+    delete historyData._id;
+    const historyEntry = new ApplicationHistory(historyData);
+    await historyEntry.save();
+    return historyEntry;
+  }
+
+  // Helper function to sanitize data
+  sanitizeApplicationData(data) {
+    const sanitizedData = { ...data };
+    delete sanitizedData.status;
+    delete sanitizedData.approvalsSummary;
+    return sanitizedData;
+  }
+
+  // Create a new application
+  static async createApplication(userId, applicationData) {
+    try {
+      const sanitizedData = ApplicationService.sanitizeApplicationData(applicationData);
+
+      const existingApplication = await ApplicationForm.findOne({ user: userId, is_deleted: false });
+      if (existingApplication) {
+        throw new Error('User already has an application');
+      }
+
+      const application = new ApplicationForm({
+        user: userId,
+        ...sanitizedData
+      });
+
+      await application.save();
+
+      // Log application submission
+      await ActivityLogger.logApplicationSubmission(
+        userId, 
+        application._id, 
+        sanitizedData.typeOfScholarship || 'scholarship'
+      );
+
+      // Create notification
+      await NotificationService.createApplicationSubmittedNotification(
+        userId,
+        application._id
+      );
+
+      return await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: application._id }))
+        .select('-status -approvalsSummary');
+    } catch (error) {
+      throw new Error(`Failed to create application: ${error.message}`);
+    }
+  }
+
+  // Get application by ID
+  static async getApplicationById(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID');
+    }
+
+    const application = await ApplicationForm.findOne({ _id: applicationId, is_deleted: false })
+      .populate('user', 'name idNumber _id')
+      .populate('approvalsSummary.endorsedBy', 'name _id')
+      .populate('approvalsSummary.approvedBy', 'name _id');
+
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    return application;
+  }
+
+  // Get application by user ID
+  static async getApplicationByUserId(userId) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID');
+    }
+
+    const application = await ApplicationForm.findOne({ user: userId, is_deleted: false })
+      .populate('user', 'name idNumber _id')
+      .populate('approvalsSummary.endorsedBy', 'name _id')
+      .populate('approvalsSummary.approvedBy', 'name _id');
+
+    if (!application) {
+      throw new Error('No application found for this user');
+    }
+
+    return application;
+  }
+
+  // Get user's own application
+  static async getMyApplication(userId) {
+    const application = await ApplicationForm.findOne({ user: userId, is_deleted: false });
+    
+    if (!application) {
+      throw new Error('No application found for this user');
+    }
+
+    return application;
+  }
+
+  // Get all applications with pagination and filtering
+  static async getAllApplications(queryParams) {
+    const { page = 1, limit = 10, firstName, emailAddress, status } = queryParams;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const query = {};
+    if (firstName) query.firstName = { $regex: firstName, $options: 'i' };
+    if (emailAddress) query.emailAddress = { $regex: emailAddress, $options: 'i' };
+    if (status) query.status = status;
+
+    const applications = await ApplicationForm.find({ ...query, is_deleted: false })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 })
+      .populate('user', 'name idNumber _id')
+      .populate('approvalsSummary.endorsedBy', 'name _id')
+      .populate('approvalsSummary.approvedBy', 'name _id');
+
+    const totalDocs = await ApplicationForm.countDocuments({ ...query, is_deleted: false });
+
+    return {
+      applications,
+      pagination: {
+        totalDocs,
+        limit: parseInt(limit),
+        page: parseInt(page),
+        totalPages: Math.ceil(totalDocs / parseInt(limit)),
+        hasNextPage: skip + applications.length < totalDocs,
+        hasPrevPage: page > 1
+      }
+    };
+  }
+
+  // Get all applications for staff dashboard
+  static async getAllApplicationsForStaff() {
+    const applications = await ApplicationForm.find({ is_deleted: false })
+      .populate('user', 'name email idNumber')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return applications.map(app => ({
+      _id: app._id,
+      firstName: app.firstName || '',
+      lastName: app.lastName || '',
+      middleName: app.middleName || '',
+      suffix: app.suffix || '',
+      emailAddress: app.emailAddress || '',
+      programOfStudyAndYear: app.programOfStudyAndYear || 'N/A',
+      existingScholarship: app.existingScholarship || 'None',
+      remainingUnitsIncludingThisTerm: app.remainingUnitsIncludingThisTerm || 'N/A',
+      remainingTermsToGraduate: app.remainingTermsToGraduate || 'N/A',
+      citizenship: app.citizenship || 'N/A',
+      civilStatus: app.civilStatus || 'N/A',
+      annualFamilyIncome: app.annualFamilyIncome || 'N/A',
+      currentResidenceAddress: app.currentResidenceAddress || 'N/A',
+      permanentResidentialAddress: app.permanentResidentialAddress || 'N/A',
+      contactNumber: app.contactNumber || 'N/A',
+      submissionDate: app.createdAt,
+      createdAt: app.createdAt,
+      status: app.status || 'pending',
+      user: app.user
+    }));
+  }
+
+  // Update application by ID
+  static async updateApplicationById(applicationId, updateData) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID');
+    }
+
+    const sanitizedData = ApplicationService.sanitizeApplicationData(updateData);
+
+    if (Object.keys(sanitizedData).length === 0) {
+      throw new Error('No valid fields provided for update');
+    }
+
+    const currentApplication = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }));
+    if (!currentApplication) {
+      throw new Error('Application not found');
+    }
+
+    // Create history entry
+    await ApplicationService.createApplicationHistory(currentApplication);
+
+    const updatedApplication = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }),
+      { $set: sanitizedData },
+      { new: true, runValidators: true }
+    ).select('-status -approvalsSummary');
+
+    return updatedApplication;
+  }
+
+  // Update application by user ID
+  static async updateApplicationByUserId(userId, updateData) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID');
+    }
+
+    const sanitizedData = ApplicationService.sanitizeApplicationData(updateData);
+
+    if (Object.keys(sanitizedData).length === 0) {
+      throw new Error('No valid fields provided for update');
+    }
+
+    const currentApplication = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: userId }));
+    if (!currentApplication) {
+      throw new Error('No application found for this user');
+    }
+
+    // Create history entry
+    await ApplicationService.createApplicationHistory(currentApplication);
+
+    const updatedApplication = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ user: userId }),
+      { $set: sanitizedData },
+      { new: true, runValidators: true }
+    ).select('-status -approvalsSummary');
+
+    return updatedApplication;
+  }
+
+  // Update user's own application
+  static async updateMyApplication(userId, updateData) {
+    const sanitizedData = ApplicationService.sanitizeApplicationData(updateData);
+
+    if (Object.keys(sanitizedData).length === 0) {
+      throw new Error('No valid fields provided for update');
+    }
+
+    const currentApplication = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: userId }));
+    if (!currentApplication) {
+      throw new Error('No application found for this user');
+    }
+
+    // Create history entry
+    await ApplicationService.createApplicationHistory(currentApplication);
+
+    const updatedApplication = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ user: userId }),
+      { $set: sanitizedData },
+      { new: true, runValidators: true }
+    ).select('-status -approvalsSummary');
+
+    return updatedApplication;
+  }
+
+  // Delete application by ID
+  static async deleteApplicationById(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID');
+    }
+
+    const application = await ApplicationForm.findOne({ _id: applicationId, is_deleted: false });
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Create history entry
+    await ApplicationService.createApplicationHistory(application);
+
+    await ApplicationForm.findByIdAndUpdate(applicationId, { is_deleted: true });
+    return { message: 'Application soft deleted successfully' };
+  }
+
+  // Delete application by user ID
+  static async deleteApplicationByUserId(userId) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID');
+    }
+
+    const application = await ApplicationForm.findOne({ user: userId, is_deleted: false });
+    if (!application) {
+      throw new Error('No application found for this user');
+    }
+
+    // Create history entry
+    await ApplicationService.createApplicationHistory(application);
+
+    await ApplicationForm.findOneAndUpdate({ user: userId }, { is_deleted: true });
+    return { message: 'Application soft deleted successfully' };
+  }
+
+  // Delete application form only (keep documents)
+  static async deleteApplicationFormOnly(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findOne({ _id: applicationId, is_deleted: false }).populate('user', 'name email');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    await ApplicationForm.findByIdAndUpdate(applicationId, { is_deleted: true });
+
+    return {
+      message: `Application form for ${application.firstName} ${application.lastName} has been deleted. Documents are preserved for reuse.`,
+      deletedData: {
+        applicationId: application._id,
+        studentName: `${application.firstName} ${application.lastName}`,
+        documentsPreserved: true
+      }
+    };
+  }
+
+  // Delete documents only (keep application form)
+  static async deleteDocumentsOnly(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findOne({ _id: applicationId, is_deleted: false }).populate('user', 'name email');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    try {
+      const DocumentUpload = require('../models/DocumentUpload');
+      const docResult = await DocumentUpload.deleteOne({ user: application.user._id });
+      
+      if (docResult.deletedCount === 0) {
+        throw new Error('No documents found to delete');
+      }
+
+      return {
+        message: `Documents for ${application.firstName} ${application.lastName} have been deleted. Application form is preserved.`
+      };
+    } catch (docError) {
+      throw new Error(`Failed to delete documents: ${docError.message}`);
+    }
+  }
+
+  // Set approval summary
+  static async setApprovalSummary(userId, approvalData) {
+    const { endorsedBy, approvedBy } = approvalData;
+
+    if (!endorsedBy && !approvedBy) {
+      throw new Error('At least one of endorsedBy or approvedBy must be provided');
+    }
+
+    const approvalsSummary = {};
+    if (endorsedBy) {
+      if (!mongoose.Types.ObjectId.isValid(endorsedBy)) {
+        throw new Error('Invalid endorsedBy ID');
+      }
+      approvalsSummary.endorsedBy = endorsedBy;
+    }
+    if (approvedBy) {
+      if (!mongoose.Types.ObjectId.isValid(approvedBy)) {
+        throw new Error('Invalid approvedBy ID');
+      }
+      approvalsSummary.approvedBy = approvedBy;
+    }
+
+    const currentApplication = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: userId }));
+    if (!currentApplication) {
+      throw new Error('No application found for this user');
+    }
+
+    // Create history entry
+    await ApplicationService.createApplicationHistory(currentApplication);
+
+    const updatedApplication = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ user: userId }),
+      { $set: { approvalsSummary } },
+      { new: true, runValidators: true }
+    ).select('approvalsSummary')
+      .populate('approvalsSummary.endorsedBy', 'name _id')
+      .populate('approvalsSummary.approvedBy', 'name _id');
+
+    return updatedApplication.approvalsSummary;
+  }
+
+  // Set application status
+  static async setStatus(userId, status) {
+    if (!status) {
+      throw new Error('Status is required');
+    }
+
+    if (!['Pending', 'Approved', 'Document Verification', 'Interview Scheduled', 'Rejected'].includes(status)) {
+      throw new Error('Invalid status value');
+    }
+    
+    const currentApplication = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: userId }));
+    if (!currentApplication) {
+      throw new Error('No application found for this user');
+    }
+
+    // Create history entry
+    await ApplicationService.createApplicationHistory(currentApplication);
+
+    const updatedApplication = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ user: userId }),
+      { $set: { status } },
+      { new: true, runValidators: true }
+    ).select('status');
+
+    // Create status change notification
+    await NotificationService.createStatusChangeNotification(
+      currentApplication.user,
+      currentApplication._id,
+      status
+    );
+
+    return updatedApplication.status;
+  }
+
+  // Set status by application ID
+  static async setStatusById(applicationId, status, updatedBy) {
+    if (!status) {
+      throw new Error('Status is required');
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const currentApplication = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }));
+    if (!currentApplication) {
+      throw new Error('Application not found');
+    }
+
+    // Create history entry
+    await ApplicationService.createApplicationHistory(currentApplication);
+
+    const updatedApplication = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }),
+      { 
+        $set: { 
+          status,
+          updatedAt: new Date(),
+          updatedBy: updatedBy
+        }
+      },
+      { new: true, runValidators: true }
+    ).populate('user', 'name email');
+
+    // Create status change notification
+    try {
+      await NotificationService.createStatusChangeNotification(
+        currentApplication.user,
+        currentApplication._id,
+        status
+      );
+    } catch (notifError) {
+      console.warn('⚠️ Failed to create notification:', notifError.message);
+    }
+
+    return {
+      id: updatedApplication._id,
+      status: updatedApplication.status,
+      updatedAt: updatedApplication.updatedAt,
+      user: updatedApplication.user
+    };
+  }
+
+  // Get application history by user ID
+  static async getApplicationHistoryByUserId(userId) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID');
+    }
+
+    const history = await ApplicationHistory.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .populate('user', 'name idNumber _id');
+
+    return history;
+  }
+
+  // Get application history by history ID
+  static async getApplicationHistoryById(historyId) {
+    if (!mongoose.Types.ObjectId.isValid(historyId)) {
+      throw new Error('Invalid history ID');
+    }
+
+    const historyEntry = await ApplicationHistory.findById(historyId)
+      .populate('user', 'name idNumber _id');
+
+    if (!historyEntry) {
+      throw new Error('History entry not found');
+    }
+
+    return historyEntry;
+  }
+
+  // Get user's application history
+  static async getMyApplicationHistory(userId) {
+    const history = await ApplicationHistory.find({ user: userId })
+      .sort({ createdAt: -1 });
+
+    return history;
+  }
+
+  // Update application status
+  static async updateApplicationStatus(applicationId, status) {
+    const application = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }),
+      { status, updatedAt: new Date() },
+      { new: true }
+    ).populate('user', 'name email');
+
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Create notification
+    try {
+      await NotificationService.createStatusChangeNotification(
+        application.user._id,
+        application._id,
+        status
+      );
+    } catch (notifError) {
+      console.log('⚠️ Notification creation failed:', notifError.message);
+    }
+
+    return application;
+  }
+
+  // Get application details
+  static async getApplicationDetails(applicationId) {
+    const application = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }))
+      .populate('user', 'name email idNumber')
+      .lean();
+
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    return application;
+  }
+
+  // Get application documents
+  static async getApplicationDocuments(applicationId) {
+    const application = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }));
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    const DocumentUpload = require('../models/DocumentUpload');
+    const documents = await DocumentUpload.findOne({ user: application.user });
+
+    return {
+      studentPicture: !!(documents?.studentPicture),
+      nbiClearance: !!(documents?.nbiClearance),
+      gradeReport: !!(documents?.gradeReport),
+      incomeTaxReturn: !!(documents?.incomeTaxReturn),
+      goodMoralCertificate: !!(documents?.goodMoralCertificate),
+      physicalCheckup: !!(documents?.physicalCheckup),
+      homeLocationSketch: !!(documents?.homeLocationSketch)
+    };
+  }
+
+  // Get documents by application ID with detailed info
+  static async getApplicationDocumentsByAppId(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }));
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    const DocumentUpload = require('../models/DocumentUpload');
+    const documents = await DocumentUpload.findOne({ user: application.user });
+
+    const documentStatus = {
+      studentPicture: {
+        uploaded: !!(documents?.studentPicture),
+        filename: documents?.studentPicture && typeof documents.studentPicture === 'string' 
+          ? documents.studentPicture 
+          : documents?.studentPicture?.originalName || null,
+        uploadedAt: documents?.createdAt
+      },
+      nbiClearance: {
+        uploaded: !!(documents?.nbiClearance),
+        filename: documents?.nbiClearance && typeof documents.nbiClearance === 'string'
+          ? documents.nbiClearance 
+          : documents?.nbiClearance?.originalName || null,
+        uploadedAt: documents?.createdAt
+      },
+      gradeReport: {
+        uploaded: !!(documents?.gradeReport),
+        filename: documents?.gradeReport && typeof documents.gradeReport === 'string'
+          ? documents.gradeReport 
+          : documents?.gradeReport?.originalName || null,
+        uploadedAt: documents?.createdAt
+      },
+      incomeTaxReturn: {
+        uploaded: !!(documents?.incomeTaxReturn),
+        filename: documents?.incomeTaxReturn && typeof documents.incomeTaxReturn === 'string'
+          ? documents.incomeTaxReturn 
+          : documents?.incomeTaxReturn?.originalName || null,
+        uploadedAt: documents?.createdAt
+      },
+      goodMoralCertificate: {
+        uploaded: !!(documents?.goodMoralCertificate),
+        filename: documents?.goodMoralCertificate && typeof documents.goodMoralCertificate === 'string'
+          ? documents.goodMoralCertificate 
+          : documents?.goodMoralCertificate?.originalName || null,
+        uploadedAt: documents?.createdAt
+      },
+      physicalCheckup: {
+        uploaded: !!(documents?.physicalCheckup),
+        filename: documents?.physicalCheckup && typeof documents.physicalCheckup === 'string'
+          ? documents.physicalCheckup 
+          : documents?.physicalCheckup?.originalName || null,
+        uploadedAt: documents?.createdAt
+      },
+      homeLocationSketch: {
+        uploaded: !!(documents?.homeLocationSketch),
+        filename: documents?.homeLocationSketch && typeof documents.homeLocationSketch === 'string'
+          ? documents.homeLocationSketch 
+          : documents?.homeLocationSketch?.originalName || null,
+        uploadedAt: documents?.createdAt
+      }
+    };
+
+    const totalRequired = 7;
+    const totalUploaded = Object.values(documentStatus).filter(doc => doc.uploaded).length;
+
+    return {
+      documents: documentStatus,
+      summary: {
+        totalRequired,
+        totalUploaded,
+        completionRate: Math.round((totalUploaded / totalRequired) * 100),
+        isComplete: totalUploaded === totalRequired
+      }
+    };
+  }
+
+  // Delete application with cleanup
+  static async deleteApplicationWithCleanup(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }))
+      .populate('user', 'name email');
+      
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Delete associated documents
+    try {
+      const DocumentUpload = require('../models/DocumentUpload');
+      await DocumentUpload.deleteOne({ user: application.user });
+      console.log('🗑️ Associated documents deleted');
+    } catch (docError) {
+      console.log('⚠️ Could not delete documents:', docError.message);
+    }
+
+    // Create deletion notification
+    try {
+      await NotificationService.createApplicationDeletionNotification(
+        application.user._id,
+        application._id,
+        `Your application has been removed by OAS staff. You can submit a new application if needed.`
+      );
+      console.log('✅ Deletion notification created');
+    } catch (notifError) {
+      console.log('⚠️ Could not create notification:', notifError.message);
+    }
+
+    // Delete the application
+    await SoftDeleteUtils.softDeleteById(ApplicationForm, applicationId);
+
+    return {
+      message: `Application for ${application.firstName} ${application.lastName} has been deleted successfully`,
+      deletedApplication: {
+        id: application._id,
+        name: `${application.firstName} ${application.lastName}`,
+        email: application.emailAddress
+      }
+    };
+  }
+
+  // Verify application form
+  static async verifyApplicationForm(applicationId, verifiedBy) {
+    const application = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId })).populate('user');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    const updatedApplication = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }),
+      { 
+        status: 'form_verified',
+        verifiedAt: new Date(),
+        verifiedBy: verifiedBy
+      },
+      { new: true }
+    );
+
+    // Create notification for student
+    try {
+      await NotificationService.createApplicationFormVerifiedNotification(
+        application.user._id,
+        applicationId
+      );
+      console.log('📱 Notification sent to student');
+    } catch (notificationError) {
+      console.warn('⚠️ Failed to send notification:', notificationError.message);
+    }
+
+    return {
+      id: updatedApplication._id,
+      status: updatedApplication.status,
+      verifiedAt: updatedApplication.verifiedAt
+    };
+  }
+
+  // Verify application documents
+  static async verifyApplicationDocuments(applicationId, verifiedBy) {
+    const application = await ApplicationForm.findById(applicationId).populate('user');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    const updatedApplication = await ApplicationForm.findByIdAndUpdate(
+      applicationId,
+      { 
+        status: 'document_verification',
+        documentsVerifiedAt: new Date(),
+        documentsVerifiedBy: verifiedBy
+      },
+      { new: true }
+    );
+
+    // Create notifications for student
+    try {
+      await NotificationService.createAllDocumentsVerifiedNotification(
+        application.user._id,
+        applicationId
+      );
+      await NotificationService.createPersonalityTestAvailableNotification(
+        application.user._id,
+        applicationId
+      );
+      console.log('📱 Notification sent to student');
+    } catch (notificationError) {
+      console.warn('⚠️ Failed to send notification:', notificationError.message);
+    }
+
+    return {
+      id: updatedApplication._id,
+      status: updatedApplication.status,
+      documentsVerifiedAt: updatedApplication.documentsVerifiedAt
+    };
+  }
+
+  // Get dashboard statistics
+  static async getDashboardStats() {
+    const stats = await ApplicationForm.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Initialize counts
+    let newApplications = 0;        // pending
+    let documentVerifications = 0;  // form_verified (waiting for doc verification)
+    let scheduledInterviews = 0;    // document_verification (ready for interview)
+    let activeScholars = 0;         // approved
+
+    // Map the aggregated results
+    stats.forEach(stat => {
+      switch (stat._id) {
+        case 'pending':
+          newApplications = stat.count;
+          break;
+        case 'form_verified':
+          documentVerifications = stat.count;
+          break;
+        case 'document_verification':
+          scheduledInterviews = stat.count;
+          break;
+        case 'approved':
+          activeScholars = stat.count;
+          break;
+        default:
+          console.log('📋 Unknown status:', stat._id, 'count:', stat.count);
+      }
+    });
+
+    return {
+      newApplications,        // Status: "pending"
+      documentVerifications,  // Status: "form_verified" 
+      scheduledInterviews,    // Status: "document_verification"
+      activeScholars         // Status: "approved"
+    };
+  }
+
+  // Auto-complete application when personality test is completed
+  static async autoCompleteApplication(userId, reason) {
+    const application = await ApplicationForm.findOne({ user: userId });
+    if (!application) {
+      throw new Error('No application found for user');
+    }
+
+    // Check if application is already approved or rejected
+    if (['approved', 'rejected'].includes(application.status)) {
+      return { 
+        message: 'Application already completed', 
+        status: application.status 
+      };
+    }
+
+    // Verify that personality test actually exists
+    const PersonalityTest = require('../models/PersonalityTest');
+    const existingTest = await PersonalityTest.findOne({
+      applicationId: application._id,
+    });
+
+    if (!existingTest) {
+      throw new Error('Cannot auto-complete: No personality test found');
+    }
+
+    // Create history entry before updating
+    await ApplicationService.createApplicationHistory(application);
+
+    // Update application status to approved
+    application.status = 'approved';
+    application.updatedAt = new Date();
+    application.personalityTestCompletedAt = new Date();
+    await application.save();
+
+    // Create notification
+    await NotificationService.createNotification({
+      userId: userId,
+      type: 'application_status_update',
+      title: 'Application Approved',
+      message: `Your application has been automatically approved upon completion of the personality test.`,
+      data: {
+        applicationId: application._id,
+        newStatus: 'approved',
+        reason: reason || 'personality_test_completed'
+      }
+    });
+
+    console.log(`✅ Application ${application._id} auto-completed for user ${userId}`);
+
+    return {
+      message: 'Application auto-completed successfully',
+      status: 'approved',
+      applicationId: application._id
+    };
+  }
+
+  // Generate PDF for application
+  static async generateApplicationPDF(application, templatePath) {
+    let browser = null;
+    try {
+      let template;
+      try {
+        template = await fs.readFile(templatePath, 'utf-8');
+      } catch (error) {
+        throw new Error(`Failed to load PDF template: ${error.message}`);
+      }
+
+      const data = {
+        firstName: application.firstName || '',
+        middleName: application.middleName || 'N/A',
+        lastName: application.lastName || '',
+        suffix: application.suffix || 'N/A',
+        emailAddress: application.emailAddress || 'N/A',
+        programOfStudyAndYear: application.programOfStudyAndYear || '',
+        existingScholarship: application.existingScholarship || 'N/A',
+        remainingUnits: application.remainingUnitsIncludingThisTerm || 0,
+        remainingUnitsIncludingThisTerm: application.remainingUnitsIncludingThisTerm || 0,
+        remainingTermsToGraduate: application.remainingTermsToGraduate || 0,
+        citizenship: application.citizenship || '',
+        civilStatus: application.civilStatus || '',
+        annualFamilyIncome: application.annualFamilyIncome || '',
+        currentAddress: application.currentResidenceAddress || 'N/A',
+        residingAt: application.residingAt || '',
+        permanentResidence: application.permanentResidentialAddress || '',
+        contactNumber: application.contactNumber || '',
+        family: {
+          father: {
+            firstName: application.familyBackground?.father?.firstName || '',
+            middleName: application.familyBackground?.father?.middleName || 'N/A',
+            lastName: application.familyBackground?.father?.lastName || '',
+            suffix: application.familyBackground?.father?.suffix || 'N/A',
+            age: application.familyBackground?.father?.age || 0,
+            occupation: application.familyBackground?.father?.occupation || '',
+            grossAnnualIncome: application.familyBackground?.father?.grossAnnualIncome || '',
+            companyName: application.familyBackground?.father?.companyName || 'N/A',
+            companyAddress: application.familyBackground?.father?.companyAddress || 'N/A',
+            homeAddress: application.familyBackground?.father?.homeAddress || 'N/A',
+            contactNumber: application.familyBackground?.father?.contactNumber || ''
+          },
+          mother: {
+            firstName: application.familyBackground?.mother?.firstName || '',
+            middleName: application.familyBackground?.mother?.middleName || 'N/A',
+            lastName: application.familyBackground?.mother?.lastName || '',
+            suffix: application.familyBackground?.mother?.suffix || 'N/A',
+            age: application.familyBackground?.mother?.age || 0,
+            occupation: application.familyBackground?.mother?.occupation || '',
+            grossAnnualIncome: application.familyBackground?.mother?.grossAnnualIncome || '',
+            companyName: application.familyBackground?.mother?.companyName || 'N/A',
+            companyAddress: application.familyBackground?.mother?.companyAddress || 'N/A',
+            homeAddress: application.familyBackground?.mother?.homeAddress || 'N/A',
+            contactNumber: application.familyBackground?.mother?.contactNumber || ''
+          },
+          siblings: application.familyBackground?.siblings || []
+        },
+        education: {
+          elementary: {
+            nameAndAddressOfSchool: application.education?.elementary?.nameAndAddressOfSchool || '',
+            honorOrAwardsReceived: application.education?.elementary?.honorOrAwardsReceived || 'N/A',
+            nameOfOrganizationAndPositionHeld: application.education?.elementary?.nameOfOrganizationAndPositionHeld || 'N/A',
+            generalAverage: application.education?.elementary?.generalAverage || 0,
+            rankAmongGraduates: application.education?.elementary?.rankAmongGraduates || 'N/A',
+            contestTrainingsConferencesParticipated: application.education?.elementary?.contestTrainingsConferencesParticipated || 'N/A'
+          },
+          secondary: {
+            nameAndAddressOfSchool: application.education?.secondary?.nameAndAddressOfSchool || '',
+            honorOrAwardsReceived: application.education?.secondary?.honorOrAwardsReceived || 'N/A',
+            nameOfOrganizationAndPositionHeld: application.education?.secondary?.nameOfOrganizationAndPositionHeld || 'N/A',
+            generalAverage: application.education?.secondary?.generalAverage || 0,
+            rankAmongGraduates: application.education?.secondary?.rankAmongGraduates || 'N/A',
+            contestTrainingsConferencesParticipated: application.education?.secondary?.contestTrainingsConferencesParticipated || 'N/A'
+          },
+          collegeLevel: (application.education?.collegeLevel || []).map(item => ({
+            yearLevel: ApplicationService.formatYearLevel(item.yearLevel),
+            firstSemesterAverageFinalGrade: item.firstSemesterAverageFinalGrade || 0,
+            secondSemesterAverageFinalGrade: item.secondSemesterAverageFinalGrade || 0,
+            thirdSemesterAverageFinalGrade: item.thirdSemesterAverageFinalGrade || 0
+          })),
+          currentMembershipInOrganizations: application.education?.currentMembershipInOrganizations || []
+        },
+        references: application.references || []
+      };
+
+      let html = template;
+
+      const escapeHtml = (str) => {
+        const value = str ?? 'N/A';
+        return String(value).replace(/[&<>"']/g, m => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        })[m]);
+      };
+
+      const replaceScalar = (key, value) => {
+        html = html.replace(new RegExp(`{{${key}}}`, 'g'), escapeHtml(value));
+        html = html.replace(new RegExp(`{{{${key}}}}`, 'g'), String(value ?? 'N/A'));
+      };
+
+      for (const key in data) {
+        if (typeof data[key] === 'string' || typeof data[key] === 'number') {
+          replaceScalar(key, data[key]);
+        }
+      }
+
+      for (const parent of ['father', 'mother']) {
+        for (const field in data.family[parent]) {
+          replaceScalar(`family.${parent}.${field}`, data.family[parent][field]);
+        }
+      }
+
+      for (const level of ['elementary', 'secondary']) {
+        for (const field in data.education[level]) {
+          replaceScalar(`education.${level}.${field}`, data.education[level][field]);
+        }
+      }
+
+      const arraySections = [
+        {
+          key: 'family.siblings',
+          regex: /{{#each family\.siblings}}([\s\S]*?){{\/each}}/,
+          fields: ['name', 'age', 'programCurrentlyTakingOrFinished', 'schoolOrOccupation']
+        },
+        {
+          key: 'education.collegeLevel',
+          regex: /{{#each education\.collegeLevel}}([\s\S]*?){{\/each}}/,
+          fields: ['yearLevel', 'firstSemesterAverageFinalGrade', 'secondSemesterAverageFinalGrade', 'thirdSemesterAverageFinalGrade']
+        },
+        {
+          key: 'education.currentMembershipInOrganizations',
+          regex: /{{#each education\.currentMembershipInOrganizations}}([\s\S]*?){{\/each}}/,
+          fields: ['nameOfOrganization', 'position']
+        },
+        {
+          key: 'references',
+          regex: /{{#each references}}([\s\S]*?){{\/each}}/,
+          fields: ['name', 'relationshipToTheApplicant', 'contactNumber']
+        }
+      ];
+
+      for (const { key, regex, fields } of arraySections) {
+        const match = html.match(regex);
+        if (match) {
+          const template = match[1];
+          let content = '';
+          const items = key.split('.').reduce((obj, k) => obj?.[k] || [], data);
+          if (items.length) {
+            items.forEach(item => {
+              let temp = template;
+              fields.forEach(field => {
+                temp = temp.replace(new RegExp(`{{${field}}}`, 'g'), escapeHtml(item[field]));
+                temp = temp.replace(new RegExp(`{{{${field}}}}`, 'g'), String(item[field] ?? 'N/A'));
+              });
+              content += temp;
+            });
+          } else {
+            content = `<p class="no-data">No ${key.split('.').pop()} listed.</p>`;
+          }
+          html = html.replace(regex, content);
+        }
+      }
+
+      html = html.replace(/{{#if ([^}]+)}}([\s\S]*?){{else}}([\s\S]*?){{\/if}}/g, (match, condition, ifContent, elseContent) => {
+        const path = condition.split('.');
+        const value = path.reduce((obj, k) => obj?.[k], data);
+        return value && (Array.isArray(value) ? value.length : value) ? ifContent : elseContent;
+      });
+
+      browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' }
+      });
+
+      return pdfBuffer;
+    } finally {
+      if (browser) {
+        await browser.close().catch(err => console.error('Error closing browser:', err.message));
+      }
+    }
+  }
+
+  // Export application as PDF by user ID
+  static async exportApplicationAsPDFByUserId(userId) {
+    console.log('🔍 PDF request - Received ID:', userId);
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID format');
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found in database');
+    }
+    
+    console.log('✅ User found:', user.name, user.email);
+
+    const application = await ApplicationForm.findOne({ user: userId })
+      .populate('user', 'name email')
+      .lean();
+      
+    if (!application) {
+      throw new Error('No application found for this user');
+    }
+
+    console.log('✅ Application found, generating PDF...');
+    
+    const templatePath = path.join(__dirname, '../pdf-templates/application-form.html');
+    const pdfBuffer = await ApplicationService.generateApplicationPDF(application, templatePath);
+
+    console.log('✅ PDF generated, size:', pdfBuffer.length, 'bytes');
+
+    return {
+      pdfBuffer,
+      filename: `application-form-${application._id}.pdf`
+    };
+  }
+
+  // Export user's own application as PDF
+  static async exportMyApplicationAsPDF(userId) {
+    const application = await ApplicationForm.findOne({ user: userId })
+      .populate('user', 'name email')
+      .lean();
+      
+    if (!application) {
+      throw new Error('Application not found for this user');
+    }
+
+    const templatePath = path.join(__dirname, '../pdf-templates/application-form.html');
+    const pdfBuffer = await ApplicationService.generateApplicationPDF(application, templatePath);
+
+    // Log PDF export
+    await ActivityLogger.logPDFExport(userId, application._id);
+
+    return {
+      pdfBuffer,
+      filename: `application-form-${application._id}.pdf`
+    };
+  }
+
+  // Export PDF using application ID
+  static async exportApplicationAsPDFByApplicationId(applicationId) {
+    console.log('🔍 PDF request - Application ID:', applicationId);
+
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findById(applicationId)
+      .populate('user', 'name email _id')
+      .lean();
+      
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    if (!application.user) {
+      throw new Error('No user associated with this application');
+    }
+
+    console.log('✅ Application found with user:', application.user.name);
+
+    const templatePath = path.join(__dirname, '../pdf-templates/application-form.html');
+    const pdfBuffer = await ApplicationService.generateApplicationPDF(application, templatePath);
+
+    console.log('✅ PDF generated, size:', pdfBuffer.length, 'bytes');
+
+    return {
+      pdfBuffer,
+      filename: `application-${application.firstName}-${application.lastName}.pdf`
+    };
+  }
+
+  // Get user activity history
+  static async getMyActivityHistory(userId, limit = 50) {
+    const history = await ActivityLogger.getUserActivityHistory(userId, limit);
+    return history;
+  }
+
+  // Get user activity history (admin)
+  static async getUserActivityHistory(userId, limit = 50) {
+    const history = await ActivityLogger.getUserActivityHistory(userId, limit);
+    return history;
+  }
+
+  // Test database connection
+  static async testDatabaseConnection() {
+    const mongoose = require('mongoose');
+    const count = await ApplicationForm.countDocuments();
+    
+    return { 
+      message: 'Database connection OK', 
+      applicationCount: count,
+      dbState: mongoose.connection.readyState 
+    };
+  }
+
+  // Soft Delete Methods
+  static async softDeleteApplication(applicationId) {
+    try {
+      const result = await SoftDeleteUtils.softDeleteById(ApplicationForm, applicationId);
+      await ActivityLogger.logApplicationUpdate(
+        result.user, 
+        applicationId, 
+        'application_soft_deleted'
+      );
+      return { message: 'Application soft deleted successfully', data: result };
+    } catch (error) {
+      console.error('Error soft deleting application:', error);
+      throw error;
+    }
+  }
+
+  static async restoreApplication(applicationId) {
+    try {
+      const result = await SoftDeleteUtils.restoreById(ApplicationForm, applicationId);
+      await ActivityLogger.logApplicationUpdate(
+        result.user, 
+        applicationId, 
+        'application_restored'
+      );
+      return { message: 'Application restored successfully', data: result };
+    } catch (error) {
+      console.error('Error restoring application:', error);
+      throw error;
+    }
+  }
+
+  static async permanentDeleteApplication(applicationId) {
+    try {
+      const result = await SoftDeleteUtils.permanentDeleteById(ApplicationForm, applicationId);
+      return { message: 'Application permanently deleted', data: result };
+    } catch (error) {
+      console.error('Error permanently deleting application:', error);
+      throw error;
+    }
+  }
+
+  static async getSoftDeletedApplications(query = {}) {
+    try {
+      return await SoftDeleteUtils.getSoftDeleted(ApplicationForm, query);
+    } catch (error) {
+      console.error('Error getting soft deleted applications:', error);
+      throw error;
+    }
+  }
+}
+
+module.exports = ApplicationService;

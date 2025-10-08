@@ -12,7 +12,8 @@ const roleSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Permission',
     required: true
-  }]
+  }],
+  is_deleted: { type: Boolean, default: false }
 }, {
   timestamps: true // Adds createdAt and updatedAt fields
 });

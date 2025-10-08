@@ -8,7 +8,8 @@ const permissionSchema = new mongoose.Schema({
     trim: true,
     minlength: [3, 'Permission name must be at least 3 characters long']
   },
-  description: { type: String }
+  description: { type: String },
+  is_deleted: { type: Boolean, default: false }
 }, {
   timestamps: true // Adds createdAt and updatedAt fields
 });
