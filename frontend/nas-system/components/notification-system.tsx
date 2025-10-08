@@ -26,7 +26,7 @@ export function NotificationSystem() {
   const fetchNotifications = async () => {
     try {
       console.log('🔍 Fetching notifications from API...')
-      const response = await fetch('http://localhost:3000/api/notifications', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -65,7 +65,7 @@ export function NotificationSystem() {
 
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/notifications/${id}/read`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/${id}/read`, {
         method: 'PATCH',
         credentials: 'include'
       })
@@ -84,7 +84,7 @@ export function NotificationSystem() {
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/notifications/mark-all-read', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/mark-all-read`, {
         method: 'PATCH',
         credentials: 'include'
       })
@@ -99,7 +99,7 @@ export function NotificationSystem() {
 
   const deleteNotification = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/notifications/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       })

@@ -17,10 +17,14 @@ const nextConfig = {
     optimizePackageImports: [],
   },
   async rewrites() {
+    // Use environment variable for backend URL in production
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+    const baseUrl = backendUrl.replace('/api', '');
+    
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3000/api/:path*', // Proxy to backend
+        destination: `${baseUrl}/api/:path*`, // Dynamic proxy to backend
       },
     ]
   },

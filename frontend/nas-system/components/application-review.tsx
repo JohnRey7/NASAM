@@ -51,7 +51,7 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3000/api/oas/application/${applicationId}/documents`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents`, {
         credentials: 'include'
       });
 
@@ -75,7 +75,7 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
 
   const handleDownloadDocument = async (docType: string, filename: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/documents/download/${filename}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/documents/download/${filename}`, {
         credentials: 'include'
       });
 
@@ -110,7 +110,7 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
     try {
       console.log('✅ Verifying application form for:', application._id);
 
-      const response = await fetch(`http://localhost:3000/api/oas/application/${application._id}/verify-form`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${application._id}/verify-form`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
@@ -149,7 +149,7 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
     try {
       console.log('✅ Verifying all documents for application:', applicationId);
 
-      const response = await fetch(`http://localhost:3000/api/oas/application/${applicationId}/verify-documents`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/verify-documents`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
@@ -200,7 +200,7 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
     try {
       console.log('🗑️ Deleting documents only:', applicationId);
 
-      const response = await fetch(`http://localhost:3000/api/oas/application/${applicationId}/documents-only`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents-only`, {
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
@@ -520,7 +520,7 @@ export function ApplicationReview() {
     try {
       console.log('Scheduling interview for application:', selectedApplication._id);
       
-      const response = await fetch('http://localhost:3000/api/admin/interview/schedule', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/admin/interview/schedule`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -605,16 +605,16 @@ export function ApplicationReview() {
       });
       return;
     }
-    
     try {
       console.log(`📄 Downloading PDF for application: ${applicationId}`);
       
       // Use the new endpoint that takes application ID
-      const response = await fetch(`http://localhost:3000/api/oas/application-by-id/${applicationId}/pdf`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application-by-id/${applicationId}/pdf`, {
         method: 'GET',
         credentials: 'include',
         headers: {
           'Accept': 'application/pdf',
+          'Cache-Control': 'no-cache'
         }
       });
 
@@ -680,7 +680,7 @@ export function ApplicationReview() {
     try {
       console.log('🗑️ Deleting application:', application._id);
 
-      const response = await fetch(`http://localhost:3000/api/oas/application/${application._id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${application._id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
@@ -745,7 +745,7 @@ export function ApplicationReview() {
     try {
       console.log('🗑️ Deleting application form only:', application._id);
 
-      const response = await fetch(`http://localhost:3000/api/oas/application/${application._id}/form-only`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${application._id}/form-only`, {
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
@@ -802,7 +802,7 @@ export function ApplicationReview() {
     try {
       console.log('🗑️ Deleting documents only:', application._id);
 
-      const response = await fetch(`http://localhost:3000/api/oas/application/${application._id}/documents-only`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${application._id}/documents-only`, {
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
@@ -846,13 +846,14 @@ export function ApplicationReview() {
     
     setPersonalityTestLoading(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/personality-test/user/${userId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/user/${userId}`, {
         credentials: 'include'
       });
 
       if (response.ok) {
         const data = await response.json();
         setPersonalityTestData(data);
+        console.log('Personality test data fetched:', data);
       } else if (response.status === 404) {
         // No personality test found - this is normal
         setPersonalityTestData(null);
@@ -880,7 +881,7 @@ export function ApplicationReview() {
     try {
       console.log('✅ Verifying application form:', application._id);
 
-      const response = await fetch(`http://localhost:3000/api/oas/application/${application._id}/verify`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${application._id}/verify`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }

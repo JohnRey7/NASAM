@@ -48,12 +48,35 @@ app.use(helmet({
   },
 }));
 
-// CORS configuration for development
+// CORS configuration for production and development
+const allowedOrigins = [
+  'http://95.216.139.119:3001',
+  'http://localhost:3001', 
+  'http://127.0.0.1:3001',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: ['http://95.216.139.119:3001', 'http://localhost:3001', 'http://127.0.0.1:3001'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // In production, be more strict
+    if (process.env.NODE_ENV === 'production') {
+      return callback(new Error('Not allowed by CORS'));
+    }
+    
+    // In development, allow any origin
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type','Access-Control-Allow-Origin', 'Authorization', 'Cookie'],
+  allowedHeaders: ['Content-Type', 'Access-Control-Allow-Origin', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
 }));
 
 app.use(express.json());
@@ -93,6 +116,7 @@ app.get('/', (req, res) => {
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
 app.post('/api/auth/logout', authenticate, AuthController.logout);
+app.post('/api/auth/forgot-password', AuthController.forgotPasswordVerifyEmail);
 app.post('/api/auth/forgot-password/verify-email', AuthController.forgotPasswordVerifyEmail);
 app.post('/api/auth/forgot-password/change-password', AuthController.forgotPasswordChangePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Bell, X, CheckCircle, AlertCircle, Clock, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/hooks/use-toast"
 
 interface Notification {
   _id: string
@@ -23,6 +24,7 @@ export function NotificationDropdown() {
   const [loading, setLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const { toast } = useToast()
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -35,17 +37,10 @@ export function NotificationDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Fetch notifications when dropdown opens
-  useEffect(() => {
-    if (isOpen && notifications.length === 0) {
-      fetchNotifications()
-    }
-  }, [isOpen])
-
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      const response = await fetch('http://localhost:3000/api/notifications?limit=10', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications?limit=10`, {
         credentials: 'include'
       })
       if (response.ok) {
@@ -60,90 +55,91 @@ export function NotificationDropdown() {
     }
   }
 
+  // Fetch notifications when dropdown opens
+  useEffect(() => {
+    if (isOpen && notifications.length === 0) {
+      fetchNotifications()
+    }
+  }, [isOpen])
+
   const markAsRead = async (notificationId: string) => {
     try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/${notificationId}/read`, {
         method: 'PATCH',
         credentials: 'include'
       })
-      setNotifications(prev => 
-        prev.map(n => n._id === notificationId ? { ...n, isRead: true } : n)
-      )
-      setUnreadCount(prev => Math.max(0, prev - 1))
+      if (response.ok) {
+        setNotifications(prev => 
+          prev.map(n => n._id === notificationId ? { ...n, isRead: true } : n)
+        )
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      }
     } catch (error) {
-      console.error('Error marking as read:', error)
+      console.error('Error marking notification as read:', error)
     }
   }
 
   const markAllAsRead = async () => {
     try {
-      await fetch('/api/notifications/mark-all-read', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/mark-all-read`, {
         method: 'PATCH',
         credentials: 'include'
       })
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
-      setUnreadCount(0)
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+        setUnreadCount(0)
+      }
     } catch (error) {
-      console.error('Error marking all as read:', error)
+      console.error('Error marking all notifications as read:', error)
     }
   }
 
   const deleteNotification = async (notificationId: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/notifications/${notificationId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/${notificationId}`, {
         method: 'DELETE',
         credentials: 'include'
-      });
+      })
 
       if (response.ok) {
-        // Remove from local state
-        setNotifications(prev => prev.filter(n => n._id !== notificationId));
-        setUnreadCount(prev => Math.max(0, prev - 1));
-        
-        toast({
-          title: "Notification deleted",
-          description: "Notification has been removed successfully."
-        });
+        setNotifications(prev => prev.filter(n => n._id !== notificationId))
+        setUnreadCount(prev => {
+          const deletedNotification = notifications.find(n => n._id === notificationId)
+          return deletedNotification && !deletedNotification.isRead ? Math.max(0, prev - 1) : prev
+        })
       }
     } catch (error) {
-      console.error('Error deleting notification:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete notification",
-        variant: "destructive"
-      });
+      console.error('Error deleting notification:', error)
     }
-  };
+  }
 
   const deleteAllNotifications = async () => {
-    const confirmed = window.confirm('Are you sure you want to delete all notifications? This action cannot be undone.');
-    
-    if (!confirmed) return;
+    const confirmed = window.confirm('Are you sure you want to delete all notifications?')
+    if (!confirmed) return
 
     try {
-      const response = await fetch('http://localhost:3000/api/notifications', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications`, {
         method: 'DELETE',
         credentials: 'include'
-      });
+      })
 
       if (response.ok) {
-        setNotifications([]);
-        setUnreadCount(0);
-        
+        setNotifications([])
+        setUnreadCount(0)
         toast({
           title: "All notifications deleted",
           description: "All notifications have been removed successfully."
-        });
+        })
       }
     } catch (error) {
-      console.error('Error deleting all notifications:', error);
+      console.error('Error deleting all notifications:', error)
       toast({
         title: "Error",
         description: "Failed to delete notifications",
         variant: "destructive"
-      });
+      })
     }
-  };
+  }
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {

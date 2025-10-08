@@ -146,7 +146,7 @@ export function PersonalityTest() {
     async function checkVerificationStatus() {
       try {
         // Check application status
-        const appResponse = await fetch('http://localhost:3000/api/application', {
+        const appResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application`, {
           credentials: 'include'
         });
         

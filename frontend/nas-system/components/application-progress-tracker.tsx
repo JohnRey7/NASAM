@@ -20,7 +20,7 @@ export function ApplicationProgressTracker() {
         setLoading(true)
         
         // Check application status
-        const appResponse = await fetch('http://localhost:3000/api/application', {
+        const appResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application`, {
           credentials: 'include'
         })
         
@@ -40,7 +40,7 @@ export function ApplicationProgressTracker() {
         }
 
         // Check documents (existing logic)
-        const docResponse = await fetch('http://localhost:3000/api/documents', {
+        const docResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/documents`, {
           credentials: 'include'
         })
         
@@ -69,7 +69,7 @@ export function ApplicationProgressTracker() {
         // Check if personality test exists for this user
         try {
           console.log('🔍 DEBUG: Checking personality test status...')
-          const personalityResponse = await fetch('http://localhost:3000/api/personality-test/status', {
+          const personalityResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/status`, {
             credentials: 'include'
           })
           

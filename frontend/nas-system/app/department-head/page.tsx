@@ -131,10 +131,10 @@ export default function DepartmentHeadDashboardPage() {
       const endpoints = [];
       for (const id of possibleIds) {
         endpoints.push(
-          `http://localhost:3000/api/oas/application-by-id/${id}/pdf`,
-          `http://localhost:3000/api/applications/${id}/pdf`,
-          `http://localhost:3000/api/department-head/application/${id}/pdf`,
-          `http://localhost:3000/api/application/${id}/pdf`
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application-by-id/${id}/pdf`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/applications/${id}/pdf`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/application/${id}/pdf`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application/${id}/pdf`
         );
       }
       
@@ -297,7 +297,7 @@ export default function DepartmentHeadDashboardPage() {
             
             // Try to fetch interview data for this applicant
             try {
-              const response = await fetch(`http://localhost:3000/api/interview/user/${applicant._id || applicant.id}`, {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/user/${applicant._id || applicant.id}`, {
                 credentials: 'include'
               });
               

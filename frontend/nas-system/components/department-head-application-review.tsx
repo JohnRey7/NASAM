@@ -68,7 +68,7 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
 
   const handleDownloadDocument = async (docType: string, filename: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/documents/download/${filename}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/documents/download/${filename}`, {
         credentials: 'include'
       });
 
