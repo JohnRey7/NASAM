@@ -133,15 +133,24 @@ export function RegisterForm() {
       <div className="text-center text-sm">
         Already have an account?{" "}
         <Link
-          href="#"
-          className="text-[#800000] hover:underline"
-          onClick={(e) => {
-            e.preventDefault()
-            document.querySelector('[data-value="login"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
-          }}
-        >
-          Login
-        </Link>
+  href="#"
+  className="text-[#800000] hover:underline"
+  onClick={(e) => {
+    e.preventDefault()
+    const loginTab = document.querySelector('[id*="trigger-login"]') as HTMLElement
+    if (loginTab) {
+      loginTab.click()
+      loginTab.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      }))
+      loginTab.focus()
+    }
+  }}
+>
+  Login
+</Link>
       </div>
     </form>
   )

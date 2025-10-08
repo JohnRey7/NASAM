@@ -23,6 +23,8 @@ const PersonalityTestController = require('./controllers/PersonalityTestControll
 const DepartmentController = require("./controllers/DepartmentController");
 const InterviewController = require("./controllers/InterviewController");
 
+const AuditLogController = require('./controllers/AuditLogController');
+
 const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
 const checkPermission = require('./middleware/checkPermission');
@@ -51,13 +53,6 @@ app.use(cookieParser());
 // MongoDB Connection with retry logic
 const connectDB = async () => {
   try {
-    console.log('Attempting to connect to MongoDB...');
-    console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Found' : 'NOT FOUND');
-    
-    if (!process.env.MONGODB_URI) {
-      throw new Error('MONGODB_URI environment variable is not defined');
-    }
-    
     await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
     });
@@ -148,8 +143,6 @@ app.delete('/api/application/:id', authenticate, checkPermission('applicationFor
 app.delete('/api/application/user/:userId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormByUserId);
 
 app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
-app.put('/api/application/:id/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatusById);
-app.patch('/api/application/auto-complete', authenticate, checkPermission('applicationForm.update'), ApplicationController.autoCompleteApplication);
 app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
 
 // Application soft delete routes
@@ -199,7 +192,6 @@ app.get('/api/personality-test/stop', authenticate, checkPermission('personality
 app.get('/api/personality-test/me', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getMyPersonalityTest);
 app.get('/api/personality-test/all', authenticate, checkPermission('personality_test.readAll'), PersonalityTestController.getAllUserPersonalityTest);
 app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getPersonalityTestByUserId);
-app.get('/api/personality-test/status', authenticate, checkPermission('personality_test.readOwn'), PersonalityTestController.getPersonalityTestStatus);
 app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest);
 app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deletePersonalityTestByUserId);
 
@@ -218,11 +210,6 @@ app.get('/api/personality-test/deleted', authenticate, checkPermission('personal
 
 // Interview Routes
 app.post('/api/interview', authenticate, checkPermission('interview.create'), InterviewController.createInterview);
-// Test route to verify routing is working
-app.get('/api/admin/test', (req, res) => {
-  res.json({ message: 'Admin route is working', timestamp: new Date() });
-});
-app.post('/api/admin/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
 app.get('/api/interview/all', authenticate, checkPermission('interview.readAll'), InterviewController.getAllInterviews);
 app.get('/api/interview/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById);
 app.get('/api/interview/user/:userId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByUserId);
@@ -356,6 +343,8 @@ app.get('/api/test-verify', (req, res) => {
 
 // Dashboard stats route
 app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationForm.read'), ApplicationController.getDashboardStats);
+// Analytics endpoint for OAS staff (applications overview & charts)
+app.get('/api/oas/analytics', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAnalytics);
 
 // Department Head: Schedule interview with notification
 app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);

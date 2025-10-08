@@ -3,6 +3,15 @@ import axios from 'axios';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export const authService = {
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const response = await axios.post(`${API_URL}/auth/forgot-password`, { email });
+    return response.data;
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    const response = await axios.post(`${API_URL}/auth/reset-password`, { token, newPassword });
+    return response.data;
+  },
   // ... existing code ...
 
   async logout() {

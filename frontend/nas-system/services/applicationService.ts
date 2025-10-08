@@ -20,6 +20,15 @@ export interface ApplicationFormData {
   residingAt: string;
   permanentResidentialAddress: string;
   contactNumber: string;
+  // New fields for eligibility validation based on SRS
+  isCitUSeniorHighGraduate: boolean;
+  yearLevel: string;
+  citUResidency?: {
+    semesterCount?: number;
+    weightedAverageGrade?: number;
+    hasFailingMarks?: boolean;
+    minimumUnitsCompleted?: number;
+  };
   familyBackground: {
     father: {
       firstName: string;
@@ -87,6 +96,7 @@ export interface ApplicationFormData {
     relationshipToTheApplicant: string;
     contactNumber: string;
   }>;
+  gender?: string;
 }
 
 export const applicationService = {
@@ -409,4 +419,25 @@ export const applicationService = {
       throw error;
     }
   },
+
+  async getApplicationCounts() {
+    try {
+      const response = await fetch(`${API_URL}/oas/application-counts`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text}`);
+      }
+
+      const payload = await response.json();
+      return payload;
+    } catch (error) {
+      console.error('Error fetching application counts:', error);
+      throw error;
+    }
+  }
 };

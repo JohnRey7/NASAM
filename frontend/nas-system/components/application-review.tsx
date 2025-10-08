@@ -388,6 +388,7 @@ export function ApplicationReview() {
   const [applications, setApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [counts, setCounts] = useState<any | null>(null)
 
   useEffect(() => {
     applicationService.getAllApplicationsForStaff()  // CHANGED THIS LINE
@@ -400,9 +401,34 @@ export function ApplicationReview() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Fetch server-side counts
+  useEffect(() => {
+    let mounted = true;
+    const fetchCounts = async () => {
+      try {
+        const res = await applicationService.getApplicationCounts();
+        if (mounted && res && res.success) {
+          setCounts(res.data);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch server counts, falling back to client counts', err);
+      }
+    };
+    fetchCounts();
+    return () => { mounted = false };
+  }, []);
+
+  // server-side counts (fallback to client-side computation)
+  const totalCount = counts?.totalApplicants ?? applications.length
+  const normalize = (s: any) => (s || '').toString().toLowerCase().replace(/\s+/g, '_')
+
+  const pendingCount = counts?.counts?.pending ?? applications.filter(a => normalize(a.status) === 'pending').length
+  const approvedCount = counts?.counts?.approved ?? applications.filter(a => normalize(a.status) === 'approved').length
+  const rejectedCount = counts?.counts?.rejected ?? applications.filter(a => normalize(a.status) === 'rejected').length
+
   const filteredApplications = applications.filter((app) => {
     if (app.user?.idNumber === "ADMIN001") return false; // Exclude admin applications
-    if (filter !== "all" && app.status !== filter) return false;
+    if (filter !== "all" && normalize(app.status) !== normalize(filter)) return false;
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -660,6 +686,14 @@ export function ApplicationReview() {
         duration: 5000
       });
 
+      // Refresh server-side counts
+      try {
+        const res = await applicationService.getApplicationCounts();
+        if (res?.success) setCounts(res.data);
+      } catch (err) {
+        console.warn('Failed to refresh counts after delete', err);
+      }
+
     } catch (error) {
       console.error('❌ Delete failed:', error);
       
@@ -711,6 +745,14 @@ export function ApplicationReview() {
         duration: 5000
       });
 
+      // Refresh server-side counts
+      try {
+        const res = await applicationService.getApplicationCounts();
+        if (res?.success) setCounts(res.data);
+      } catch (err) {
+        console.warn('Failed to refresh counts after form-only delete', err);
+      }
+
     } catch (error) {
       toast({
         title: "Delete Failed",
@@ -756,6 +798,14 @@ export function ApplicationReview() {
         description: `${application.firstName} ${application.lastName}'s documents deleted. Application form preserved.`,
         duration: 5000
       });
+
+      // Refresh server-side counts (document-only delete doesn't change status usually, but refresh to be safe)
+      try {
+        const res = await applicationService.getApplicationCounts();
+        if (res?.success) setCounts(res.data);
+      } catch (err) {
+        console.warn('Failed to refresh counts after documents delete', err);
+      }
 
       // Refresh to show updated document status
       setTimeout(() => window.location.reload(), 2000);
@@ -845,6 +895,14 @@ export function ApplicationReview() {
         duration: 5000
       });
 
+      // Refresh server-side counts
+      try {
+        const res = await applicationService.getApplicationCounts();
+        if (res?.success) setCounts(res.data);
+      } catch (err) {
+        console.warn('Failed to refresh counts after verify', err);
+      }
+
     } catch (error) {
       console.error('❌ Verify failed:', error);
       
@@ -866,6 +924,26 @@ export function ApplicationReview() {
         </CardHeader>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex gap-3 w-full mb-2">
+              <div className="flex-1 grid grid-cols-4 gap-3">
+                <div className="p-3 bg-white border rounded">
+                  <p className="text-xs text-gray-500">Total</p>
+                  <p className="text-xl font-bold text-[#800000]">{totalCount}</p>
+                </div>
+                <div className="p-3 bg-white border rounded">
+                  <p className="text-xs text-gray-500">Pending</p>
+                  <p className="text-xl font-bold">{pendingCount}</p>
+                </div>
+                <div className="p-3 bg-white border rounded">
+                  <p className="text-xs text-gray-500">Approved</p>
+                  <p className="text-xl font-bold text-green-600">{approvedCount}</p>
+                </div>
+                <div className="p-3 bg-white border rounded">
+                  <p className="text-xs text-gray-500">Rejected</p>
+                  <p className="text-xl font-bold text-red-600">{rejectedCount}</p>
+                </div>
+              </div>
+            </div>
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
@@ -900,6 +978,7 @@ export function ApplicationReview() {
                   <th className="py-3 px-2 text-left font-medium text-sm">Student Name</th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Student ID</th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Course</th>
+                  <th className="py-3 px-2 text-left font-medium text-sm">Gender</th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Submission Date</th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Status</th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Actions</th>
@@ -912,6 +991,7 @@ export function ApplicationReview() {
                     <td className="py-3 px-2 text-sm">{application.firstName} {application.lastName}</td>
                     <td className="py-3 px-2 text-sm">{application.user?.idNumber}</td>
                     <td className="py-3 px-2 text-sm">{application.programOfStudyAndYear}</td>
+                    <td className="py-3 px-2 text-sm">{application.gender || 'Unknown'}</td>
                     <td className="py-3 px-2 text-sm">{application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}</td>
                     <td className="py-3 px-2 text-sm">{getStatusBadge(application.status)}</td>
                     <td className="py-3 px-2 text-sm">

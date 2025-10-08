@@ -36,6 +36,16 @@ const defaultFormData: ApplicationFormData = {
   residingAt: '',
   permanentResidentialAddress: '',
   contactNumber: '',
+  gender: '',
+  // New fields for eligibility validation
+  isCitUSeniorHighGraduate: false,
+  yearLevel: '',
+  citUResidency: {
+    semesterCount: 0,
+    weightedAverageGrade: 0,
+    hasFailingMarks: false,
+    minimumUnitsCompleted: 0
+  },
   familyBackground: {
     father: {
       firstName: '',
@@ -106,7 +116,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isReadOnly, setIsReadOnly] = useState(false)
   const [formData, setFormData] = useState<ApplicationFormData>(defaultFormData)
-  const [siblings, setSiblings] = useState([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }])
+  const [siblings, setSiblings] = useState<Array<{ name: string; age: number; programCurrentlyTakingOrFinished?: string; schoolOrOccupation?: string }>>([])  // Start with empty array - siblings are optional
   const [organizations, setOrganizations] = useState([{ nameOfOrganization: "", position: "" }])
   const [collegeLevels, setCollegeLevels] = useState([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }])
   const [references, setReferences] = useState([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }])
@@ -527,7 +537,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     const requiredFields = [
       'firstName', 'lastName', 'programOfStudyAndYear', 'remainingUnitsIncludingThisTerm', 'remainingTermsToGraduate',
       'citizenship', 'civilStatus', 'annualFamilyIncome', 'residingAt',
-      'permanentResidentialAddress', 'contactNumber'
+      'permanentResidentialAddress', 'contactNumber', 'yearLevel'
     ] as const;
 
     for (const field of requiredFields) {
@@ -540,6 +550,42 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
         return false;
       }
     }
+
+    // Eligibility validation based on SRS requirements
+    
+    // 1. Year Level Requirement: Must be First Year or Second Year
+    if (formData.yearLevel !== 'First Year' && formData.yearLevel !== 'Second Year') {
+      toast({
+        title: "Eligibility Error",
+        description: "Only First Year and Second Year students are eligible for this scholarship.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // 2. Family Income Requirement: Must not exceed ₱300,000
+    if (formData.annualFamilyIncome === '>300k') {
+      toast({
+        title: "Eligibility Error",
+        description: "Gross Annual Family Income must not exceed ₱300,000 to be eligible.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // 3. Program Restriction: Must not be enrolled in BS Nursing
+    if (formData.programOfStudyAndYear.toLowerCase().includes('nursing') || 
+        formData.programOfStudyAndYear.toLowerCase().includes('bsn')) {
+      toast({
+        title: "Eligibility Error",
+        description: "Students enrolled in BS Nursing are not eligible for this scholarship.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // Note: CIT-U residency requirements are now validated in Step 3 (Education section)
+
     return true;
   };
 
@@ -570,17 +616,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       }
     }
 
-    // Validate at least one sibling
-    if (siblings.length === 0) {
-      toast({
-        title: "Required Information Missing",
-        description: "Please add at least one sibling",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    // Validate each sibling's required fields
+    // Siblings are now optional - only validate if they exist
+    // Validate each sibling's required fields (if any siblings are added)
     for (const [index, sibling] of siblings.entries()) {
       if (!sibling.name || !sibling.age) {
         toast({
@@ -606,11 +643,31 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       return false;
     }
 
+    // Validate elementary education grade range (75-100)
+    if (formData.education.elementary.generalAverage < 75 || formData.education.elementary.generalAverage > 100) {
+      toast({
+        title: "Invalid Grade",
+        description: "Elementary education grade must be between 75-100.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
     // Validate secondary education
     if (!formData.education.secondary.nameAndAddressOfSchool || !formData.education.secondary.generalAverage) {
       toast({
         title: "Required Field Missing",
         description: "Please fill in all secondary education information",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // Validate secondary education grade range (75-100)
+    if (formData.education.secondary.generalAverage < 75 || formData.education.secondary.generalAverage > 100) {
+      toast({
+        title: "Invalid Grade",
+        description: "Secondary education grade must be between 75-100.",
         variant: "destructive"
       });
       return false;
@@ -632,6 +689,62 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
         toast({
           title: "Required Field Missing",
           description: `Please fill in all required fields for year ${index + 1}`,
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+
+    // Grade validation for CIT-U Senior High graduates
+    if (formData.isCitUSeniorHighGraduate) {
+      // Must have grade average >= 80% in secondary education
+      if (formData.education.secondary.generalAverage < 80) {
+        toast({
+          title: "Eligibility Error",
+          description: "CIT-U Senior High graduates must have a grade average of at least 80%.",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+
+    // Residency Requirements for Non-CIT-U Senior High Graduates
+    if (!formData.isCitUSeniorHighGraduate) {
+      // Must have at least 1 semester residency
+      if (!formData.citUResidency?.semesterCount || formData.citUResidency.semesterCount < 1) {
+        toast({
+          title: "Eligibility Error",
+          description: "Non-CIT-U Senior High graduates must have at least 1 semester residency at CIT-U.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Weighted Average Grade must be >= 3.5
+      if (!formData.citUResidency?.weightedAverageGrade || formData.citUResidency.weightedAverageGrade < 3.5) {
+        toast({
+          title: "Eligibility Error",
+          description: "Non-CIT-U Senior High graduates must have a Weighted Average Grade of at least 3.5.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Must have no failing marks
+      if (formData.citUResidency?.hasFailingMarks) {
+        toast({
+          title: "Eligibility Error",
+          description: "Non-CIT-U Senior High graduates must have no failing marks.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Must have minimum load of 15 units (regular) or 6 units (summer)
+      if (!formData.citUResidency?.minimumUnitsCompleted || formData.citUResidency.minimumUnitsCompleted < 6) {
+        toast({
+          title: "Eligibility Error",
+          description: "Non-CIT-U Senior High graduates must have completed minimum load of 15 units (regular semester) or 6 units (summer).",
           variant: "destructive"
         });
         return false;
@@ -782,6 +895,29 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     required
                   />
                 </div>
+                
+                {/* New Eligibility Fields */}
+                <div className="space-y-2">
+                  <Label htmlFor="year-level">Year Level</Label>
+                  <Select
+                    value={formData.yearLevel}
+                    onValueChange={(value) => setFormData({ ...formData, yearLevel: value })}
+                    disabled={isReadOnly}
+                    required
+                  >
+                    <SelectTrigger id="year-level">
+                      <SelectValue placeholder="Select year level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="First Year">First Year</SelectItem>
+                      <SelectItem value="Second Year">Second Year</SelectItem>
+                      <SelectItem value="Third Year">Third Year (Not Eligible)</SelectItem>
+                      <SelectItem value="Fourth Year">Fourth Year (Not Eligible)</SelectItem>
+                      <SelectItem value="Fifth Year">Fifth Year (Not Eligible)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="existing-scholarship">Existing Scholarship (optional)</Label>
                   <Input
@@ -830,6 +966,22 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                    disabled={isReadOnly}
+                  >
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="civil-status">Civil Status</Label>
                   <Select
                     value={formData.civilStatus}
@@ -863,9 +1015,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       <SelectItem value="<100k">Below ₱100,000</SelectItem>
                       <SelectItem value="100k-200k">₱100,000 - ₱200,000</SelectItem>
                       <SelectItem value="200k-300k">₱200,000 - ₱300,000</SelectItem>
-                      <SelectItem value="300k-400k">₱300,000 - ₱400,000</SelectItem>
-                      <SelectItem value="400k-500k">₱400,000 - ₱500,000</SelectItem>
-                      <SelectItem value=">500k">Above ₱500,000</SelectItem>
+                      <SelectItem value=">300k">Above ₱300,000 (Not Eligible)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1071,52 +1221,61 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-medium">Siblings Information</h3>
-                {safeSiblings.map((sibling, index) => (
-                  <div key={index} className="space-y-4 p-4 border rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-sm font-medium">Sibling {index + 1}</h4>
-                      {index > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeSibling(index)}
-                          className="text-red-500 hover:text-red-700"
-                          disabled={isReadOnly}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={`sibling-name-${index}`}>Name</Label>
-                        <Input
-                          id={`sibling-name-${index}`}
-                          value={sibling.name}
-                          onChange={(e) => updateSibling(index, "name", e.target.value)}
-                          placeholder="Enter sibling's name"
-                          disabled={isReadOnly}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`sibling-age-${index}`}>Age</Label>
-                        <Input
-                          id={`sibling-age-${index}`}
-                          type="number"
-                          min="0"
-                          value={sibling.age}
-                          onChange={(e) => updateSibling(index, "age", Number(e.target.value))}
-                          placeholder="Enter age"
-                          disabled={isReadOnly}
-                        />
-                      </div>
-                    </div>
+                <h3 className="font-medium">Siblings Information (Optional)</h3>
+                {safeSiblings.length === 0 ? (
+                  <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                    <p className="text-gray-500 mb-3">No siblings added. This section is optional.</p>
+                    <Button variant="outline" onClick={addSibling} disabled={isReadOnly}>
+                      Add Sibling
+                    </Button>
                   </div>
-                ))}
-                <Button variant="outline" className="w-full" onClick={addSibling} disabled={isReadOnly}>
-                  Add Another Sibling
-                </Button>
+                ) : (
+                  <>
+                    {safeSiblings.map((sibling, index) => (
+                      <div key={index} className="space-y-4 p-4 border rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-sm font-medium">Sibling {index + 1}</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSibling(index)}
+                            className="text-red-500 hover:text-red-700"
+                            disabled={isReadOnly}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`sibling-name-${index}`}>Name</Label>
+                            <Input
+                              id={`sibling-name-${index}`}
+                              value={sibling.name}
+                              onChange={(e) => updateSibling(index, "name", e.target.value)}
+                              placeholder="Enter sibling's name"
+                              disabled={isReadOnly}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`sibling-age-${index}`}>Age</Label>
+                            <Input
+                              id={`sibling-age-${index}`}
+                              type="number"
+                              min="0"
+                              value={sibling.age}
+                              onChange={(e) => updateSibling(index, "age", Number(e.target.value))}
+                              placeholder="Enter age"
+                              disabled={isReadOnly}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <Button variant="outline" className="w-full" onClick={addSibling} disabled={isReadOnly}>
+                      Add Another Sibling
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1195,7 +1354,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="elementary-average"
                     type="number"
-                    min="0"
+                    min="75"
                     max="100"
                     step="0.01"
                     value={safeElementary.generalAverage}
@@ -1211,7 +1370,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                         },
                       })
                     }
-                    placeholder="Enter average"
+                    placeholder="Enter average (75-100)"
                     disabled={isReadOnly}
                     required
                   />
@@ -1329,7 +1488,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="secondary-average"
                     type="number"
-                    min="0"
+                    min="75"
                     max="100"
                     step="0.01"
                     value={safeSecondary.generalAverage}
@@ -1345,7 +1504,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                         },
                       })
                     }
-                    placeholder="Enter average"
+                    placeholder="Enter average (75-100)"
                     disabled={isReadOnly}
                     required
                   />
@@ -1391,6 +1550,162 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     placeholder="e.g., Debate Competition"
                     disabled={isReadOnly}
                   />
+                </div>
+
+                {/* CIT-U Senior High Graduate Question */}
+                <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <Label className="text-blue-800 font-medium">Are you a CIT-U Senior High Graduate?</Label>
+                  <RadioGroup
+                    value={formData.isCitUSeniorHighGraduate ? "yes" : "no"}
+                    onValueChange={(value) => setFormData({ ...formData, isCitUSeniorHighGraduate: value === "yes" })}
+                    disabled={isReadOnly}
+                    className="flex flex-row space-x-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id="citu-grad-yes-education" />
+                      <Label htmlFor="citu-grad-yes-education">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id="citu-grad-no-education" />
+                      <Label htmlFor="citu-grad-no-education">No</Label>
+                    </div>
+                  </RadioGroup>
+                  
+                  {formData.isCitUSeniorHighGraduate && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+                      <p className="text-sm text-green-800">
+                        <strong>Grade Requirement:</strong> As a CIT-U Senior High graduate, your general average must be ≥ 80% (shown above in Secondary Education).
+                      </p>
+                      {formData.education.secondary.generalAverage > 0 && formData.education.secondary.generalAverage < 80 && (
+                        <p className="text-sm text-red-600 mt-2">
+                          ⚠️ Your current secondary education average ({formData.education.secondary.generalAverage}%) is below the required 80% for CIT-U Senior High graduates.
+                        </p>
+                      )}
+                      {formData.education.secondary.generalAverage >= 80 && (
+                        <p className="text-sm text-green-600 mt-2">
+                          ✅ Your secondary education average ({formData.education.secondary.generalAverage}%) meets the requirement.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* CIT-U Residency Requirements for Non-CIT-U graduates */}
+                  {!formData.isCitUSeniorHighGraduate && (
+                    <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
+                      <h4 className="font-semibold text-orange-800">CIT-U Residency Requirements (Non-CIT-U Senior High Graduates)</h4>
+                      <p className="text-sm text-orange-700">
+                        Since you are not a CIT-U Senior High graduate, you must meet the following residency requirements:
+                      </p>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="semester-count-education">Semesters Completed at CIT-U</Label>
+                          <Input
+                            id="semester-count-education"
+                            type="number"
+                            min="0"
+                            value={formData.citUResidency?.semesterCount || 0}
+                            onChange={(e) => setFormData({ 
+                              ...formData, 
+                              citUResidency: { 
+                                ...formData.citUResidency, 
+                                semesterCount: Number(e.target.value) 
+                              } 
+                            })}
+                            placeholder="Enter number of semesters"
+                            disabled={isReadOnly}
+                            required={!formData.isCitUSeniorHighGraduate}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="weighted-average-education">Weighted Average Grade (Must be ≥ 3.5)</Label>
+                          <Input
+                            id="weighted-average-education"
+                            type="number"
+                            min="1.0"
+                            max="4.0"
+                            step="0.01"
+                            value={formData.citUResidency?.weightedAverageGrade || 0}
+                            onChange={(e) => setFormData({ 
+                              ...formData, 
+                              citUResidency: { 
+                                ...formData.citUResidency, 
+                                weightedAverageGrade: Number(e.target.value) 
+                              } 
+                            })}
+                            placeholder="e.g., 3.75"
+                            disabled={isReadOnly}
+                            required={!formData.isCitUSeniorHighGraduate}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Do you have any failing marks?</Label>
+                          <RadioGroup
+                            value={formData.citUResidency?.hasFailingMarks ? "yes" : "no"}
+                            onValueChange={(value) => setFormData({ 
+                              ...formData, 
+                              citUResidency: { 
+                                ...formData.citUResidency, 
+                                hasFailingMarks: value === "yes" 
+                              } 
+                            })}
+                            disabled={isReadOnly}
+                            className="flex flex-row space-x-4"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="yes" id="failing-yes-education" />
+                              <Label htmlFor="failing-yes-education">Yes</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="no" id="failing-no-education" />
+                              <Label htmlFor="failing-no-education">No</Label>
+                            </div>
+                          </RadioGroup>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="minimum-units-education">Minimum Units Completed (15 regular/6 summer)</Label>
+                          <Input
+                            id="minimum-units-education"
+                            type="number"
+                            min="0"
+                            value={formData.citUResidency?.minimumUnitsCompleted || 0}
+                            onChange={(e) => setFormData({ 
+                              ...formData, 
+                              citUResidency: { 
+                                ...formData.citUResidency, 
+                                minimumUnitsCompleted: Number(e.target.value) 
+                              } 
+                            })}
+                            placeholder="Enter minimum units"
+                            disabled={isReadOnly}
+                            required={!formData.isCitUSeniorHighGraduate}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Real-time validation feedback */}
+                      <div className="mt-4 p-3 bg-white border border-orange-200 rounded">
+                        <p className="text-sm font-medium text-orange-800 mb-2">Requirements Check:</p>
+                        <div className="space-y-1 text-sm">
+                          <div className={`flex items-center ${(formData.citUResidency?.semesterCount || 0) >= 1 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(formData.citUResidency?.semesterCount || 0) >= 1 ? '✅' : '❌'} At least 1 semester completed
+                          </div>
+                          <div className={`flex items-center ${(formData.citUResidency?.weightedAverageGrade || 0) >= 3.5 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(formData.citUResidency?.weightedAverageGrade || 0) >= 3.5 ? '✅' : '❌'} Weighted Average Grade ≥ 3.5
+                          </div>
+                          <div className={`flex items-center ${!formData.citUResidency?.hasFailingMarks ? 'text-green-600' : 'text-red-600'}`}>
+                            {!formData.citUResidency?.hasFailingMarks ? '✅' : '❌'} No failing marks
+                          </div>
+                          <div className={`flex items-center ${(formData.citUResidency?.minimumUnitsCompleted || 0) >= 6 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(formData.citUResidency?.minimumUnitsCompleted || 0) >= 6 ? '✅' : '❌'} Minimum units completed (6+ units)
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

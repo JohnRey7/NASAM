@@ -9,6 +9,7 @@ import { ScholarEvaluation } from "@/components/scholar-evaluation"
 import { AuditLogs } from "@/components/audit-logs"
 import { useEffect, useState } from "react"
 import { oasDashboardService } from "@/services/oasDashboardService"
+import { oasAnalyticsService } from "@/services/oasAnalyticsService"
 import { ToolsCard } from "./ToolsCard"
 import { useToast } from "@/components/ui/use-toast";
 import { departmentHeadService } from "@/services/departmentHeadService";
@@ -26,6 +27,7 @@ export default function OASDashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast();
   const [applicants, setApplicants] = useState<any[]>([]);
+  // analytics are handled inside AnalyticsDashboard component
   const [departments, setDepartments] = useState<any[]>([]);
   const [readyForInterviewStudents, setReadyForInterviewStudents] = useState<any[]>([]);
   const [selectedApplicant, setSelectedApplicant] = useState("");
@@ -50,6 +52,7 @@ export default function OASDashboardPage() {
 
     loadStats()
   }, [])
+
 
   useEffect(() => {
     async function fetchApplicantsAndDepartments() {

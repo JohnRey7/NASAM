@@ -13,6 +13,12 @@ const AuthController = {
         path: '/',
       });
 
+      await AuditLogService.createLog({
+        userId: user._id,
+        action: 'User Login',
+        module: 'Authentication',
+      });
+
       return res.json({
         message: 'Login successful',
         user: result.user
@@ -46,7 +52,7 @@ const AuthController = {
         maxAge: result.maxAge,
         path: '/',
       });
-
+      
       return res.status(201).json({
         message: result.message,
         user: result.user
@@ -58,7 +64,33 @@ const AuthController = {
       }
       return res.status(500).json({ message: 'Server error' });
     }
-  },
+
+    // ✅ Response
+    console.log("[REGISTER] Registration success:", user._id);
+    return res.status(201).json({
+      message: email 
+        ? 'Department head registration successful. This account was created by an admin. Please verify the email.' 
+        : 'Department head registration successful. This account was created by an admin.',
+      adminRegistered: true,
+      user: { 
+        id: user._id, 
+        idNumber: user.idNumber, 
+        department: {
+          id: departmentDoc._id,
+          code: departmentDoc.departmentCode,
+          name: departmentDoc.name
+        },
+        role: { 
+          id: role._id, 
+          name: role.name 
+        }
+      },
+    });
+  } catch (error) {
+    console.error("[REGISTER] Server error:", error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+},
 
   async logout(req, res) {
     try {
@@ -207,3 +239,4 @@ const AuthController = {
 };
 
 module.exports = AuthController;
+
