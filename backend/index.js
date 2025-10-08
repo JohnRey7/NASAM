@@ -36,7 +36,7 @@ process.setMaxListeners(20);
 
 const app = express();
 const port = process.env.PORT || 3000;
-
+const host = process.env.HOST || 'localhost';
 // Middleware
 app.use(helmet({
   contentSecurityPolicy: {
@@ -50,10 +50,10 @@ app.use(helmet({
 
 // CORS configuration for development
 app.use(cors({
-  origin: ['http://localhost:3001', 'http://127.0.0.1:3001'],
+  origin: ['http://95.216.139.119:3001', 'http://localhost:3001', 'http://127.0.0.1:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  allowedHeaders: ['Content-Type','Access-Control-Allow-Origin', 'Authorization', 'Cookie'],
 }));
 
 app.use(express.json());
@@ -362,8 +362,8 @@ app.post('/api/department-head/interview/schedule', authenticate, checkPermissio
 app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate, checkPermission('application.readAll'), InterviewController.rescheduleInterviewForDepartmentHead);
 
 // Graceful shutdown
-const server = app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+const server = app.listen(port,host, () => {
+  console.log(`Server running at http://${host}:${port}`);
 });
 
 process.on('SIGTERM', () => {
