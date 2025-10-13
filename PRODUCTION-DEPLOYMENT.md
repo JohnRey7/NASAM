@@ -9,6 +9,10 @@ This guide explains how to deploy NASAM (Non-Academic Scholar Application Manage
 - ✅ Updated CORS configuration for production
 - ✅ Created environment-based API URL configuration
 - ✅ Fixed authentication and session handling
+- ✅ **CRITICAL**: Fixed cookie configuration for cross-origin authentication
+- ✅ Changed `sameSite` from 'strict' to 'lax' for production
+- ✅ Added domain-specific cookie settings
+- ✅ Added authentication debugging for production troubleshooting
 
 ## Prerequisites
 - Ubuntu VPS with Node.js and npm installed
@@ -27,6 +31,7 @@ HOST=0.0.0.0
 MONGODB_URI=mongodb+srv://johnreycutab:Johnrey123@cluster0.ixmkv.mongodb.net/nasm_database?retryWrites=true&w=majority&appName=Cluster0
 JWT_SECRET=your-super-secret-jwt-key-here-change-this-in-production
 FRONTEND_URL=http://95.216.139.119:3001
+COOKIE_DOMAIN=95.216.139.119
 ```
 
 **Frontend (.env.production):**
@@ -104,9 +109,16 @@ Stop:
 
 ## Authentication Fix:
 The 401 errors were caused by:
-1. Hardcoded localhost URLs not matching production server
-2. CORS configuration not allowing production domain
-3. Missing authentication routes
+1. **Cookie Configuration Issues**: `sameSite: 'strict'` prevented cross-origin cookie sharing
+2. **Domain Mismatch**: Cookies weren't being set for the correct domain
+3. **CORS Configuration**: Not properly configured for production cross-origin requests
+4. **Missing Routes**: `/api/auth/forgot-password` endpoint was missing
+
+**Critical Changes Made:**
+- Changed `sameSite` from 'strict' to 'lax' in cookie configuration
+- Added `COOKIE_DOMAIN` environment variable for proper domain setting
+- Updated CORS to allow production frontend domain
+- Added authentication debugging logs for troubleshooting
 
 All these issues have been resolved.
 

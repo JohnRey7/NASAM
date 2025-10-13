@@ -8,10 +8,11 @@ const AuthController = {
 
       res.cookie('jwt', result.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: false, // Set to false for HTTP in production (or use HTTPS)
+        sameSite: 'lax', // Changed from 'strict' to 'lax' for cross-origin
         maxAge: result.maxAge,
         path: '/',
+        domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined
       });
 
       await AuditLogService.createLog({
@@ -48,10 +49,11 @@ const AuthController = {
 
       res.cookie('jwt', result.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: false, // Set to false for HTTP in production (or use HTTPS)
+        sameSite: 'lax', // Changed from 'strict' to 'lax' for cross-origin
         maxAge: result.maxAge,
         path: '/',
+        domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined
       });
       
       return res.status(201).json({
@@ -74,9 +76,10 @@ const AuthController = {
       
       res.clearCookie('jwt', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: false, // Set to false for HTTP in production (or use HTTPS)
+        sameSite: 'lax', // Changed from 'strict' to 'lax' for cross-origin
         path: '/',
+        domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined
       });
 
       return res.json(result);
@@ -133,7 +136,8 @@ const AuthController = {
       const { code } = req.query;
       await AuthService.verifyEmail(code);
 
-      return res.redirect('http://localhost:3000/verified');
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+      return res.redirect(`${frontendUrl}/verified`);
     } catch (error) {
       console.error(error);
       if (error.message.includes('required') || error.message.includes('Invalid') || error.message.includes('already verified') || error.message.includes('expired')) {

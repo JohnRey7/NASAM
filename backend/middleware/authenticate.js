@@ -7,7 +7,16 @@ const authenticate = async (req, res, next) => {
     token = req.header('Authorization').replace('Bearer ', '');
   }
 
-    if (!token) {    return res.status(401).json({ message: 'Please log in with your user credentials.' });  }
+  // Debug logging for production
+  console.log('🔍 Auth Debug - Cookies:', req.cookies);
+  console.log('🔍 Auth Debug - JWT Token:', token ? 'Present' : 'Missing');
+  console.log('🔍 Auth Debug - Origin:', req.get('Origin'));
+  console.log('🔍 Auth Debug - User-Agent:', req.get('User-Agent'));
+
+  if (!token) {
+    console.log('❌ Auth Debug - No token found');
+    return res.status(401).json({ message: 'Please log in with your user credentials.' });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);

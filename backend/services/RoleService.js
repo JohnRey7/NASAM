@@ -117,6 +117,12 @@ class RoleService {
         .filter(p => !['administrator', 'application.update', 'application.delete', 'application.readAll', 'document.delete'].includes(p.name))
         .map(p => p._id);
 
+      // Ensure users can create applications
+      const createAppPermission = allPermissions.find(p => p.name === 'applicationForm.create');
+      if (createAppPermission && !userPermissions.includes(createAppPermission._id)) {
+        userPermissions.push(createAppPermission._id);
+      }
+
       await Role.findOneAndUpdate(
         { name: 'user' },
         { name: 'user', permissions: userPermissions },

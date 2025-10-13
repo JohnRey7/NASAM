@@ -1,4 +1,6 @@
-require('dotenv').config({ path: './.env' });
+// Load environment-specific .env file
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: envFile });
 
 // Debug: Check if environment variables are loaded
 console.log('NODE_ENV:', process.env.NODE_ENV);
