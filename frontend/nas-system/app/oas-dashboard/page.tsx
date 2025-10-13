@@ -93,7 +93,8 @@ export default function OASDashboardPage() {
     try {
       console.log(`📄 Downloading PDF for user: ${userId}`);
       
-      const response = await fetch(`http://localhost:3000/api/application/${userId}/pdf`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${API_URL}/application/${userId}/pdf`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'

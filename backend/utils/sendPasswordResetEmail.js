@@ -13,7 +13,8 @@ async function sendPasswordResetEmail(email, token) {
   });
 
   // Note: In a real app, the URL should point to your frontend reset password page.
-  const resetUrl = `http://localhost:3001/reset-password?token=${token}`;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+  const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
