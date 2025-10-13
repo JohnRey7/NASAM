@@ -240,7 +240,7 @@ class AuthService {
     }
 
     // Check rate limiting
-    AuthService.checkEmailRateLimit(user);
+    // AuthService.checkEmailRateLimit(user);
 
     const code = AuthService.generateVerificationCode();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -305,7 +305,7 @@ class AuthService {
       }
 
       // Check rate limiting for email operations
-      AuthService.checkEmailRateLimit(user);
+      // AuthService.checkEmailRateLimit(user);
 
       // Generate verification code for password reset
       const resetCode = AuthService.generateVerificationCode();
