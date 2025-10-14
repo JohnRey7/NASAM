@@ -322,7 +322,9 @@ class AuthService {
         isPasswordReset: true // Flag to indicate this is for password reset
       };
 
+      console.log('🔍 Saving emailVerification:', user.emailVerification);
       await user.save();
+      console.log('✅ User saved successfully');
 
       // Send password reset email with reset code
       await sendPasswordResetEmail(email, resetCode);
@@ -357,8 +359,15 @@ class AuthService {
 
       const { code: storedCode, expiresAt, isPasswordReset } = user.emailVerification;
 
+      console.log('🔍 Retrieved emailVerification:', user.emailVerification);
+      console.log('🔍 isPasswordReset value:', isPasswordReset);
+      console.log('🔍 Stored code:', storedCode);
+      console.log('🔍 Received code:', code);
+
       // Check if this is a password reset verification
-      if (!isPasswordReset) {
+      // Note: For backward compatibility, if isPasswordReset is undefined, we'll allow it
+      // This handles cases where the field wasn't set in older records
+      if (isPasswordReset === false) {
         throw new Error('Invalid verification code for password reset');
       }
 

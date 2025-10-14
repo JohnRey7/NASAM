@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema({
     expiresAt: Date,
     lastSentAt: Date,
     pendingEmail: String,
+    isPasswordReset: { type: Boolean, default: false },
   },
   // Optional gender field. Restrict new values to 'Male' or 'Female'.
   gender: {
