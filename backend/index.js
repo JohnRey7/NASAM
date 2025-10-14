@@ -119,7 +119,6 @@ app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
 app.post('/api/auth/logout', authenticate, AuthController.logout);
 app.post('/api/auth/forgot-password', AuthController.forgotPasswordVerifyEmail);
-app.post('/api/auth/forgot-password/verify-email', AuthController.forgotPasswordVerifyEmail);
 app.post('/api/auth/forgot-password/change-password', AuthController.forgotPasswordChangePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);

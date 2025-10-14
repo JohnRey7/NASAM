@@ -1,31 +1,33 @@
 const nodemailer = require('nodemailer');
 
-async function sendPasswordResetEmail(email, token) {
-  const transporter = nodemailer.createTransport({
+async function sendPasswordResetEmail(email, code) {
+  const transporter = nodemailer.createTransporter({
     host: 'smtp.gmail.com',
     port: 587,
     secure: false,
-    requestTLS: true,
+    requireTLS: true,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
 
-  // Note: In a real app, the URL should point to your frontend reset password page.
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-  const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+  const resetUrl = `${frontendUrl}/forgot-password/change-password?email=${encodeURIComponent(email)}&code=${code}`;
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
     subject: 'NAS | Password Reset Request',
     html: `
-      <p>You are receiving this email because you (or someone else) have requested the reset of the password for your account.</p>
-      <p>Please click on the following link, or paste it into your browser to complete the process:</p>
-      <p><a href="${resetUrl}">${resetUrl}</a></p>
-      <p>This link will expire in one hour.</p>
-      <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Password Reset Request</h2>
+        <p>You have requested to reset your password. Please click the link below to reset your password:</p>
+        <p><a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+        <p>If you did not request this password reset, please ignore this email.</p>
+        <p>This link will expire in 1 hour.</p>
+        <p>Verification Code: <strong>${code}</strong></p>
+      </div>
     `,
   };
 

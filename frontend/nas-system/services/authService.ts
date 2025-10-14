@@ -8,8 +8,12 @@ export const authService = {
     return response.data;
   },
 
-  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
-    const response = await axios.post(`${API_URL}/auth/reset-password`, { token, newPassword });
+  async resetPassword(email: string, code: string, newPassword: string): Promise<{ message: string }> {
+    const response = await axios.post(`${API_URL}/auth/forgot-password/change-password`, { 
+      email, 
+      code, 
+      newPassword 
+    });
     return response.data;
   },
   // ... existing code ...

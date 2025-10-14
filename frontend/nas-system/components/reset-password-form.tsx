@@ -12,19 +12,23 @@ export function ResetPasswordForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [token, setToken] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
-    const resetToken = searchParams.get('token');
-    if (resetToken) {
-      setToken(resetToken);
+    const resetEmail = searchParams.get('email');
+    const resetCode = searchParams.get('code');
+    
+    if (resetEmail && resetCode) {
+      setEmail(resetEmail);
+      setCode(resetCode);
     } else {
       toast({
         title: 'Error',
-        description: 'No password reset token found. Please request a new link.',
+        description: 'No password reset information found. Please request a new link.',
         variant: 'destructive',
       });
       router.push('/forgot-password');
@@ -41,10 +45,10 @@ export function ResetPasswordForm() {
       });
       return;
     }
-    if (!token) {
+    if (!email || !code) {
       toast({
         title: 'Error',
-        description: 'Missing reset token.',
+        description: 'Missing reset information.',
         variant: 'destructive',
       });
       return;
@@ -53,7 +57,7 @@ export function ResetPasswordForm() {
     setIsLoading(true);
 
     try {
-      const response = await authService.resetPassword(token, password);
+      const response = await authService.resetPassword(email, code, password);
       toast({
         title: 'Success',
         description: response.message,
@@ -96,7 +100,7 @@ export function ResetPasswordForm() {
           placeholder="Confirm your new password"
         />
       </div>
-      <Button type="submit" className="w-full bg-[#800000] hover:bg-[#600000]" disabled={isLoading || !token}>
+      <Button type="submit" className="w-full bg-[#800000] hover:bg-[#600000]" disabled={isLoading || !email || !code}>
         {isLoading ? 'Resetting...' : 'Reset Password'}
       </Button>
     </form>

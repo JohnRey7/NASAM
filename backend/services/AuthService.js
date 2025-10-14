@@ -6,6 +6,7 @@ const Role = require('../models/Role');
 const Department = require('../models/Department');
 const BlacklistedToken = require('../models/BlacklistedToken');
 const sendVerificationEmail = require('../utils/sendVerificationEmail');
+const sendPasswordResetEmail = require('../utils/sendPasswordResetEmail');
 const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 
 class AuthService {
@@ -323,8 +324,8 @@ class AuthService {
 
       await user.save();
 
-      // Send verification email with reset code
-      await sendVerificationEmail(email, resetCode, 'password-reset');
+      // Send password reset email with reset code
+      await sendPasswordResetEmail(email, resetCode);
       
       return { 
         message: 'Password reset verification code has been sent to your email',
