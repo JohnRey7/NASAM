@@ -120,6 +120,7 @@ app.post('/api/auth/register', AuthController.register);
 app.post('/api/auth/logout', authenticate, AuthController.logout);
 app.post('/api/auth/forgot-password', AuthController.forgotPasswordVerifyEmail);
 app.post('/api/auth/forgot-password/change-password', AuthController.forgotPasswordChangePassword);
+app.post('/api/auth/change-password', authenticate, AuthController.changePassword);
 app.get('/api/auth/me', authenticate, AuthController.getCurrentUser);
 app.get('/api/auth/email/verify', AuthController.verifyEmail);
 app.get('/api/auth/email/resend', AuthController.resendVerificationEmail);
@@ -130,6 +131,10 @@ app.post('/api/user', authenticate, checkPermission('user.create'), UserControll
 app.get('/api/users/disabled', authenticate, checkPermission('user.read'), UserController.getDisabledUsers);
 app.get('/api/users/deleted', authenticate, checkPermission('user.read'), UserController.getSoftDeletedUsers);
 app.get('/api/users/idnumber/:idNumber', authenticate, checkPermission('user.read'), UserController.getUserByIdNumber);
+
+// User profile routes
+app.put('/api/users/profile', authenticate, UserController.updateProfile);
+app.get('/api/users/profile', authenticate, UserController.getProfile);
 app.get('/api/users', authenticate, checkPermission('user.read'), UserController.getAllUsers);
 app.get('/api/users/:id', authenticate, checkPermission('user.read'), UserController.getUserById);
 app.patch('/api/users/idnumber/:idNumber', authenticate, checkPermission('user.update'), UserController.updateUserByIdNumber);
@@ -189,6 +194,11 @@ app.get('/api/applications/deleted', authenticate, checkPermission('applicationF
 app.get('/api/application/history', authenticate, checkPermission('applicationHistory.readOwn'), ApplicationController.getMyApplicationHistory);
 app.get('/api/application/history/user/:userId', authenticate, checkPermission('applicationHistory.read'), ApplicationController.getApplicationHistoryByUserId);
 app.get('/api/application/history/:id', authenticate, checkPermission('applicationHistory.read'), ApplicationController.getApplicationHistoryById);
+
+// Alternative plural routes for frontend compatibility
+app.get('/api/applications/history', authenticate, checkPermission('applicationHistory.readOwn'), ApplicationController.getMyApplicationHistory);
+app.get('/api/applications/history/user/:userId', authenticate, checkPermission('applicationHistory.read'), ApplicationController.getApplicationHistoryByUserId);
+app.get('/api/applications/history/:id', authenticate, checkPermission('applicationHistory.read'), ApplicationController.getApplicationHistoryById);
 
 // Document routes
 app.put('/api/documents', authenticate, checkPermission('document.set'), uploadDocuments, DocumentController.uploadDocuments);

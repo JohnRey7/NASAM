@@ -1,9 +1,11 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+
 export const oasDashboardService = {
   async getDashboardStats() {
     try {
       console.log('🔍 Fetching dashboard stats...');
       
-      const response = await fetch('http://localhost:3000/api/oas/dashboard-stats', {
+      const response = await fetch(`${API_URL}/oas/dashboard-stats`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -28,7 +30,7 @@ export const oasDashboardService = {
     try {
       console.log('🔄 Assigning applicant to department:', { userId, departmentCode });
       
-      const response = await fetch('http://localhost:3000/api/admin/assign-applicant-to-department', {
+      const response = await fetch(`${API_URL}/admin/assign-applicant-to-department`, {
         method: 'POST',
         credentials: 'include',
         headers: {

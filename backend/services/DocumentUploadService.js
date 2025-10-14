@@ -117,7 +117,21 @@ class DocumentUploadService {
       ).populate('user', 'name idNumber email').lean();
 
       if (!document) {
-        throw new Error('Documents not found for this user');
+        // Return empty document structure instead of throwing error
+        return {
+          user: userId,
+          studentPicture: null,
+          nbiClearance: [],
+          gradeReport: [],
+          incomeTaxReturn: [],
+          goodMoralCertificate: [],
+          physicalCheckup: [],
+          homeLocationSketch: [],
+          gradeAverages: null,
+          incomeTaxInfo: null,
+          createdAt: null,
+          updatedAt: null
+        };
       }
 
       return document;

@@ -575,6 +575,42 @@ class AuthService {
       throw error;
     }
   }
+
+  // Change user password
+  static async changePassword(userId, currentPassword, newPassword) {
+    try {
+      // Find the user
+      const user = await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: userId }));
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await argon2.verify(user.password, currentPassword);
+      if (!isCurrentPasswordValid) {
+        throw new Error('Current password is incorrect');
+      }
+
+      // Validate new password
+      if (newPassword.length < 6) {
+        throw new Error('New password must be at least 6 characters long');
+      }
+
+      // Hash new password
+      const hashedNewPassword = await argon2.hash(newPassword);
+
+      // Update user password
+      user.password = hashedNewPassword;
+      await user.save();
+
+      return {
+        message: 'Password changed successfully'
+      };
+    } catch (error) {
+      console.error('Error changing password:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = AuthService;

@@ -419,6 +419,59 @@ const UserController = {
       console.error('Get disabled users error:', error);
       return res.status(500).json({ message: 'Failed to retrieve disabled users' });
     }
+  },
+
+  // Get user profile
+  async getProfile(req, res) {
+    try {
+      const userId = req.user.id;
+      const user = await UserService.getUserById(userId);
+
+      return res.json({
+        message: 'Profile retrieved successfully',
+        user
+      });
+    } catch (error) {
+      console.error('Get profile error:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      return res.status(500).json({ message: 'Failed to retrieve profile' });
+    }
+  },
+
+  // Update user profile
+  async updateProfile(req, res) {
+    try {
+      const userId = req.user.id;
+      const { name, email } = req.body;
+
+      if (!name && !email) {
+        return res.status(400).json({
+          message: 'At least one field (name or email) is required to update'
+        });
+      }
+
+      const updateData = {};
+      if (name) updateData.name = name;
+      if (email) updateData.email = email;
+
+      const updatedUser = await UserService.updateUser(userId, updateData);
+
+      return res.json({
+        message: 'Profile updated successfully',
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message.includes('already exists')) {
+        return res.status(400).json({ message: error.message });
+      }
+      return res.status(500).json({ message: 'Failed to update profile' });
+    }
   }
 };
 

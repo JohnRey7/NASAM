@@ -47,7 +47,8 @@ const DocumentUploadController = {
       }
       res.status(500).json({ 
         success: false, 
-        message: 'Failed to get documents' 
+        message: 'Failed to get documents',
+        error: error.message
       });
     }
   },
@@ -64,15 +65,10 @@ const DocumentUploadController = {
       });
     } catch (error) {
       console.error('Error in getDocumentsByUserId:', error);
-      if (error.message.includes('not found')) {
-        return res.status(404).json({ 
-          success: false, 
-          message: error.message 
-        });
-      }
       res.status(500).json({ 
         success: false, 
-        message: 'Failed to get documents' 
+        message: 'Failed to get documents',
+        error: error.message
       });
     }
   },
