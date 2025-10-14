@@ -47,8 +47,23 @@ export const backendFieldMap: Record<DocumentType, string> = {
 };
 
 export const documentService = {
-  // Upload documents
-  async uploadDocuments(documents: Document[]): Promise<void> {
+  // Upload documents with grade averages and income tax info
+  async uploadDocuments(
+    documents: Document[], 
+    gradeAverages?: {
+      elementary?: number;
+      juniorHighSchool?: number;
+      seniorHighSchool?: number;
+      college?: number;
+    },
+    incomeTaxInfo?: {
+      annualIncome?: number;
+      taxableIncome?: number;
+      taxYear?: string;
+      employerName?: string;
+      tin?: string;
+    }
+  ): Promise<void> {
     const formData = new FormData();
     documents.forEach((doc) => {
       if (doc.file) {
@@ -58,6 +73,14 @@ export const documentService = {
         }
       }
     });
+
+    // Add grade averages and income tax info as JSON
+    if (gradeAverages) {
+      formData.append('gradeAverages', JSON.stringify(gradeAverages));
+    }
+    if (incomeTaxInfo) {
+      formData.append('incomeTaxInfo', JSON.stringify(incomeTaxInfo));
+    }
 
     const response = await fetch(`${API_URL}/documents`, {
       method: "PUT",

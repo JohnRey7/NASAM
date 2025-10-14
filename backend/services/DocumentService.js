@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs').promises;
 
 class DocumentService {
-  static async uploadDocuments(userId, files) {
+  static async uploadDocuments(userId, files, additionalData = {}) {
     try {
       // Validate that at least one file is uploaded
       if (!files || Object.keys(files).length === 0) {
@@ -23,7 +23,11 @@ class DocumentService {
         goodMoralCertificate: [],
         physicalCheckup: [],
         certificates: [],
-        homeLocationSketch: []
+        homeLocationSketch: [],
+        // Add grade averages if provided
+        gradeAverages: additionalData.gradeAverages || undefined,
+        // Add income tax info if provided
+        incomeTaxInfo: additionalData.incomeTaxInfo || undefined
       };
 
       // Process uploaded files

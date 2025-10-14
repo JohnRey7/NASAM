@@ -22,11 +22,24 @@ const fileUploadSchema = new mongoose.Schema({
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
     }],
+    gradeAverages: {
+        elementary: { type: Number, min: 0, max: 100 },
+        juniorHighSchool: { type: Number, min: 0, max: 100 },
+        seniorHighSchool: { type: Number, min: 0, max: 100 },
+        college: { type: Number, min: 0, max: 100 } // Optional
+    },
     incomeTaxReturn: [{
         filePath: { type: String, required: true },
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
     }],
+    incomeTaxInfo: {
+        annualIncome: { type: Number },
+        taxableIncome: { type: Number },
+        taxYear: { type: String },
+        employerName: { type: String },
+        tin: { type: String } // Tax Identification Number
+    },
     goodMoralCertificate: [{
         filePath: { type: String, required: true },
         originalName: { type: String, required: true },

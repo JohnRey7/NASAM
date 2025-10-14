@@ -38,7 +38,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { departmentHeadService } from "@/services/departmentHeadService"
 
-function DocumentChecker({ applicationId }: { applicationId: string }) {
+function DocumentChecker({ applicationId, userId }: { applicationId: string; userId?: string }) {
   const { toast } = useToast();
   
   const [documents, setDocuments] = useState<any>(null);
@@ -52,11 +52,36 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const data = await departmentHeadService.getApplicationDocuments(applicationId);
-      if (data.success) {
+      // Try department head service first
+      let data = null;
+      try {
+        data = await departmentHeadService.getApplicationDocuments(applicationId);
+      } catch (err) {
+        // If department head service fails and we have userId, try the document-uploads endpoint
+        if (userId) {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/user/${userId}`, {
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            // Format the response to match expected structure
+            data = {
+              success: true,
+              documents: result.data,
+              gradeAverages: result.data?.gradeAverages,
+              incomeTaxInfo: result.data?.incomeTaxInfo,
+              userId: result.data?.user
+            };
+          }
+        }
+        if (!data) throw err;
+      }
+      
+      if (data?.success) {
         setDocuments(data);
       } else {
-        throw new Error(data.message);
+        throw new Error(data?.message || 'Failed to fetch documents');
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -478,7 +503,7 @@ export function DepartmentHeadApplicationReview({ applications = [] }: { applica
                               </TabsContent>
 
                               <TabsContent value="documents" className="space-y-4">
-                                <DocumentChecker applicationId={application._id} />
+                                <DocumentChecker applicationId={application._id} userId={application.userId || application.user?._id} />
                               </TabsContent>
 
                               <TabsContent value="personality" className="space-y-4">

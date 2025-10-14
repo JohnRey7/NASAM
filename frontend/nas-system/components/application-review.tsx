@@ -32,12 +32,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,  // ✅ Add this
+  DialogClose,  
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { applicationService } from "@/services/applicationService"
 
-function DocumentChecker({ applicationId }: { applicationId: string }) {
+function DocumentChecker({ applicationId, userId }: { applicationId: string; userId?: string }) {
   const { toast } = useToast();
   
   const [documents, setDocuments] = useState<any>(null);
@@ -51,19 +51,44 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents`, {
+      // First try to get documents using the OAS endpoint
+      let response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents`, {
         credentials: 'include'
       });
+
+      if (!response.ok && userId) {
+        // If OAS endpoint fails and we have userId, try the document-uploads endpoint
+        response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/user/${userId}`, {
+          credentials: 'include'
+        });
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch documents');
       }
 
       const data = await response.json();
-      if (data.success) {
-        setDocuments(data);
+      
+      // Handle different response formats
+      if (data.success !== undefined) {
+        // OAS endpoint format
+        if (data.success) {
+          setDocuments(data);
+        } else {
+          throw new Error(data.message);
+        }
+      } else if (data.data) {
+        // document-uploads endpoint format
+        const formattedData = {
+          success: true,
+          documents: data.data,
+          gradeAverages: data.data.gradeAverages,
+          incomeTaxInfo: data.data.incomeTaxInfo,
+          userId: data.data.user
+        };
+        setDocuments(formattedData);
       } else {
-        throw new Error(data.message);
+        throw new Error('Invalid response format');
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -315,6 +340,51 @@ function DocumentChecker({ applicationId }: { applicationId: string }) {
                       'Not submitted'
                     )}
                   </p>
+                  
+                  {/* Show Grade Averages for Grade Report */}
+                  {key === 'gradeReport' && documents?.gradeAverages && (
+                    <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                      <p className="font-semibold text-blue-900 mb-1">Grade Averages:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {documents.gradeAverages.elementary && (
+                          <span>Elementary: {documents.gradeAverages.elementary}%</span>
+                        )}
+                        {documents.gradeAverages.juniorHighSchool && (
+                          <span>Junior HS: {documents.gradeAverages.juniorHighSchool}%</span>
+                        )}
+                        {documents.gradeAverages.seniorHighSchool && (
+                          <span>Senior HS: {documents.gradeAverages.seniorHighSchool}%</span>
+                        )}
+                        {documents.gradeAverages.college && (
+                          <span>College: {documents.gradeAverages.college}%</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Show Income Tax Info for ITR */}
+                  {key === 'incomeTaxReturn' && documents?.incomeTaxInfo && (
+                    <div className="mt-2 p-2 bg-green-50 rounded text-xs">
+                      <p className="font-semibold text-green-900 mb-1">Income Tax Information:</p>
+                      <div className="space-y-1">
+                        {documents.incomeTaxInfo.annualIncome && (
+                          <p>Annual Income: ₱{documents.incomeTaxInfo.annualIncome.toLocaleString()}</p>
+                        )}
+                        {documents.incomeTaxInfo.taxableIncome && (
+                          <p>Taxable Income: ₱{documents.incomeTaxInfo.taxableIncome.toLocaleString()}</p>
+                        )}
+                        {documents.incomeTaxInfo.taxYear && (
+                          <p>Tax Year: {documents.incomeTaxInfo.taxYear}</p>
+                        )}
+                        {documents.incomeTaxInfo.employerName && (
+                          <p>Employer: {documents.incomeTaxInfo.employerName}</p>
+                        )}
+                        {documents.incomeTaxInfo.tin && (
+                          <p>TIN: {documents.incomeTaxInfo.tin}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -1138,7 +1208,7 @@ export function ApplicationReview() {
                               </TabsContent>
 
                               <TabsContent value="documents" className="space-y-4 py-4">
-                                <DocumentChecker applicationId={application._id} />
+                                <DocumentChecker applicationId={application._id} userId={application.user?._id || application.userId} />
                               </TabsContent>
 
                               <TabsContent value="personality" className="space-y-4 py-4">

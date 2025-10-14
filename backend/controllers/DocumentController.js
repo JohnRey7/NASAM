@@ -4,7 +4,30 @@ const DocumentController = {
   // Upload or update documents for the authenticated user
   async uploadDocuments(req, res) {
     try {
-      const result = await DocumentService.uploadDocuments(req.user.id, req.files);
+      // Parse grade averages and income tax info from request body
+      let gradeAverages = null;
+      let incomeTaxInfo = null;
+      
+      if (req.body.gradeAverages) {
+        try {
+          gradeAverages = JSON.parse(req.body.gradeAverages);
+        } catch (e) {
+          console.log('Failed to parse gradeAverages:', e);
+        }
+      }
+      
+      if (req.body.incomeTaxInfo) {
+        try {
+          incomeTaxInfo = JSON.parse(req.body.incomeTaxInfo);
+        } catch (e) {
+          console.log('Failed to parse incomeTaxInfo:', e);
+        }
+      }
+      
+      const result = await DocumentService.uploadDocuments(req.user.id, req.files, {
+        gradeAverages,
+        incomeTaxInfo
+      });
       
       res.status(201).json(result);
     } catch (error) {

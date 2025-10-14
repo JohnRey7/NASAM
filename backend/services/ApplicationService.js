@@ -616,7 +616,8 @@ class ApplicationService {
     }
 
     const DocumentUpload = require('../models/DocumentUpload');
-    const documents = await DocumentUpload.findOne({ user: application.user });
+    const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
+    const documents = await DocumentUpload.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: application.user }));
 
     const documentStatus = {
       studentPicture: {
@@ -675,6 +676,9 @@ class ApplicationService {
 
     return {
       documents: documentStatus,
+      gradeAverages: documents?.gradeAverages || null,
+      incomeTaxInfo: documents?.incomeTaxInfo || null,
+      userId: application.user,
       summary: {
         totalRequired,
         totalUploaded,
