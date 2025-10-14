@@ -1,0 +1,17 @@
+# Basic Routes
+/:
+  get:
+    tags:
+      - Basic
+    summary: Welcome message
+    description: Returns a welcome message for the NASAM backend API
+    responses:
+      '200':
+        description: Welcome message
+        content:
+          text/plain:
+            schema:
+              type: string
+              example: "Welcome to backend_nasm"
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

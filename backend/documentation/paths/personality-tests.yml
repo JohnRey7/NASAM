@@ -1,0 +1,246 @@
+# Personality Test Routes
+/api/personality-test/start:
+  post:
+    tags:
+      - Personality Tests
+    summary: Start personality test
+    description: Start a new personality test for the authenticated user
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              templateId:
+                type: string
+                description: ID of the test template to use
+                example: "507f1f77bcf86cd799439013"
+            required:
+              - templateId
+    responses:
+      '201':
+        description: Personality test started
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Personality test started successfully"
+                data:
+                  type: object
+                  properties:
+                    testId:
+                      type: string
+                      example: "507f1f77bcf86cd799439011"
+                    firstQuestion:
+                      type: object
+                      description: First question of the test
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '409':
+        $ref: '../components/responses.yml#/ConflictError'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/personality-test/answer:
+  post:
+    tags:
+      - Personality Tests
+    summary: Answer personality test question
+    description: Submit an answer for a personality test question
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              testId:
+                type: string
+                description: ID of the test
+                example: "507f1f77bcf86cd799439011"
+              questionId:
+                type: string
+                description: ID of the question being answered
+                example: "507f1f77bcf86cd799439014"
+              answer:
+                type: string
+                description: The answer selected by the user
+                example: "A"
+              timeSpent:
+                type: number
+                description: Time spent on the question in seconds
+                example: 30
+            required:
+              - testId
+              - questionId
+              - answer
+    responses:
+      '200':
+        description: Answer submitted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Answer submitted successfully"
+                data:
+                  type: object
+                  properties:
+                    nextQuestion:
+                      type: object
+                      description: Next question or null if test is complete
+                    progress:
+                      type: object
+                      properties:
+                        current:
+                          type: number
+                          example: 5
+                        total:
+                          type: number
+                          example: 20
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/personality-test/stop:
+  get:
+    tags:
+      - Personality Tests
+    summary: Stop personality test
+    description: Stop the current personality test for the authenticated user
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: testId
+        in: query
+        required: true
+        description: ID of the test to stop
+        schema:
+          type: string
+        example: "507f1f77bcf86cd799439011"
+    responses:
+      '200':
+        description: Test stopped successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Test stopped successfully"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/personality-test/me:
+  get:
+    tags:
+      - Personality Tests
+    summary: Get my personality test
+    description: Retrieve the current user's personality test results
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Personality test data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas.yml#/PersonalityTest'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/personality-test/all:
+  get:
+    tags:
+      - Personality Tests
+    summary: Get all personality tests
+    description: Retrieve all user personality tests (admin only)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+      - name: status
+        in: query
+        required: false
+        description: Filter by test status
+        schema:
+          type: string
+          enum: [started, in_progress, completed, stopped]
+      - name: templateId
+        in: query
+        required: false
+        description: Filter by template ID
+        schema:
+          type: string
+    responses:
+      '200':
+        description: List of personality tests
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/PersonalityTest'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

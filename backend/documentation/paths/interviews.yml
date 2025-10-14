@@ -1,0 +1,389 @@
+# Interview Management Routes
+/api/interview:
+  post:
+    tags:
+      - Interviews
+    summary: Create interview
+    description: Create a new interview for the authenticated user
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              interviewerId:
+                type: string
+                description: ID of the interviewer
+                example: "507f1f77bcf86cd799439013"
+              scheduledDate:
+                type: string
+                format: date-time
+                description: Scheduled interview date and time
+                example: "2024-01-20T14:00:00Z"
+              duration:
+                type: number
+                description: Interview duration in minutes
+                example: 60
+                minimum: 15
+                maximum: 240
+              location:
+                type: string
+                description: Interview location
+                example: "Room 201, Admin Building"
+              notes:
+                type: string
+                description: Additional notes about the interview
+                example: "Technical interview for Computer Science position"
+            required:
+              - interviewerId
+              - scheduledDate
+              - duration
+              - location
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '409':
+        $ref: '../components/responses.yml#/ConflictError'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  get:
+    tags:
+      - Interviews
+    summary: Get my interview
+    description: Retrieve the current user's interview
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Interview data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas.yml#/Interview'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Interviews
+    summary: Update my interview
+    description: Update the current user's interview
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              scheduledDate:
+                type: string
+                format: date-time
+                example: "2024-01-20T14:00:00Z"
+              duration:
+                type: number
+                example: 60
+              location:
+                type: string
+                example: "Room 201, Admin Building"
+              status:
+                type: string
+                enum: [scheduled, completed, cancelled, rescheduled]
+                example: "rescheduled"
+              notes:
+                type: string
+                example: "Updated interview notes"
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Interviews
+    summary: Delete my interview
+    description: Cancel/delete the current user's interview
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/interview/all:
+  get:
+    tags:
+      - Interviews
+    summary: Get all interviews
+    description: Retrieve all interviews with pagination and filtering (admin only)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+      - name: status
+        in: query
+        required: false
+        description: Filter by interview status
+        schema:
+          type: string
+          enum: [scheduled, completed, cancelled, rescheduled]
+      - name: interviewerId
+        in: query
+        required: false
+        description: Filter by interviewer ID
+        schema:
+          type: string
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+    responses:
+      '200':
+        description: List of interviews
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/Interview'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/interview/{id}:
+  get:
+    tags:
+      - Interviews
+    summary: Get interview by ID
+    description: Retrieve a specific interview by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Interview data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas.yml#/Interview'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Interviews
+    summary: Update interview by ID
+    description: Update a specific interview by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              scheduledDate:
+                type: string
+                format: date-time
+              duration:
+                type: number
+              location:
+                type: string
+              status:
+                type: string
+                enum: [scheduled, completed, cancelled, rescheduled]
+              notes:
+                type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Interviews
+    summary: Delete interview by ID
+    description: Delete a specific interview by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/interview/user/{userId}:
+  get:
+    tags:
+      - Interviews
+    summary: Get interview by user ID
+    description: Retrieve an interview by user ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        description: Interview data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas.yml#/Interview'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Interviews
+    summary: Update interview by user ID
+    description: Update an interview by user ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              scheduledDate:
+                type: string
+                format: date-time
+              duration:
+                type: number
+              location:
+                type: string
+              status:
+                type: string
+                enum: [scheduled, completed, cancelled, rescheduled]
+              notes:
+                type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Interviews
+    summary: Delete interview by user ID
+    description: Delete an interview by user ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

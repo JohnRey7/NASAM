@@ -1,0 +1,701 @@
+# Common Schemas
+User:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: User ID
+      example: "507f1f77bcf86cd799439011"
+    firstName:
+      type: string
+      description: User's first name
+      example: "John"
+    lastName:
+      type: string
+      description: User's last name
+      example: "Doe"
+    email:
+      type: string
+      format: email
+      description: User's email address
+      example: "john.doe@example.com"
+    idNumber:
+      type: string
+      description: User's ID number
+      example: "2024-001"
+    role:
+      $ref: '#/Role'
+    isEmailVerified:
+      type: boolean
+      description: Whether user's email is verified
+      example: true
+    isActive:
+      type: boolean
+      description: Whether user account is active
+      example: true
+    isDeleted:
+      type: boolean
+      description: Whether user is soft deleted
+      example: false
+    createdAt:
+      type: string
+      format: date-time
+      description: Account creation timestamp
+    updatedAt:
+      type: string
+      format: date-time
+      description: Last update timestamp
+  required:
+    - firstName
+    - lastName
+    - email
+    - idNumber
+
+Role:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Role ID
+      example: "507f1f77bcf86cd799439011"
+    name:
+      type: string
+      description: Role name
+      example: "Student"
+    description:
+      type: string
+      description: Role description
+      example: "Student role with basic permissions"
+    permissions:
+      type: array
+      items:
+        type: string
+      description: Array of permission strings
+      example: ["applicationForm.create", "applicationForm.readOwn"]
+    isDeleted:
+      type: boolean
+      description: Whether role is soft deleted
+      example: false
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+  required:
+    - name
+
+Application:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Application ID
+      example: "507f1f77bcf86cd799439011"
+    userId:
+      type: string
+      description: User ID who created the application
+      example: "507f1f77bcf86cd799439012"
+    personalInfo:
+      $ref: '#/PersonalInfo'
+    academicInfo:
+      $ref: '#/AcademicInfo'
+    status:
+      type: string
+      enum: [pending, approved, rejected, in_review]
+      description: Application status
+      example: "pending"
+    approvalSummary:
+      $ref: '#/ApprovalSummary'
+    isDeleted:
+      type: boolean
+      description: Whether application is soft deleted
+      example: false
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+PersonalInfo:
+  type: object
+  properties:
+    firstName:
+      type: string
+      example: "John"
+    lastName:
+      type: string
+      example: "Doe"
+    middleName:
+      type: string
+      example: "Smith"
+    email:
+      type: string
+      format: email
+      example: "john.doe@example.com"
+    phoneNumber:
+      type: string
+      example: "+1234567890"
+    address:
+      type: string
+      example: "123 Main St, City, State"
+    dateOfBirth:
+      type: string
+      format: date
+      example: "1995-05-15"
+
+AcademicInfo:
+  type: object
+  properties:
+    studentId:
+      type: string
+      example: "2024-001"
+    course:
+      type: string
+      example: "Computer Science"
+    year:
+      type: string
+      example: "3rd Year"
+    gpa:
+      type: number
+      format: float
+      example: 3.85
+
+ApprovalSummary:
+  type: object
+  properties:
+    isApproved:
+      type: boolean
+      example: false
+    approvedBy:
+      type: string
+      description: User ID of approver
+      example: "507f1f77bcf86cd799439013"
+    approvedAt:
+      type: string
+      format: date-time
+    comments:
+      type: string
+      example: "All requirements met"
+
+Document:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Document ID
+      example: "507f1f77bcf86cd799439011"
+    userId:
+      type: string
+      description: User ID who uploaded the document
+      example: "507f1f77bcf86cd799439012"
+    fileName:
+      type: string
+      description: Original file name
+      example: "transcript.pdf"
+    filePath:
+      type: string
+      description: File path on server
+      example: "/uploads/documents/transcript_507f1f77bcf86cd799439011.pdf"
+    fileSize:
+      type: number
+      description: File size in bytes
+      example: 1024000
+    mimeType:
+      type: string
+      description: MIME type of the file
+      example: "application/pdf"
+    documentType:
+      type: string
+      description: Type of document
+      example: "transcript"
+    isDeleted:
+      type: boolean
+      description: Whether document is soft deleted
+      example: false
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+Interview:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Interview ID
+      example: "507f1f77bcf86cd799439011"
+    userId:
+      type: string
+      description: User ID of interviewee
+      example: "507f1f77bcf86cd799439012"
+    interviewerId:
+      type: string
+      description: User ID of interviewer
+      example: "507f1f77bcf86cd799439013"
+    scheduledDate:
+      type: string
+      format: date-time
+      description: Scheduled interview date and time
+      example: "2024-01-15T10:00:00Z"
+    duration:
+      type: number
+      description: Interview duration in minutes
+      example: 60
+    location:
+      type: string
+      description: Interview location
+      example: "Room 201, Admin Building"
+    status:
+      type: string
+      enum: [scheduled, completed, cancelled, rescheduled]
+      description: Interview status
+      example: "scheduled"
+    notes:
+      type: string
+      description: Interview notes
+      example: "Candidate showed strong technical skills"
+    isDeleted:
+      type: boolean
+      description: Whether interview is soft deleted
+      example: false
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+PersonalityTest:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Test ID
+      example: "507f1f77bcf86cd799439011"
+    userId:
+      type: string
+      description: User ID of test taker
+      example: "507f1f77bcf86cd799439012"
+    templateId:
+      type: string
+      description: Test template ID
+      example: "507f1f77bcf86cd799439013"
+    answers:
+      type: array
+      items:
+        $ref: '#/TestAnswer'
+      description: Array of test answers
+    score:
+      type: number
+      description: Test score
+      example: 85
+    status:
+      type: string
+      enum: [started, in_progress, completed, stopped]
+      description: Test status
+      example: "completed"
+    startedAt:
+      type: string
+      format: date-time
+    completedAt:
+      type: string
+      format: date-time
+    isDeleted:
+      type: boolean
+      description: Whether test is soft deleted
+      example: false
+
+TestAnswer:
+  type: object
+  properties:
+    questionId:
+      type: string
+      description: Question ID
+      example: "507f1f77bcf86cd799439014"
+    answer:
+      type: string
+      description: User's answer
+      example: "A"
+    timeSpent:
+      type: number
+      description: Time spent on question in seconds
+      example: 30
+
+Evaluation:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Evaluation ID
+      example: "507f1f77bcf86cd799439011"
+    userId:
+      type: string
+      description: User ID being evaluated
+      example: "507f1f77bcf86cd799439012"
+    evaluatorId:
+      type: string
+      description: User ID of evaluator
+      example: "507f1f77bcf86cd799439013"
+    criteria:
+      type: array
+      items:
+        $ref: '#/EvaluationCriteria'
+      description: Array of evaluation criteria
+    overallScore:
+      type: number
+      description: Overall evaluation score
+      example: 85
+    comments:
+      type: string
+      description: Evaluator comments
+      example: "Strong performance in all areas"
+    timeKeepingRecord:
+      $ref: '#/TimeKeepingRecord'
+    isDeleted:
+      type: boolean
+      description: Whether evaluation is soft deleted
+      example: false
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+EvaluationCriteria:
+  type: object
+  properties:
+    criterion:
+      type: string
+      description: Evaluation criterion name
+      example: "Communication Skills"
+    score:
+      type: number
+      description: Score for this criterion
+      example: 8
+    maxScore:
+      type: number
+      description: Maximum possible score
+      example: 10
+    comments:
+      type: string
+      description: Comments for this criterion
+      example: "Excellent verbal communication"
+
+TimeKeepingRecord:
+  type: object
+  properties:
+    hoursWorked:
+      type: number
+      description: Total hours worked
+      example: 40
+    overtimeHours:
+      type: number
+      description: Overtime hours
+      example: 5
+    absences:
+      type: number
+      description: Number of absences
+      example: 1
+    lateArrivals:
+      type: number
+      description: Number of late arrivals
+      example: 0
+
+Department:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Department ID
+      example: "507f1f77bcf86cd799439011"
+    departmentCode:
+      type: string
+      description: Department code
+      example: "CS"
+    name:
+      type: string
+      description: Department name
+      example: "Computer Science"
+    description:
+      type: string
+      description: Department description
+      example: "Department of Computer Science and Information Technology"
+    headId:
+      type: string
+      description: User ID of department head
+      example: "507f1f77bcf86cd799439012"
+    isDeleted:
+      type: boolean
+      description: Whether department is soft deleted
+      example: false
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+Notification:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Notification ID
+      example: "507f1f77bcf86cd799439011"
+    userId:
+      type: string
+      description: User ID receiving the notification
+      example: "507f1f77bcf86cd799439012"
+    title:
+      type: string
+      description: Notification title
+      example: "Application Status Update"
+    message:
+      type: string
+      description: Notification message
+      example: "Your application has been approved"
+    type:
+      type: string
+      enum: [info, success, warning, error]
+      description: Notification type
+      example: "success"
+    isRead:
+      type: boolean
+      description: Whether notification is read
+      example: false
+    isDeleted:
+      type: boolean
+      description: Whether notification is soft deleted
+      example: false
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+# Request/Response Schemas
+LoginRequest:
+  type: object
+  properties:
+    email:
+      type: string
+      format: email
+      description: User's email address
+      example: "john.doe@example.com"
+    password:
+      type: string
+      description: User's password
+      example: "securePassword123"
+    idNumber:
+      type: string
+      description: User's ID number (alternative to email)
+      example: "2024-001"
+  required:
+    - password
+
+RegisterRequest:
+  type: object
+  properties:
+    firstName:
+      type: string
+      description: User's first name
+      example: "John"
+    lastName:
+      type: string
+      description: User's last name
+      example: "Doe"
+    email:
+      type: string
+      format: email
+      description: User's email address
+      example: "john.doe@example.com"
+    password:
+      type: string
+      description: User's password
+      example: "securePassword123"
+    idNumber:
+      type: string
+      description: User's ID number
+      example: "2024-001"
+    roleId:
+      type: string
+      description: Role ID to assign to user
+      example: "507f1f77bcf86cd799439011"
+  required:
+    - firstName
+    - lastName
+    - email
+    - password
+    - idNumber
+
+# Common Response Schemas
+SuccessResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: true
+    message:
+      type: string
+      example: "Operation completed successfully"
+    data:
+      type: object
+      description: Response data (varies by endpoint)
+
+ErrorResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: false
+    message:
+      type: string
+      example: "An error occurred"
+    error:
+      type: string
+      description: Detailed error information
+
+ValidationError:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: false
+    message:
+      type: string
+      example: "Validation failed"
+    errors:
+      type: array
+      items:
+        type: object
+        properties:
+          field:
+            type: string
+            example: "email"
+          message:
+            type: string
+            example: "Email is required"
+
+PaginatedResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: true
+    data:
+      type: array
+      items:
+        type: object
+      description: Array of items
+    pagination:
+      type: object
+      properties:
+        page:
+          type: number
+          example: 1
+        limit:
+          type: number
+          example: 10
+        total:
+          type: number
+          example: 100
+        totalPages:
+          type: number
+          example: 10
+
+# Audit Log schema
+AuditLog:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Audit log ID
+      example: "507f1f77bcf86cd799439011"
+    userId:
+      type: string
+      description: ID of the user who performed the action
+      example: "507f1f77bcf86cd799439012"
+    username:
+      type: string
+      description: Username of the user who performed the action
+      example: "johndoe"
+    action:
+      type: string
+      description: Description of the action performed
+      example: "User Login"
+    method:
+      type: string
+      enum: [GET, POST, PUT, PATCH, DELETE]
+      description: HTTP method used
+      example: "POST"
+    endpoint:
+      type: string
+      description: API endpoint accessed
+      example: "/api/auth/login"
+    resourceType:
+      type: string
+      description: Type of resource affected
+      example: "user"
+    resourceId:
+      type: string
+      description: ID of the affected resource
+      example: "507f1f77bcf86cd799439013"
+    ipAddress:
+      type: string
+      description: IP address of the client
+      example: "192.168.1.100"
+    userAgent:
+      type: string
+      description: User agent string from the client
+      example: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    requestBody:
+      type: object
+      description: Sanitized request body (sensitive data removed)
+      example: { "username": "johndoe" }
+    responseStatus:
+      type: number
+      description: HTTP response status code
+      example: 200
+    responseMessage:
+      type: string
+      description: Response message or error description
+      example: "Login successful"
+    duration:
+      type: number
+      description: Request processing duration in milliseconds
+      example: 245
+    metadata:
+      type: object
+      description: Additional metadata about the action
+      example: { "loginMethod": "password", "sessionId": "sess_123" }
+    isDeleted:
+      type: boolean
+      description: Soft delete flag
+      example: false
+    deletedAt:
+      type: string
+      format: date-time
+      description: Date when the log was soft deleted
+      example: null
+    createdAt:
+      type: string
+      format: date-time
+      description: Date when the log was created
+      example: "2024-01-15T10:30:00Z"
+    updatedAt:
+      type: string
+      format: date-time
+      description: Date when the log was last updated
+      example: "2024-01-15T10:30:00Z"
+  required:
+    - userId
+    - action
+    - method
+    - endpoint
+    - responseStatus

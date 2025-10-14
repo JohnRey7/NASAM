@@ -1,0 +1,773 @@
+# Audit Log Routes
+/api/audit-logs:
+  post:
+    tags:
+      - Audit Logs
+    summary: Create audit log entry
+    description: Create a new audit log entry (typically used for manual logging)
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              action:
+                type: string
+                description: Action performed
+                example: "Manual user creation"
+              method:
+                type: string
+                enum: [GET, POST, PUT, PATCH, DELETE]
+                description: HTTP method
+                example: "POST"
+              endpoint:
+                type: string
+                description: API endpoint
+                example: "/api/users"
+              resourceType:
+                type: string
+                description: Type of resource affected
+                example: "user"
+              resourceId:
+                type: string
+                description: ID of the affected resource
+                example: "507f1f77bcf86cd799439011"
+              responseStatus:
+                type: number
+                description: HTTP response status code
+                example: 201
+              responseMessage:
+                type: string
+                description: Response message
+                example: "User created successfully"
+              metadata:
+                type: object
+                description: Additional metadata
+                example: { "source": "admin_panel", "category": "user_management" }
+            required:
+              - action
+              - method
+              - endpoint
+              - responseStatus
+    responses:
+      '201':
+        description: Audit log created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Audit log created successfully"
+                data:
+                  $ref: '../components/schemas.yml#/AuditLog'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  get:
+    tags:
+      - Audit Logs
+    summary: Get all audit logs
+    description: Retrieve all audit logs with filtering and pagination (admin only)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - name: userId
+        in: query
+        required: false
+        description: Filter by user ID
+        schema:
+          type: string
+      - name: action
+        in: query
+        required: false
+        description: Filter by action (partial match)
+        schema:
+          type: string
+        example: "login"
+      - name: method
+        in: query
+        required: false
+        description: Filter by HTTP method
+        schema:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+      - name: endpoint
+        in: query
+        required: false
+        description: Filter by endpoint (partial match)
+        schema:
+          type: string
+        example: "/api/users"
+      - name: resourceType
+        in: query
+        required: false
+        description: Filter by resource type
+        schema:
+          type: string
+        example: "user"
+      - name: resourceId
+        in: query
+        required: false
+        description: Filter by resource ID
+        schema:
+          type: string
+      - name: responseStatus
+        in: query
+        required: false
+        description: Filter by response status code
+        schema:
+          type: number
+        example: 200
+      - name: ipAddress
+        in: query
+        required: false
+        description: Filter by IP address
+        schema:
+          type: string
+      - name: startDate
+        in: query
+        required: false
+        description: Filter from date (ISO 8601)
+        schema:
+          type: string
+          format: date-time
+        example: "2024-01-01T00:00:00Z"
+      - name: endDate
+        in: query
+        required: false
+        description: Filter to date (ISO 8601)
+        schema:
+          type: string
+          format: date-time
+        example: "2024-12-31T23:59:59Z"
+      - $ref: '../components/parameters.yml#/search'
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+      - name: includeDeleted
+        in: query
+        required: false
+        description: Include soft-deleted logs
+        schema:
+          type: boolean
+        example: false
+    responses:
+      '200':
+        description: Audit logs retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Audit logs retrieved successfully"
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/AuditLog'
+                pagination:
+                  type: object
+                  properties:
+                    current:
+                      type: number
+                      example: 1
+                    pages:
+                      type: number
+                      example: 10
+                    total:
+                      type: number
+                      example: 100
+                    limit:
+                      type: number
+                      example: 10
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/my:
+  get:
+    tags:
+      - Audit Logs
+    summary: Get my audit logs
+    description: Retrieve audit logs for the authenticated user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - name: action
+        in: query
+        required: false
+        description: Filter by action
+        schema:
+          type: string
+      - name: method
+        in: query
+        required: false
+        description: Filter by HTTP method
+        schema:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+      - name: endpoint
+        in: query
+        required: false
+        description: Filter by endpoint
+        schema:
+          type: string
+      - name: resourceType
+        in: query
+        required: false
+        description: Filter by resource type
+        schema:
+          type: string
+      - name: startDate
+        in: query
+        required: false
+        description: Filter from date
+        schema:
+          type: string
+          format: date-time
+      - name: endDate
+        in: query
+        required: false
+        description: Filter to date
+        schema:
+          type: string
+          format: date-time
+      - $ref: '../components/parameters.yml#/search'
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+    responses:
+      '200':
+        description: User audit logs retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "User audit logs retrieved successfully"
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/AuditLog'
+                pagination:
+                  type: object
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/user/{userId}:
+  get:
+    tags:
+      - Audit Logs
+    summary: Get audit logs for specific user
+    description: Retrieve audit logs for a specific user (admin only)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: method
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+      - name: resourceType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: startDate
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: endDate
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+    responses:
+      '200':
+        description: User audit logs retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/AuditLog'
+                pagination:
+                  type: object
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/resource/{resourceType}/{resourceId}:
+  get:
+    tags:
+      - Audit Logs
+    summary: Get audit logs for specific resource
+    description: Retrieve audit logs for a specific resource
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: resourceType
+        in: path
+        required: true
+        description: Type of resource
+        schema:
+          type: string
+        example: "user"
+      - name: resourceId
+        in: path
+        required: true
+        description: Resource ID
+        schema:
+          type: string
+        example: "507f1f77bcf86cd799439011"
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: method
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+    responses:
+      '200':
+        description: Resource audit logs retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/AuditLog'
+                pagination:
+                  type: object
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/stats:
+  get:
+    tags:
+      - Audit Logs
+    summary: Get audit log statistics
+    description: Retrieve audit log statistics and analytics
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: startDate
+        in: query
+        required: false
+        description: Statistics from date
+        schema:
+          type: string
+          format: date-time
+      - name: endDate
+        in: query
+        required: false
+        description: Statistics to date
+        schema:
+          type: string
+          format: date-time
+      - name: userId
+        in: query
+        required: false
+        description: Filter statistics by user
+        schema:
+          type: string
+      - name: resourceType
+        in: query
+        required: false
+        description: Filter statistics by resource type
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Audit log statistics retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Audit log statistics retrieved successfully"
+                data:
+                  type: object
+                  properties:
+                    summary:
+                      type: object
+                      properties:
+                        totalLogs:
+                          type: number
+                          example: 1500
+                        uniqueUsers:
+                          type: number
+                          example: 25
+                        avgDuration:
+                          type: number
+                          example: 245.67
+                    actionBreakdown:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          _id:
+                            type: string
+                            example: "User Login"
+                          count:
+                            type: number
+                            example: 150
+                    methodBreakdown:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          _id:
+                            type: string
+                            example: "GET"
+                          count:
+                            type: number
+                            example: 800
+                    statusBreakdown:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          _id:
+                            type: number
+                            example: 200
+                          count:
+                            type: number
+                            example: 1200
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/{id}:
+  get:
+    tags:
+      - Audit Logs
+    summary: Get audit log by ID
+    description: Retrieve a specific audit log by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+      - name: includeDeleted
+        in: query
+        required: false
+        description: Include soft-deleted log
+        schema:
+          type: boolean
+    responses:
+      '200':
+        description: Audit log retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Audit log retrieved successfully"
+                data:
+                  $ref: '../components/schemas.yml#/AuditLog'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Audit Logs
+    summary: Update audit log
+    description: Update limited fields of an audit log entry
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              metadata:
+                type: object
+                description: Additional metadata
+              responseMessage:
+                type: string
+                description: Updated response message
+                example: "Updated response message"
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/{id}/soft:
+  delete:
+    tags:
+      - Audit Logs
+    summary: Soft delete audit log
+    description: Soft delete an audit log entry (can be restored)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/{id}/restore:
+  put:
+    tags:
+      - Audit Logs
+    summary: Restore soft-deleted audit log
+    description: Restore a soft-deleted audit log entry
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Audit log restored successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Audit log restored successfully"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/{id}/permanent:
+  delete:
+    tags:
+      - Audit Logs
+    summary: Permanently delete audit log
+    description: Permanently delete an audit log entry (cannot be restored)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/deleted:
+  get:
+    tags:
+      - Audit Logs
+    summary: Get soft-deleted audit logs
+    description: Retrieve all soft-deleted audit logs
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: method
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+      - $ref: '../components/parameters.yml#/search'
+    responses:
+      '200':
+        description: Deleted audit logs retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Deleted audit logs retrieved successfully"
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/AuditLog'
+                pagination:
+                  type: object
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/audit-logs/cleanup:
+  post:
+    tags:
+      - Audit Logs
+    summary: Cleanup old audit logs
+    description: Permanently delete old soft-deleted audit logs for maintenance
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: daysToKeep
+        in: query
+        required: false
+        description: Number of days to keep logs (default 90)
+        schema:
+          type: number
+          minimum: 1
+          default: 90
+        example: 90
+    responses:
+      '200':
+        description: Old audit logs cleaned up successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Cleaned up 150 old audit logs"
+                data:
+                  type: object
+                  properties:
+                    deletedCount:
+                      type: number
+                      example: 150
+                    daysToKeep:
+                      type: number
+                      example: 90
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

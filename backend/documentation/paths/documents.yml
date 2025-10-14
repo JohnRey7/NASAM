@@ -1,0 +1,218 @@
+# Document Management Routes
+/api/documents:
+  put:
+    tags:
+      - Documents
+    summary: Upload documents
+    description: Upload documents for the authenticated user
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              documents:
+                type: array
+                items:
+                  type: string
+                  format: binary
+                description: Array of document files to upload
+              documentTypes:
+                type: array
+                items:
+                  type: string
+                description: Array of document types corresponding to each file
+                example: ["transcript", "certificate", "id_card"]
+            required:
+              - documents
+    responses:
+      '200':
+        description: Documents uploaded successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Documents uploaded successfully"
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/Document'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '413':
+        description: File too large
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+            example:
+              success: false
+              message: "File too large"
+              error: "Maximum file size exceeded"
+      '415':
+        description: Unsupported media type
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+            example:
+              success: false
+              message: "Unsupported file type"
+              error: "Only PDF, JPG, PNG files are allowed"
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  get:
+    tags:
+      - Documents
+    summary: Get my documents
+    description: Retrieve documents for the authenticated user
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: documentType
+        in: query
+        required: false
+        description: Filter by document type
+        schema:
+          type: string
+        example: "transcript"
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DocumentsListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Documents
+    summary: Delete my documents
+    description: Delete all documents for the authenticated user
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/documents/{id}/soft:
+  delete:
+    tags:
+      - Documents
+    summary: Soft delete document
+    description: Soft delete a document (can be restored later)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/documents/{id}/restore:
+  put:
+    tags:
+      - Documents
+    summary: Restore soft-deleted document
+    description: Restore a soft-deleted document
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Document restored successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Document restored successfully"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/documents/{id}/permanent:
+  delete:
+    tags:
+      - Documents
+    summary: Permanently delete document
+    description: Permanently delete a document (cannot be restored)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/documents/deleted:
+  get:
+    tags:
+      - Documents
+    summary: Get soft-deleted documents
+    description: Retrieve all soft-deleted documents
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DocumentsListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

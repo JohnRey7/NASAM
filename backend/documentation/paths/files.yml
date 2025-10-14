@@ -1,0 +1,22 @@
+# File Management Routes
+/api/files/{fileName}:
+  get:
+    tags:
+      - Files
+    summary: Download file
+    description: Download a file by its filename
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/fileName'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/FileDownload'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

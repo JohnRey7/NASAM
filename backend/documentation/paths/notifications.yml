@@ -1,0 +1,204 @@
+# Notification Routes
+/api/notifications:
+  post:
+    tags:
+      - Notifications
+    summary: Create notification
+    description: Create a new notification for a user
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              userId:
+                type: string
+                description: ID of the user to receive the notification
+                example: "507f1f77bcf86cd799439012"
+              title:
+                type: string
+                description: Notification title
+                example: "Application Status Update"
+              message:
+                type: string
+                description: Notification message
+                example: "Your application has been approved"
+              type:
+                type: string
+                enum: [info, success, warning, error]
+                description: Notification type
+                example: "success"
+            required:
+              - userId
+              - title
+              - message
+              - type
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  get:
+    tags:
+      - Notifications
+    summary: Get user notifications
+    description: Retrieve notifications for the authenticated user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - name: isRead
+        in: query
+        required: false
+        description: Filter by read status
+        schema:
+          type: boolean
+      - name: type
+        in: query
+        required: false
+        description: Filter by notification type
+        schema:
+          type: string
+          enum: [info, success, warning, error]
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+    responses:
+      '200':
+        description: List of notifications
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/Notification'
+                unreadCount:
+                  type: number
+                  description: Number of unread notifications
+                  example: 5
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Notifications
+    summary: Delete all notifications
+    description: Delete all notifications for the authenticated user
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/notifications/{notificationId}:
+  delete:
+    tags:
+      - Notifications
+    summary: Delete notification
+    description: Delete a specific notification
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/notificationId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/notifications/{notificationId}/read:
+  patch:
+    tags:
+      - Notifications
+    summary: Mark notification as read
+    description: Mark a specific notification as read
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/notificationId'
+    responses:
+      '200':
+        description: Notification marked as read
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Notification marked as read"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/notifications/mark-all-read:
+  patch:
+    tags:
+      - Notifications
+    summary: Mark all notifications as read
+    description: Mark all notifications as read for the authenticated user
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: All notifications marked as read
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "All notifications marked as read"
+                data:
+                  type: object
+                  properties:
+                    updatedCount:
+                      type: number
+                      description: Number of notifications updated
+                      example: 12
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

@@ -1,0 +1,269 @@
+# Evaluation Routes
+/api/evaluations:
+  post:
+    tags:
+      - Evaluations
+    summary: Create evaluation
+    description: Create a new evaluation for a user
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              userId:
+                type: string
+                description: ID of the user being evaluated
+                example: "507f1f77bcf86cd799439012"
+              criteria:
+                type: array
+                items:
+                  $ref: '../components/schemas.yml#/EvaluationCriteria'
+                description: Array of evaluation criteria
+              overallScore:
+                type: number
+                description: Overall evaluation score
+                example: 85
+                minimum: 0
+                maximum: 100
+              comments:
+                type: string
+                description: General evaluation comments
+                example: "Strong performance across all areas"
+              timeKeepingRecord:
+                $ref: '../components/schemas.yml#/TimeKeepingRecord'
+            required:
+              - userId
+              - criteria
+              - overallScore
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  get:
+    tags:
+      - Evaluations
+    summary: Get all evaluations
+    description: Retrieve all evaluations with pagination and filtering
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+      - name: userId
+        in: query
+        required: false
+        description: Filter by user ID
+        schema:
+          type: string
+      - name: evaluatorId
+        in: query
+        required: false
+        description: Filter by evaluator ID
+        schema:
+          type: string
+      - name: minScore
+        in: query
+        required: false
+        description: Minimum overall score filter
+        schema:
+          type: number
+      - name: maxScore
+        in: query
+        required: false
+        description: Maximum overall score filter
+        schema:
+          type: number
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+    responses:
+      '200':
+        description: List of evaluations
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/Evaluation'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/evaluations/{id}:
+  get:
+    tags:
+      - Evaluations
+    summary: Get evaluation by ID
+    description: Retrieve a specific evaluation by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Evaluation data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas.yml#/Evaluation'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Evaluations
+    summary: Update evaluation
+    description: Update an existing evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              criteria:
+                type: array
+                items:
+                  $ref: '../components/schemas.yml#/EvaluationCriteria'
+              overallScore:
+                type: number
+                minimum: 0
+                maximum: 100
+              comments:
+                type: string
+              timeKeepingRecord:
+                $ref: '../components/schemas.yml#/TimeKeepingRecord'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Evaluations
+    summary: Delete evaluation
+    description: Soft delete an evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/evaluations/{id}/timekeeping:
+  get:
+    tags:
+      - Evaluations
+    summary: Get timekeeping record
+    description: Retrieve the timekeeping record for an evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Timekeeping record data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas.yml#/TimeKeepingRecord'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Evaluations
+    summary: Update timekeeping record
+    description: Update the timekeeping record for an evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/TimeKeepingRecord'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

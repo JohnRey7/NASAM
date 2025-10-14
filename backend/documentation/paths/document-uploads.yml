@@ -1,0 +1,234 @@
+# Enhanced Document Upload Routes
+/api/document-uploads:
+  post:
+    tags:
+      - Documents
+    summary: Upload documents (enhanced)
+    description: Upload documents with enhanced metadata and validation
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              documents:
+                type: array
+                items:
+                  type: string
+                  format: binary
+                description: Array of document files to upload
+              metadata:
+                type: string
+                description: JSON string containing document metadata
+                example: '{"documentType": "transcript", "semester": "Fall 2024", "description": "Official transcript"}'
+            required:
+              - documents
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '413':
+        description: File too large
+      '415':
+        description: Unsupported media type
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  get:
+    tags:
+      - Documents
+    summary: Get my document uploads
+    description: Retrieve document uploads for the authenticated user
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: documentType
+        in: query
+        required: false
+        description: Filter by document type
+        schema:
+          type: string
+        example: "transcript"
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DocumentsListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/document-uploads/all:
+  get:
+    tags:
+      - Documents
+    summary: Get all document uploads
+    description: Retrieve all document uploads (admin only)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+      - name: documentType
+        in: query
+        required: false
+        description: Filter by document type
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DocumentsListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/document-uploads/user/{userId}:
+  get:
+    tags:
+      - Documents
+    summary: Get documents by user ID
+    description: Retrieve document uploads for a specific user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+      - name: documentType
+        in: query
+        required: false
+        description: Filter by document type
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DocumentsListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Documents
+    summary: Update user documents
+    description: Update document uploads for a specific user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              documents:
+                type: array
+                items:
+                  type: string
+                  format: binary
+                description: Array of document files to upload
+              metadata:
+                type: string
+                description: JSON string containing document metadata
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Documents
+    summary: Delete user documents
+    description: Delete all document uploads for a specific user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/document-uploads/end-term-grade:
+  post:
+    tags:
+      - Documents
+    summary: Add end term semester grade
+    description: Upload end term semester grade document
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              gradeDocument:
+                type: string
+                format: binary
+                description: Grade document file
+              semester:
+                type: string
+                description: Semester information
+                example: "Fall 2024"
+              year:
+                type: string
+                description: Academic year
+                example: "2024-2025"
+              gpa:
+                type: number
+                format: float
+                description: GPA for the semester
+                example: 3.85
+            required:
+              - gradeDocument
+              - semester
+              - year
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

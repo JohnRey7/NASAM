@@ -1,0 +1,322 @@
+# Authentication Routes
+/api/auth/login:
+  post:
+    tags:
+      - Authentication
+    summary: User login
+    description: Authenticate a user with email/ID number and password
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/LoginRequest'
+          examples:
+            loginWithEmail:
+              $ref: '../components/examples.yml#/LoginRequestExample'
+            loginWithIdNumber:
+              $ref: '../components/examples.yml#/LoginWithIdNumberExample'
+    responses:
+      '200':
+        description: Login successful
+        headers:
+          Set-Cookie:
+            description: JWT token set as HTTP-only cookie
+            schema:
+              type: string
+              example: "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Path=/; Max-Age=86400"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Login successful"
+                data:
+                  $ref: '../components/schemas.yml#/User'
+      '400':
+        $ref: '../components/responses.yml#/BadRequest'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/auth/register:
+  post:
+    tags:
+      - Authentication
+    summary: User registration
+    description: Register a new user account
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/RegisterRequest'
+          examples:
+            registerUser:
+              $ref: '../components/examples.yml#/RegisterRequestExample'
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '409':
+        $ref: '../components/responses.yml#/ConflictError'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/auth/logout:
+  post:
+    tags:
+      - Authentication
+    summary: User logout
+    description: Logout the authenticated user and clear the session
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Logout successful
+        headers:
+          Set-Cookie:
+            description: Clear the authentication cookie
+            schema:
+              type: string
+              example: "token=; HttpOnly; Path=/; Max-Age=0"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Logout successful"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/auth/forgot-password/verify-email:
+  post:
+    tags:
+      - Authentication
+    summary: Verify email for password reset
+    description: Verify user email address and send password reset link
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+                format: email
+                description: User's email address
+                example: "john.doe@example.com"
+            required:
+              - email
+    responses:
+      '200':
+        description: Email verification sent
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Password reset email sent"
+      '400':
+        $ref: '../components/responses.yml#/BadRequest'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/auth/forgot-password/change-password:
+  post:
+    tags:
+      - Authentication
+    summary: Change password using reset token
+    description: Change user password using the reset token from email
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              token:
+                type: string
+                description: Password reset token
+                example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              newPassword:
+                type: string
+                description: New password
+                example: "newSecurePassword123"
+            required:
+              - token
+              - newPassword
+    responses:
+      '200':
+        description: Password changed successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Password changed successfully"
+      '400':
+        $ref: '../components/responses.yml#/BadRequest'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/auth/me:
+  get:
+    tags:
+      - Authentication
+    summary: Get current user
+    description: Get the currently authenticated user's information
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UserResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/auth/email/verify:
+  get:
+    tags:
+      - Authentication
+    summary: Verify email address
+    description: Verify user's email address using verification token
+    parameters:
+      - name: token
+        in: query
+        required: true
+        description: Email verification token
+        schema:
+          type: string
+        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    responses:
+      '200':
+        description: Email verified successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Email verified successfully"
+      '400':
+        $ref: '../components/responses.yml#/BadRequest'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/auth/email/resend:
+  get:
+    tags:
+      - Authentication
+    summary: Resend email verification
+    description: Resend email verification link to user
+    parameters:
+      - name: email
+        in: query
+        required: true
+        description: User's email address
+        schema:
+          type: string
+          format: email
+        example: "john.doe@example.com"
+    responses:
+      '200':
+        description: Verification email sent
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Verification email sent"
+      '400':
+        $ref: '../components/responses.yml#/BadRequest'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/auth/email:
+  put:
+    tags:
+      - Authentication
+    summary: Update email address
+    description: Update the authenticated user's email address
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              newEmail:
+                type: string
+                format: email
+                description: New email address
+                example: "newemail@example.com"
+            required:
+              - newEmail
+    responses:
+      '200':
+        description: Email updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Email updated successfully"
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '409':
+        $ref: '../components/responses.yml#/ConflictError'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

@@ -1,0 +1,413 @@
+# User Management Routes
+/api/user:
+  post:
+    tags:
+      - Users
+    summary: Create new user
+    description: Create a new user account (Admin only)
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/RegisterRequest'
+          examples:
+            createUser:
+              $ref: '../components/examples.yml#/RegisterRequestExample'
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '409':
+        $ref: '../components/responses.yml#/ConflictError'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users:
+  get:
+    tags:
+      - Users
+    summary: Get all users
+    description: Retrieve all users with pagination and filtering
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+      - $ref: '../components/parameters.yml#/includeDeleted'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UsersListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/disabled:
+  get:
+    tags:
+      - Users
+    summary: Get disabled users
+    description: Retrieve all disabled user accounts
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UsersListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/deleted:
+  get:
+    tags:
+      - Users
+    summary: Get soft-deleted users
+    description: Retrieve all soft-deleted user accounts
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UsersListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/idnumber/{idNumber}:
+  get:
+    tags:
+      - Users
+    summary: Get user by ID number
+    description: Retrieve a user by their ID number
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/idNumber'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UserResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Users
+    summary: Update user by ID number
+    description: Update a user's information using their ID number
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/idNumber'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              firstName:
+                type: string
+                example: "John"
+              lastName:
+                type: string
+                example: "Doe"
+              email:
+                type: string
+                format: email
+                example: "john.doe@example.com"
+              roleId:
+                type: string
+                example: "507f1f77bcf86cd799439011"
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Users
+    summary: Delete user by ID number
+    description: Soft delete a user by their ID number
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/idNumber'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/{id}:
+  get:
+    tags:
+      - Users
+    summary: Get user by ID
+    description: Retrieve a user by their ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UserResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Users
+    summary: Update user by ID
+    description: Update a user's information using their ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              firstName:
+                type: string
+                example: "John"
+              lastName:
+                type: string
+                example: "Doe"
+              email:
+                type: string
+                format: email
+                example: "john.doe@example.com"
+              roleId:
+                type: string
+                example: "507f1f77bcf86cd799439011"
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Users
+    summary: Delete user by ID
+    description: Soft delete a user by their ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/{id}/disable:
+  patch:
+    tags:
+      - Users
+    summary: Disable user account
+    description: Disable a user account by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: User disabled successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "User disabled successfully"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/{id}/enable:
+  patch:
+    tags:
+      - Users
+    summary: Enable user account
+    description: Enable a user account by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: User enabled successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "User enabled successfully"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/{id}/soft:
+  delete:
+    tags:
+      - Users
+    summary: Soft delete user
+    description: Soft delete a user (can be restored later)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/{id}/restore:
+  put:
+    tags:
+      - Users
+    summary: Restore soft-deleted user
+    description: Restore a soft-deleted user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: User restored successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "User restored successfully"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/users/{id}/permanent:
+  delete:
+    tags:
+      - Users
+    summary: Permanently delete user
+    description: Permanently delete a user (cannot be restored)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

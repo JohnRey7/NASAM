@@ -1,0 +1,472 @@
+# Application Management Routes
+/api/application:
+  post:
+    tags:
+      - Applications
+    summary: Create application form
+    description: Create a new application form for the authenticated user
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              personalInfo:
+                $ref: '../components/schemas.yml#/PersonalInfo'
+              academicInfo:
+                $ref: '../components/schemas.yml#/AcademicInfo'
+              additionalInfo:
+                type: object
+                description: Additional application information
+                properties:
+                  motivation:
+                    type: string
+                    example: "I am motivated to join this program because..."
+                  experience:
+                    type: string
+                    example: "My relevant experience includes..."
+            required:
+              - personalInfo
+              - academicInfo
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '409':
+        $ref: '../components/responses.yml#/ConflictError'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  get:
+    tags:
+      - Applications
+    summary: Get my application form
+    description: Retrieve the current user's application form
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/ApplicationResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Applications
+    summary: Update my application form
+    description: Update the current user's application form
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              personalInfo:
+                $ref: '../components/schemas.yml#/PersonalInfo'
+              academicInfo:
+                $ref: '../components/schemas.yml#/AcademicInfo'
+              additionalInfo:
+                type: object
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/{id}:
+  get:
+    tags:
+      - Applications
+    summary: Get application by ID
+    description: Retrieve an application form by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/ApplicationResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Applications
+    summary: Update application by ID
+    description: Update an application form by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              personalInfo:
+                $ref: '../components/schemas.yml#/PersonalInfo'
+              academicInfo:
+                $ref: '../components/schemas.yml#/AcademicInfo'
+              status:
+                type: string
+                enum: [pending, approved, rejected, in_review]
+                example: "in_review"
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Applications
+    summary: Delete application by ID
+    description: Soft delete an application form by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/{id}/pdf:
+  get:
+    tags:
+      - Applications
+    summary: Export application as PDF by user ID
+    description: Export an application form as PDF by user ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: User ID
+        schema:
+          type: string
+        example: "507f1f77bcf86cd799439011"
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/FileDownload'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/pdf:
+  get:
+    tags:
+      - Applications
+    summary: Export my application as PDF
+    description: Export the current user's application form as PDF
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/FileDownload'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/all:
+  get:
+    tags:
+      - Applications
+    summary: Get all application forms
+    description: Retrieve all application forms with pagination and filtering
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+      - $ref: '../components/parameters.yml#/status'
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/ApplicationsListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/user/{userId}:
+  get:
+    tags:
+      - Applications
+    summary: Get application by user ID
+    description: Retrieve an application form by user ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/ApplicationResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Applications
+    summary: Update application by user ID
+    description: Update an application form by user ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              personalInfo:
+                $ref: '../components/schemas.yml#/PersonalInfo'
+              academicInfo:
+                $ref: '../components/schemas.yml#/AcademicInfo'
+              status:
+                type: string
+                enum: [pending, approved, rejected, in_review]
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Applications
+    summary: Delete application by user ID
+    description: Soft delete an application form by user ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/status:
+  put:
+    tags:
+      - Applications
+    summary: Set application status
+    description: Set the status of the current user's application
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [pending, approved, rejected, in_review]
+                example: "approved"
+              comments:
+                type: string
+                example: "Application meets all requirements"
+            required:
+              - status
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/{id}/status:
+  put:
+    tags:
+      - Applications
+    summary: Set application status by ID
+    description: Set the status of an application by its ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [pending, approved, rejected, in_review]
+                example: "approved"
+              comments:
+                type: string
+                example: "Application meets all requirements"
+            required:
+              - status
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/auto-complete:
+  patch:
+    tags:
+      - Applications
+    summary: Auto-complete application
+    description: Auto-complete application form with user profile data
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/application/approvals:
+  put:
+    tags:
+      - Applications
+    summary: Set approval summary
+    description: Set the approval summary for an application
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              applicationId:
+                type: string
+                example: "507f1f77bcf86cd799439011"
+              isApproved:
+                type: boolean
+                example: true
+              comments:
+                type: string
+                example: "All requirements met successfully"
+            required:
+              - applicationId
+              - isApproved
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

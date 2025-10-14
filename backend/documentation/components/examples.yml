@@ -1,0 +1,208 @@
+# Common Examples
+UserExample:
+  summary: Example user
+  value:
+    _id: "507f1f77bcf86cd799439011"
+    firstName: "John"
+    lastName: "Doe"
+    email: "john.doe@example.com"
+    idNumber: "2024-001"
+    role:
+      _id: "507f1f77bcf86cd799439012"
+      name: "Student"
+      description: "Student role"
+    isEmailVerified: true
+    isActive: true
+    isDeleted: false
+    createdAt: "2024-01-15T10:30:00Z"
+    updatedAt: "2024-01-15T10:30:00Z"
+
+ApplicationExample:
+  summary: Example application
+  value:
+    _id: "507f1f77bcf86cd799439011"
+    userId: "507f1f77bcf86cd799439012"
+    personalInfo:
+      firstName: "John"
+      lastName: "Doe"
+      middleName: "Smith"
+      email: "john.doe@example.com"
+      phoneNumber: "+1234567890"
+      address: "123 Main St, City, State"
+      dateOfBirth: "1995-05-15"
+    academicInfo:
+      studentId: "2024-001"
+      course: "Computer Science"
+      year: "3rd Year"
+      gpa: 3.85
+    status: "pending"
+    approvalSummary:
+      isApproved: false
+      approvedBy: null
+      approvedAt: null
+      comments: ""
+    isDeleted: false
+    createdAt: "2024-01-15T10:30:00Z"
+    updatedAt: "2024-01-15T10:30:00Z"
+
+DocumentExample:
+  summary: Example document
+  value:
+    _id: "507f1f77bcf86cd799439011"
+    userId: "507f1f77bcf86cd799439012"
+    fileName: "transcript.pdf"
+    filePath: "/uploads/documents/transcript_507f1f77bcf86cd799439011.pdf"
+    fileSize: 1024000
+    mimeType: "application/pdf"
+    documentType: "transcript"
+    isDeleted: false
+    createdAt: "2024-01-15T10:30:00Z"
+    updatedAt: "2024-01-15T10:30:00Z"
+
+InterviewExample:
+  summary: Example interview
+  value:
+    _id: "507f1f77bcf86cd799439011"
+    userId: "507f1f77bcf86cd799439012"
+    interviewerId: "507f1f77bcf86cd799439013"
+    scheduledDate: "2024-01-20T14:00:00Z"
+    duration: 60
+    location: "Room 201, Admin Building"
+    status: "scheduled"
+    notes: "Technical interview for Computer Science position"
+    isDeleted: false
+    createdAt: "2024-01-15T10:30:00Z"
+    updatedAt: "2024-01-15T10:30:00Z"
+
+PersonalityTestExample:
+  summary: Example personality test
+  value:
+    _id: "507f1f77bcf86cd799439011"
+    userId: "507f1f77bcf86cd799439012"
+    templateId: "507f1f77bcf86cd799439013"
+    answers:
+      - questionId: "507f1f77bcf86cd799439014"
+        answer: "A"
+        timeSpent: 30
+      - questionId: "507f1f77bcf86cd799439015"
+        answer: "B"
+        timeSpent: 25
+    score: 85
+    status: "completed"
+    startedAt: "2024-01-15T10:00:00Z"
+    completedAt: "2024-01-15T11:00:00Z"
+    isDeleted: false
+
+EvaluationExample:
+  summary: Example evaluation
+  value:
+    _id: "507f1f77bcf86cd799439011"
+    userId: "507f1f77bcf86cd799439012"
+    evaluatorId: "507f1f77bcf86cd799439013"
+    criteria:
+      - criterion: "Communication Skills"
+        score: 8
+        maxScore: 10
+        comments: "Excellent verbal communication"
+      - criterion: "Technical Skills"
+        score: 9
+        maxScore: 10
+        comments: "Strong technical knowledge"
+    overallScore: 85
+    comments: "Strong performance in all areas"
+    timeKeepingRecord:
+      hoursWorked: 40
+      overtimeHours: 5
+      absences: 1
+      lateArrivals: 0
+    isDeleted: false
+    createdAt: "2024-01-15T10:30:00Z"
+    updatedAt: "2024-01-15T10:30:00Z"
+
+DepartmentExample:
+  summary: Example department
+  value:
+    _id: "507f1f77bcf86cd799439011"
+    departmentCode: "CS"
+    name: "Computer Science"
+    description: "Department of Computer Science and Information Technology"
+    headId: "507f1f77bcf86cd799439012"
+    isDeleted: false
+    createdAt: "2024-01-15T10:30:00Z"
+    updatedAt: "2024-01-15T10:30:00Z"
+
+NotificationExample:
+  summary: Example notification
+  value:
+    _id: "507f1f77bcf86cd799439011"
+    userId: "507f1f77bcf86cd799439012"
+    title: "Application Status Update"
+    message: "Your application has been approved"
+    type: "success"
+    isRead: false
+    isDeleted: false
+    createdAt: "2024-01-15T10:30:00Z"
+    updatedAt: "2024-01-15T10:30:00Z"
+
+LoginRequestExample:
+  summary: Login with email
+  value:
+    email: "john.doe@example.com"
+    password: "securePassword123"
+
+LoginWithIdNumberExample:
+  summary: Login with ID number
+  value:
+    idNumber: "2024-001"
+    password: "securePassword123"
+
+RegisterRequestExample:
+  summary: User registration
+  value:
+    firstName: "John"
+    lastName: "Doe"
+    email: "john.doe@example.com"
+    password: "securePassword123"
+    idNumber: "2024-001"
+    roleId: "507f1f77bcf86cd799439011"
+
+ErrorExample:
+  summary: Error response
+  value:
+    success: false
+    message: "An error occurred"
+    error: "Detailed error information"
+
+ValidationErrorExample:
+  summary: Validation error response
+  value:
+    success: false
+    message: "Validation failed"
+    errors:
+      - field: "email"
+        message: "Email is required"
+      - field: "password"
+        message: "Password must be at least 8 characters long"
+
+SuccessExample:
+  summary: Success response
+  value:
+    success: true
+    message: "Operation completed successfully"
+    data:
+      _id: "507f1f77bcf86cd799439011"
+
+PaginatedResponseExample:
+  summary: Paginated response
+  value:
+    success: true
+    data:
+      - _id: "507f1f77bcf86cd799439011"
+        name: "Item 1"
+      - _id: "507f1f77bcf86cd799439012"
+        name: "Item 2"
+    pagination:
+      page: 1
+      limit: 10
+      total: 100
+      totalPages: 10

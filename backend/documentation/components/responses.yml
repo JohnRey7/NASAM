@@ -1,0 +1,233 @@
+# Common Response Definitions
+BadRequest:
+  description: Bad Request - Invalid request parameters
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yml#/ErrorResponse'
+      example:
+        success: false
+        message: "Bad request"
+        error: "Invalid input parameters"
+
+Unauthorized:
+  description: Unauthorized - Authentication required
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yml#/ErrorResponse'
+      example:
+        success: false
+        message: "Unauthorized"
+        error: "Authentication token required"
+
+Forbidden:
+  description: Forbidden - Insufficient permissions
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yml#/ErrorResponse'
+      example:
+        success: false
+        message: "Forbidden"
+        error: "Insufficient permissions for this operation"
+
+NotFound:
+  description: Not Found - Resource not found
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yml#/ErrorResponse'
+      example:
+        success: false
+        message: "Not found"
+        error: "The requested resource was not found"
+
+InternalServerError:
+  description: Internal Server Error
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yml#/ErrorResponse'
+      example:
+        success: false
+        message: "Internal server error"
+        error: "An unexpected error occurred"
+
+ValidationError:
+  description: Validation Error - Invalid input data
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yml#/ValidationError'
+      example:
+        success: false
+        message: "Validation failed"
+        errors:
+          - field: "email"
+            message: "Email is required"
+          - field: "password"
+            message: "Password must be at least 8 characters long"
+
+ConflictError:
+  description: Conflict - Resource already exists
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yml#/ErrorResponse'
+      example:
+        success: false
+        message: "Conflict"
+        error: "Resource already exists"
+
+UserResponse:
+  description: User data response
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          data:
+            $ref: './schemas.yml#/User'
+
+UsersListResponse:
+  description: List of users response
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          data:
+            type: array
+            items:
+              $ref: './schemas.yml#/User'
+
+ApplicationResponse:
+  description: Application data response
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          data:
+            $ref: './schemas.yml#/Application'
+
+ApplicationsListResponse:
+  description: List of applications response
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          data:
+            type: array
+            items:
+              $ref: './schemas.yml#/Application'
+
+DocumentResponse:
+  description: Document data response
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          data:
+            $ref: './schemas.yml#/Document'
+
+DocumentsListResponse:
+  description: List of documents response
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          data:
+            type: array
+            items:
+              $ref: './schemas.yml#/Document'
+
+FileDownload:
+  description: File download response
+  content:
+    application/octet-stream:
+      schema:
+        type: string
+        format: binary
+    application/pdf:
+      schema:
+        type: string
+        format: binary
+    image/png:
+      schema:
+        type: string
+        format: binary
+    image/jpeg:
+      schema:
+        type: string
+        format: binary
+
+CreatedResponse:
+  description: Resource created successfully
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          message:
+            type: string
+            example: "Resource created successfully"
+          data:
+            type: object
+            description: "Created resource data"
+
+UpdatedResponse:
+  description: Resource updated successfully
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          message:
+            type: string
+            example: "Resource updated successfully"
+          data:
+            type: object
+            description: "Updated resource data"
+
+DeletedResponse:
+  description: Resource deleted successfully
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          message:
+            type: string
+            example: "Resource deleted successfully"

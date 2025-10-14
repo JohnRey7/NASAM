@@ -1,0 +1,281 @@
+openapi: 3.1.1
+info:
+  title: NASAM Backend API
+  description: |
+    NASAM (Nasionalismo Assessment and Management) Backend API Documentation
+    
+    This API provides comprehensive functionality for managing user applications, 
+    interviews, evaluations, documents, and administrative tasks for the NASAM system.
+    
+    ## Authentication
+    Most endpoints require authentication using JWT tokens passed in cookies.
+    
+    ## Permissions
+    The API uses a role-based permission system. Users must have specific permissions
+    to access different endpoints.
+    
+    ## Data Formats
+    - All dates should be in ISO 8601 format
+    - File uploads use multipart/form-data
+    - JSON responses follow consistent error handling patterns
+  version: 1.0.0
+  contact:
+    name: NASAM Development Team
+    email: support@nasam.example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.nasam.example.com
+    description: Production server
+
+security:
+  - cookieAuth: []
+
+paths:
+  # Basic routes
+  /:
+    $ref: './paths/basic.yml#/~1'
+
+  # Authentication routes
+  /api/auth/login:
+    $ref: './paths/auth.yml#/~1api~1auth~1login'
+  /api/auth/register:
+    $ref: './paths/auth.yml#/~1api~1auth~1register'
+  /api/auth/logout:
+    $ref: './paths/auth.yml#/~1api~1auth~1logout'
+  /api/auth/forgot-password/verify-email:
+    $ref: './paths/auth.yml#/~1api~1auth~1forgot-password~1verify-email'
+  /api/auth/forgot-password/change-password:
+    $ref: './paths/auth.yml#/~1api~1auth~1forgot-password~1change-password'
+  /api/auth/me:
+    $ref: './paths/auth.yml#/~1api~1auth~1me'
+  /api/auth/email/verify:
+    $ref: './paths/auth.yml#/~1api~1auth~1email~1verify'
+  /api/auth/email/resend:
+    $ref: './paths/auth.yml#/~1api~1auth~1email~1resend'
+  /api/auth/email:
+    $ref: './paths/auth.yml#/~1api~1auth~1email'
+
+  # User management routes
+  /api/user:
+    $ref: './paths/users.yml#/~1api~1user'
+  /api/users:
+    $ref: './paths/users.yml#/~1api~1users'
+  /api/users/disabled:
+    $ref: './paths/users.yml#/~1api~1users~1disabled'
+  /api/users/deleted:
+    $ref: './paths/users.yml#/~1api~1users~1deleted'
+  /api/users/idnumber/{idNumber}:
+    $ref: './paths/users.yml#/~1api~1users~1idnumber~1{idNumber}'
+  /api/users/{id}:
+    $ref: './paths/users.yml#/~1api~1users~1{id}'
+  /api/users/{id}/disable:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1disable'
+  /api/users/{id}/enable:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1enable'
+  /api/users/{id}/soft:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1soft'
+  /api/users/{id}/restore:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1restore'
+  /api/users/{id}/permanent:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1permanent'
+
+  # Role routes
+  /api/roles:
+    $ref: './paths/roles.yml#/~1api~1roles'
+  /api/roles/{id}:
+    $ref: './paths/roles.yml#/~1api~1roles~1{id}'
+  /api/roles/{id}/soft:
+    $ref: './paths/roles.yml#/~1api~1roles~1{id}~1soft'
+  /api/roles/{id}/restore:
+    $ref: './paths/roles.yml#/~1api~1roles~1{id}~1restore'
+  /api/roles/{id}/permanent:
+    $ref: './paths/roles.yml#/~1api~1roles~1{id}~1permanent'
+  /api/roles/deleted:
+    $ref: './paths/roles.yml#/~1api~1roles~1deleted'
+
+  # Application routes
+  /api/application:
+    $ref: './paths/applications.yml#/~1api~1application'
+  /api/application/{id}:
+    $ref: './paths/applications.yml#/~1api~1application~1{id}'
+  /api/application/{id}/pdf:
+    $ref: './paths/applications.yml#/~1api~1application~1{id}~1pdf'
+  /api/application/pdf:
+    $ref: './paths/applications.yml#/~1api~1application~1pdf'
+  /api/application/all:
+    $ref: './paths/applications.yml#/~1api~1application~1all'
+  /api/application/user/{userId}:
+    $ref: './paths/applications.yml#/~1api~1application~1user~1{userId}'
+  /api/application/status:
+    $ref: './paths/applications.yml#/~1api~1application~1status'
+  /api/application/{id}/status:
+    $ref: './paths/applications.yml#/~1api~1application~1{id}~1status'
+  /api/application/auto-complete:
+    $ref: './paths/applications.yml#/~1api~1application~1auto-complete'
+  /api/application/approvals:
+    $ref: './paths/applications.yml#/~1api~1application~1approvals'
+
+  # Document routes
+  /api/documents:
+    $ref: './paths/documents.yml#/~1api~1documents'
+  /api/documents/{id}/soft:
+    $ref: './paths/documents.yml#/~1api~1documents~1{id}~1soft'
+  /api/documents/{id}/restore:
+    $ref: './paths/documents.yml#/~1api~1documents~1{id}~1restore'
+  /api/documents/{id}/permanent:
+    $ref: './paths/documents.yml#/~1api~1documents~1{id}~1permanent'
+  /api/documents/deleted:
+    $ref: './paths/documents.yml#/~1api~1documents~1deleted'
+
+  # Document Upload routes
+  /api/document-uploads:
+    $ref: './paths/document-uploads.yml#/~1api~1document-uploads'
+  /api/document-uploads/all:
+    $ref: './paths/document-uploads.yml#/~1api~1document-uploads~1all'
+  /api/document-uploads/user/{userId}:
+    $ref: './paths/document-uploads.yml#/~1api~1document-uploads~1user~1{userId}'
+  /api/document-uploads/end-term-grade:
+    $ref: './paths/document-uploads.yml#/~1api~1document-uploads~1end-term-grade'
+
+  # Interview routes
+  /api/interview:
+    $ref: './paths/interviews.yml#/~1api~1interview'
+  /api/interview/all:
+    $ref: './paths/interviews.yml#/~1api~1interview~1all'
+  /api/interview/{id}:
+    $ref: './paths/interviews.yml#/~1api~1interview~1{id}'
+  /api/interview/user/{userId}:
+    $ref: './paths/interviews.yml#/~1api~1interview~1user~1{userId}'
+
+  # Personality Test routes
+  /api/personality-test/start:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1start'
+  /api/personality-test/answer:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1answer'
+  /api/personality-test/stop:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1stop'
+  /api/personality-test/me:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1me'
+  /api/personality-test/all:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1all'
+
+  # Evaluation routes
+  /api/evaluations:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations'
+  /api/evaluations/{id}:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations~1{id}'
+  /api/evaluations/{id}/timekeeping:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations~1{id}~1timekeeping'
+
+  # Department routes
+  /api/departments:
+    $ref: './paths/departments.yml#/~1api~1departments'
+  /api/departments/{departmentCode}:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}'
+  /api/departments/{departmentCode}/head/id:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}~1head~1id'
+  /api/departments/{departmentCode}/head/idnumber:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}~1head~1idnumber'
+
+  # Notification routes
+  /api/notifications:
+    $ref: './paths/notifications.yml#/~1api~1notifications'
+  /api/notifications/{notificationId}:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1{notificationId}'
+  /api/notifications/{notificationId}/read:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1{notificationId}~1read'
+  /api/notifications/mark-all-read:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1mark-all-read'
+
+  # File download route
+  /api/files/{fileName}:
+    $ref: './paths/files.yml#/~1api~1files~1{fileName}'
+
+  # OAS Staff routes
+  /api/oas/applications:
+    $ref: './paths/oas.yml#/~1api~1oas~1applications'
+  /api/oas/application/{applicationId}/documents:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1documents'
+  /api/oas/application/{applicationId}/status:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1status'
+  /api/oas/dashboard-stats:
+    $ref: './paths/oas.yml#/~1api~1oas~1dashboard-stats'
+
+  # Audit Log routes
+  /api/audit-logs:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs'
+  /api/audit-logs/my:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1my'
+  /api/audit-logs/user/{userId}:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1user~1{userId}'
+  /api/audit-logs/resource/{resourceType}/{resourceId}:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1resource~1{resourceType}~1{resourceId}'
+  /api/audit-logs/stats:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1stats'
+  /api/audit-logs/{id}:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1{id}'
+  /api/audit-logs/{id}/soft:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1{id}~1soft'
+  /api/audit-logs/{id}/restore:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1{id}~1restore'
+  /api/audit-logs/{id}/permanent:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1{id}~1permanent'
+  /api/audit-logs/deleted:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1deleted'
+  /api/audit-logs/cleanup:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1cleanup'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+      description: JWT token stored in HTTP-only cookie
+
+  schemas:
+    $ref: './components/schemas.yml'
+
+  responses:
+    $ref: './components/responses.yml'
+
+  parameters:
+    $ref: './components/parameters.yml'
+
+  examples:
+    $ref: './components/examples.yml'
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Users
+    description: User management operations
+  - name: Roles
+    description: Role and permission management
+  - name: Applications
+    description: Application form management
+  - name: Documents
+    description: Document management and upload
+  - name: Interviews
+    description: Interview scheduling and management
+  - name: Personality Tests
+    description: Personality test administration
+  - name: Evaluations
+    description: User evaluation and assessment
+  - name: Departments
+    description: Department management
+  - name: Notifications
+    description: Notification system
+  - name: Files
+    description: File upload and download
+  - name: OAS Staff
+    description: OAS staff specific operations
+  - name: Audit Logs
+    description: Audit logging and activity tracking
+  - name: Basic
+    description: Basic API endpoints

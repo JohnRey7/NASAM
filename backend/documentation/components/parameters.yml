@@ -1,0 +1,189 @@
+# Common Parameters
+id:
+  name: id
+  in: path
+  required: true
+  description: Resource ID
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{24}$'
+  example: "507f1f77bcf86cd799439011"
+
+userId:
+  name: userId
+  in: path
+  required: true
+  description: User ID
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{24}$'
+  example: "507f1f77bcf86cd799439011"
+
+idNumber:
+  name: idNumber
+  in: path
+  required: true
+  description: User ID number
+  schema:
+    type: string
+  example: "2024-001"
+
+departmentCode:
+  name: departmentCode
+  in: path
+  required: true
+  description: Department code
+  schema:
+    type: string
+  example: "CS"
+
+applicationId:
+  name: applicationId
+  in: path
+  required: true
+  description: Application ID
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{24}$'
+  example: "507f1f77bcf86cd799439011"
+
+interviewId:
+  name: interviewId
+  in: path
+  required: true
+  description: Interview ID
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{24}$'
+  example: "507f1f77bcf86cd799439011"
+
+notificationId:
+  name: notificationId
+  in: path
+  required: true
+  description: Notification ID
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{24}$'
+  example: "507f1f77bcf86cd799439011"
+
+testId:
+  name: testId
+  in: path
+  required: true
+  description: Personality test ID
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{24}$'
+  example: "507f1f77bcf86cd799439011"
+
+gradeId:
+  name: gradeId
+  in: path
+  required: true
+  description: Grade record ID
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{24}$'
+  example: "507f1f77bcf86cd799439011"
+
+fileName:
+  name: fileName
+  in: path
+  required: true
+  description: File name
+  schema:
+    type: string
+  example: "document.pdf"
+
+# Query Parameters
+page:
+  name: page
+  in: query
+  required: false
+  description: Page number for pagination
+  schema:
+    type: integer
+    minimum: 1
+    default: 1
+  example: 1
+
+limit:
+  name: limit
+  in: query
+  required: false
+  description: Number of items per page
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 100
+    default: 10
+  example: 10
+
+search:
+  name: search
+  in: query
+  required: false
+  description: Search term
+  schema:
+    type: string
+  example: "john"
+
+status:
+  name: status
+  in: query
+  required: false
+  description: Filter by status
+  schema:
+    type: string
+  example: "pending"
+
+sortBy:
+  name: sortBy
+  in: query
+  required: false
+  description: Field to sort by
+  schema:
+    type: string
+  example: "createdAt"
+
+sortOrder:
+  name: sortOrder
+  in: query
+  required: false
+  description: Sort order
+  schema:
+    type: string
+    enum: [asc, desc]
+    default: desc
+  example: "desc"
+
+includeDeleted:
+  name: includeDeleted
+  in: query
+  required: false
+  description: Include soft-deleted items
+  schema:
+    type: boolean
+    default: false
+  example: false
+
+# Header Parameters
+contentType:
+  name: Content-Type
+  in: header
+  required: true
+  description: Content type of the request body
+  schema:
+    type: string
+    enum: [application/json, multipart/form-data]
+  example: "application/json"
+
+acceptLanguage:
+  name: Accept-Language
+  in: header
+  required: false
+  description: Preferred language for response
+  schema:
+    type: string
+  example: "en-US"

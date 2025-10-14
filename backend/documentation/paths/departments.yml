@@ -1,0 +1,274 @@
+# Department Management Routes
+/api/departments:
+  post:
+    tags:
+      - Departments
+    summary: Create department
+    description: Create a new department
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              departmentCode:
+                type: string
+                description: Unique department code
+                example: "CS"
+                pattern: "^[A-Z]{2,10}$"
+              name:
+                type: string
+                description: Department name
+                example: "Computer Science"
+              description:
+                type: string
+                description: Department description
+                example: "Department of Computer Science and Information Technology"
+              headId:
+                type: string
+                description: User ID of the department head (optional)
+                example: "507f1f77bcf86cd799439012"
+            required:
+              - departmentCode
+              - name
+    responses:
+      '201':
+        $ref: '../components/responses.yml#/CreatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '409':
+        $ref: '../components/responses.yml#/ConflictError'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  get:
+    tags:
+      - Departments
+    summary: Get all departments
+    description: Retrieve all departments with pagination and filtering
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+      - $ref: '../components/parameters.yml#/includeDeleted'
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+    responses:
+      '200':
+        description: List of departments
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/Department'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/departments/{departmentCode}:
+  get:
+    tags:
+      - Departments
+    summary: Get department by code
+    description: Retrieve a specific department by its code
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/departmentCode'
+    responses:
+      '200':
+        description: Department data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas.yml#/Department'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  patch:
+    tags:
+      - Departments
+    summary: Update department
+    description: Update an existing department
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/departmentCode'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Department name
+                example: "Updated Computer Science"
+              description:
+                type: string
+                description: Department description
+                example: "Updated department description"
+              headId:
+                type: string
+                description: User ID of the department head
+                example: "507f1f77bcf86cd799439012"
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+  delete:
+    tags:
+      - Departments
+    summary: Delete department
+    description: Soft delete a department
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/departmentCode'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/departments/{departmentCode}/head/id:
+  post:
+    tags:
+      - Departments
+    summary: Set department head by ID
+    description: Set the department head using user ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/departmentCode'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              userId:
+                type: string
+                description: User ID of the new department head (null to remove head)
+                example: "507f1f77bcf86cd799439012"
+                nullable: true
+    responses:
+      '200':
+        description: Department head updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Department head updated successfully"
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/departments/{departmentCode}/head/idnumber:
+  post:
+    tags:
+      - Departments
+    summary: Set department head by ID number
+    description: Set the department head using user ID number
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/departmentCode'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              idNumber:
+                type: string
+                description: ID number of the new department head (null to remove head)
+                example: "2024-001"
+                nullable: true
+    responses:
+      '200':
+        description: Department head updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Department head updated successfully"
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'

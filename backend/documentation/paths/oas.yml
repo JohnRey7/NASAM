@@ -1,0 +1,212 @@
+# OAS Staff Routes
+/api/oas/applications:
+  get:
+    tags:
+      - OAS Staff
+    summary: Get all applications for staff
+    description: Retrieve all applications with enhanced filtering for OAS staff
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+      - $ref: '../components/parameters.yml#/status'
+      - name: department
+        in: query
+        required: false
+        description: Filter by department
+        schema:
+          type: string
+      - name: dateFrom
+        in: query
+        required: false
+        description: Filter applications from date (ISO 8601)
+        schema:
+          type: string
+          format: date
+      - name: dateTo
+        in: query
+        required: false
+        description: Filter applications to date (ISO 8601)
+        schema:
+          type: string
+          format: date
+      - $ref: '../components/parameters.yml#/sortBy'
+      - $ref: '../components/parameters.yml#/sortOrder'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/ApplicationsListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/oas/application/{applicationId}/documents:
+  get:
+    tags:
+      - OAS Staff
+    summary: Get application documents
+    description: Retrieve all documents associated with an application
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/applicationId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DocumentsListResponse'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/oas/application/{applicationId}/status:
+  patch:
+    tags:
+      - OAS Staff
+    summary: Update application status
+    description: Update the status of an application (OAS staff)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/applicationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [pending, approved, rejected, in_review, under_evaluation]
+                description: New application status
+                example: "approved"
+              comments:
+                type: string
+                description: Comments about the status change
+                example: "Application meets all requirements"
+              notifyApplicant:
+                type: boolean
+                description: Whether to send notification to applicant
+                example: true
+                default: true
+            required:
+              - status
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/UpdatedResponse'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yml#/NotFound'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
+
+/api/oas/dashboard-stats:
+  get:
+    tags:
+      - OAS Staff
+    summary: Get dashboard statistics
+    description: Retrieve dashboard statistics for OAS staff
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: period
+        in: query
+        required: false
+        description: Statistics period
+        schema:
+          type: string
+          enum: [today, week, month, year, all]
+          default: month
+    responses:
+      '200':
+        description: Dashboard statistics
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: object
+                  properties:
+                    totalApplications:
+                      type: number
+                      description: Total number of applications
+                      example: 150
+                    pendingApplications:
+                      type: number
+                      description: Number of pending applications
+                      example: 25
+                    approvedApplications:
+                      type: number
+                      description: Number of approved applications
+                      example: 100
+                    rejectedApplications:
+                      type: number
+                      description: Number of rejected applications
+                      example: 20
+                    inReviewApplications:
+                      type: number
+                      description: Number of applications in review
+                      example: 5
+                    totalInterviews:
+                      type: number
+                      description: Total number of interviews scheduled
+                      example: 75
+                    completedInterviews:
+                      type: number
+                      description: Number of completed interviews
+                      example: 60
+                    upcomingInterviews:
+                      type: number
+                      description: Number of upcoming interviews
+                      example: 15
+                    applicationsByDepartment:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          department:
+                            type: string
+                            example: "Computer Science"
+                          count:
+                            type: number
+                            example: 45
+                    recentActivity:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                            example: "application_submitted"
+                          description:
+                            type: string
+                            example: "New application submitted by John Doe"
+                          timestamp:
+                            type: string
+                            format: date-time
+                          userId:
+                            type: string
+                            example: "507f1f77bcf86cd799439012"
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yml#/InternalServerError'
