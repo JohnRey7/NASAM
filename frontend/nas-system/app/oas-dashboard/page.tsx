@@ -150,61 +150,61 @@ export default function OASDashboardPage() {
 
   return (
     <DashboardLayout allowedRoles={["oas_staff", "admin"]}>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-[#800000]">OAS Staff Dashboard</h2>
-        <p className="text-gray-600">Manage scholarship applications, review documents, and evaluate scholars.</p>
+      <div className="mb-10">
+        <h2 className="text-3xl font-bold text-[#800000] tracking-tight">OAS Staff Dashboard</h2>
+        <p className="text-gray-600 mt-2 text-lg">Manage scholarship applications, review documents, and evaluate scholars.</p>
       </div>
 
       {/* ✅ Removed the error display - always show stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">New Applications</CardTitle>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <Card className="card-hover border-0 shadow-soft bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-gray-700">New Applications</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-[#800000]">{stats?.newApplications ?? 0}</p>
+            <p className="text-4xl font-bold text-[#800000] mb-2">{stats?.newApplications ?? 0}</p>
             <p className="text-sm text-gray-500">Status: Pending</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Document Verification</CardTitle>
+        <Card className="card-hover border-0 shadow-soft bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-gray-700">Document Verification</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-[#800000]">{stats?.documentVerifications ?? 0}</p>
+            <p className="text-4xl font-bold text-blue-600 mb-2">{stats?.documentVerifications ?? 0}</p>
             <p className="text-sm text-gray-500">Form approved, awaiting docs</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Ready for Interview</CardTitle>
+        <Card className="card-hover border-0 shadow-soft bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-gray-700">Ready for Interview</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-[#800000]">{stats?.scheduledInterviews ?? 0}</p>
+            <p className="text-4xl font-bold text-green-600 mb-2">{stats?.scheduledInterviews ?? 0}</p>
             <p className="text-sm text-gray-500">Documents verified</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Active Scholars</CardTitle>
+        <Card className="card-hover border-0 shadow-soft bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-gray-700">Active Scholars</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-[#800000]">{stats?.activeScholars ?? 0}</p>
+            <p className="text-4xl font-bold text-purple-600 mb-2">{stats?.activeScholars ?? 0}</p>
             <p className="text-sm text-gray-500">Approved applications</p>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="applications" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-8">
-          <TabsTrigger value="applications">Applications</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="evaluation">Scholar Evaluation</TabsTrigger>
-          <TabsTrigger value="audit">Audit Logs</TabsTrigger>
-          <TabsTrigger value="tools">Tools</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 mb-8 h-12 bg-white shadow-soft border-0 p-1">
+          <TabsTrigger value="applications" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Applications</TabsTrigger>
+          <TabsTrigger value="analytics" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Analytics</TabsTrigger>
+          <TabsTrigger value="evaluation" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Scholar Evaluation</TabsTrigger>
+          <TabsTrigger value="audit" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Audit Logs</TabsTrigger>
+          <TabsTrigger value="tools" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Tools</TabsTrigger>
         </TabsList>
 
         <TabsContent value="applications">
@@ -226,8 +226,8 @@ export default function OASDashboardPage() {
         <TabsContent value="tools">
           <ToolsCard />
           {/* Admin: Register Department Head */}
-          <div className="mt-8 p-4 border rounded bg-white">
-            <h3 className="font-bold mb-2">Register Department Head</h3>
+          <div className="mt-8 p-6 border-0 rounded-xl bg-white shadow-soft">
+            <h3 className="font-bold text-lg mb-4 text-gray-800">Register Department Head</h3>
             {user?.role === "admin" ? (
               <RegisterDepartmentHeadForm />
             ) : (
@@ -235,9 +235,9 @@ export default function OASDashboardPage() {
             )}
           </div>
           {/* Admin: Assign applicant to department */}
-          <div className="mt-8 p-4 border rounded bg-white">
-            <h3 className="font-bold mb-2">Assign Applicant to Department</h3>
-            <p className="text-sm text-gray-600 mb-3">Only students who are "Ready for Interview" can be assigned to departments.</p>
+          <div className="mt-8 p-6 border-0 rounded-xl bg-white shadow-soft">
+            <h3 className="font-bold text-lg mb-4 text-gray-800">Assign Applicant to Department</h3>
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">Only students who are "Ready for Interview" can be assigned to departments.</p>
             <div className="flex gap-2 mb-2 items-center">
               <select 
                 value={selectedApplicant} 

@@ -191,6 +191,30 @@ async function setDepartmentHeadByIdNumber(req, res) {
   }
 }
 
+// Assign applicant to department
+async function assignApplicantToDepartment(req, res) {
+  try {
+    const { userId, departmentCode } = req.body;
+    
+    if (!userId || !departmentCode) {
+      return res.status(400).json({ message: 'userId and departmentCode are required' });
+    }
+
+    const result = await DepartmentService.assignApplicantToDepartment(userId, departmentCode);
+    
+    res.status(200).json({
+      message: 'Applicant assigned to department successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error in assignApplicantToDepartment:', error);
+    if (error.message.includes('not found') || error.message.includes('Invalid')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   createDepartment,
   getAllDepartments,
@@ -202,5 +226,6 @@ module.exports = {
   permanentDeleteDepartment,
   getSoftDeletedDepartments,
   setDepartmentHeadById,
-  setDepartmentHeadByIdNumber
+  setDepartmentHeadByIdNumber,
+  assignApplicantToDepartment
 };

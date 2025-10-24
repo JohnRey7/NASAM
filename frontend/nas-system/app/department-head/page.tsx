@@ -10,9 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, Users, CheckCircle, Eye, MessageSquare, Search } from "lucide-react";
+import { Calendar, Clock, Users, CheckCircle, Eye, MessageSquare, Search, ClipboardCheck, Bell } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { departmentHeadService } from "@/services/departmentHeadService";
+import { scholarEvaluationService } from "@/services/scholarEvaluationService";
+import { ScholarEvaluationForm } from "@/components/scholar-evaluation-form";
 import { useToast } from "@/components/ui/use-toast";
 
 interface InterviewData {
@@ -38,6 +40,12 @@ export default function DepartmentHeadDashboardPage() {
     pendingRecommendations: 0
   });
   const { toast } = useToast();
+  
+  // Evaluation state
+  const [evaluationPeriod, setEvaluationPeriod] = useState<any>(null);
+  const [showEvaluationForm, setShowEvaluationForm] = useState(false);
+  const [selectedScholar, setSelectedScholar] = useState<any>(null);
+  const [scholars, setScholars] = useState<any[]>([]);
 
   // Function to fetch application details
   const fetchApplicationDetails = async (applicantId: string) => {
@@ -277,6 +285,22 @@ export default function DepartmentHeadDashboardPage() {
     }
   };
 
+  // Fetch evaluation period status
+  useEffect(() => {
+    const loadEvaluationPeriod = async () => {
+      try {
+        const data = await scholarEvaluationService.getCurrentPeriod();
+        setEvaluationPeriod(data.period);
+        if (data.isOpen) {
+          console.log('📝 Evaluation period is open:', data.period.ratingPeriod);
+        }
+      } catch (error) {
+        console.error('Error loading evaluation period:', error);
+      }
+    };
+    loadEvaluationPeriod();
+  }, []);
+
   // Fetch real data from backend
   useEffect(() => {
     const fetchData = async () => {
@@ -287,6 +311,7 @@ export default function DepartmentHeadDashboardPage() {
         // Fetch applicants assigned to this department head using the service
         const applicants = await departmentHeadService.getAssignedApplicants();
         console.log('🔍 Department Head Dashboard: API response data:', applicants);
+        setScholars(applicants);
         
         // Transform applicants data to interview format and fetch interview data for each
         const interviewsData: InterviewData[] = await Promise.all(
@@ -366,44 +391,89 @@ export default function DepartmentHeadDashboardPage() {
     <DashboardLayout allowedRoles={["department_head"]}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#800000]">Department Head Dashboard</h1>
-          <p className="text-gray-600 mt-2">Review and evaluate applications assigned to your department.</p>
+        <div className="mb-10">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-[#800000] tracking-tight">Department Head Dashboard</h1>
+              <p className="text-gray-600 mt-2 text-lg">Review and evaluate applications assigned to your department.</p>
+            </div>
+            {evaluationPeriod?.isOpen && (
+              <Button
+                onClick={() => {
+                  if (scholars.length === 0) {
+                    toast({
+                      title: "No Scholars",
+                      description: "No scholars assigned to evaluate",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  // Show first scholar for evaluation (you can add a selection dialog later)
+                  setSelectedScholar(scholars[0]);
+                  setShowEvaluationForm(true);
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg shadow-lg"
+              >
+                <ClipboardCheck className="mr-2 h-5 w-5" />
+                Evaluate Scholars
+                <Bell className="ml-2 h-4 w-4 animate-pulse" />
+              </Button>
+            )}
+          </div>
+          {evaluationPeriod?.isOpen && (
+            <div className="mt-4 bg-green-50 border-2 border-green-500 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-green-600" />
+                <p className="text-green-900 font-semibold">
+                  Scholar Evaluation Period is OPEN: {evaluationPeriod.ratingPeriod}
+                </p>
+              </div>
+              <p className="text-sm text-green-700 mt-1">
+                You can now evaluate your assigned scholars. Click the "Evaluate Scholars" button above to begin.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <Card className="card-hover border-0 shadow-soft bg-white">
             <CardContent className="flex items-center p-6">
-              <div className="flex items-center">
-                <Calendar className="h-8 w-8 text-blue-600 mr-4" />
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-50 rounded-xl">
+                  <Calendar className="h-8 w-8 text-blue-600" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.scheduledInterviews}</p>
-                  <p className="text-xs text-blue-600 mt-1">scheduled interviews</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.scheduledInterviews}</p>
+                  <p className="text-sm text-blue-600 mt-1 font-medium">scheduled interviews</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-hover border-0 shadow-soft bg-white">
             <CardContent className="flex items-center p-6">
-              <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-600 mr-4" />
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-50 rounded-xl">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.completedInterviews}</p>
-                  <p className="text-xs text-green-600 mt-1">completed interviews</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.completedInterviews}</p>
+                  <p className="text-sm text-green-600 mt-1 font-medium">completed interviews</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-hover border-0 shadow-soft bg-white">
             <CardContent className="flex items-center p-6">
-              <div className="flex items-center">
-                <Clock className="h-8 w-8 text-orange-600 mr-4" />
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-orange-50 rounded-xl">
+                  <Clock className="h-8 w-8 text-orange-600" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.pendingRecommendations}</p>
-                  <p className="text-xs text-orange-600 mt-1">pending recommendations</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.pendingRecommendations}</p>
+                  <p className="text-sm text-orange-600 mt-1 font-medium">pending recommendations</p>
                 </div>
               </div>
             </CardContent>
@@ -411,24 +481,24 @@ export default function DepartmentHeadDashboardPage() {
         </div>
 
         {/* Search Bar */}
-        <div className="mb-6">
+        <div className="mb-8">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <Input
               placeholder="Search by applicant name or course..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-12 h-12 border-gray-200 shadow-soft focus:ring-2 focus:ring-maroon-200 focus:border-[#800000] transition-smooth"
             />
           </div>
         </div>
 
         {/* Interviews Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Assigned Applicants</CardTitle>
+        <Card className="border-0 shadow-soft bg-white">
+          <CardHeader className="border-b bg-gray-50">
+            <CardTitle className="text-xl font-bold text-gray-800">Assigned Applicants</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
@@ -843,6 +913,23 @@ export default function DepartmentHeadDashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Scholar Evaluation Form */}
+        {selectedScholar && (
+          <ScholarEvaluationForm
+            scholar={selectedScholar}
+            open={showEvaluationForm}
+            onOpenChange={setShowEvaluationForm}
+            onSuccess={() => {
+              toast({
+                title: "Success",
+                description: "Evaluation submitted successfully",
+                duration: 3000
+              });
+              setShowEvaluationForm(false);
+            }}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

@@ -44,20 +44,22 @@ export function DashboardClient() {
 
 function ApplicantDashboard() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {/* 1. Application Form Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <FileText className="h-5 w-5 mr-2 text-[#800000]" />
-              Application Form
+        <Card className="card-hover border-0 shadow-soft bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="p-2 bg-maroon-50 rounded-lg">
+                <FileText className="h-5 w-5 text-[#800000]" />
+              </div>
+              <span>Application Form</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-500 mb-4">Complete your scholarship application form</p>
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">Complete your scholarship application form</p>
             <Link href="#application-form">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full border-maroon-200 text-[#800000] hover:bg-maroon-50 transition-smooth">
                 Go to Form
               </Button>
             </Link>
@@ -65,17 +67,19 @@ function ApplicantDashboard() {
         </Card>
 
         {/* 2. Document Upload Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <Upload className="h-5 w-5 mr-2 text-[#800000]" />
-              Documents
+        <Card className="card-hover border-0 shadow-soft bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Upload className="h-5 w-5 text-blue-600" />
+              </div>
+              <span>Documents</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-500 mb-4">Upload required documents for verification</p>
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">Upload required documents for verification</p>
             <Link href="#documents">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 transition-smooth">
                 Upload Files
               </Button>
             </Link>
@@ -83,17 +87,19 @@ function ApplicantDashboard() {
         </Card>
 
         {/* 3. Personality Test Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <CheckSquare className="h-5 w-5 mr-2 text-[#800000]" />
-              Personality Test
+        <Card className="card-hover border-0 shadow-soft bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <CheckSquare className="h-5 w-5 text-green-600" />
+              </div>
+              <span>Personality Test</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-500 mb-4">Take the required personality assessment</p>
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">Take the required personality assessment</p>
             <Link href="#personality-test">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full border-green-200 text-green-600 hover:bg-green-50 transition-smooth">
                 Start Test
               </Button>
             </Link>
@@ -101,31 +107,33 @@ function ApplicantDashboard() {
         </Card>
 
         {/* 4. Application Status - Use your existing component */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <CheckCircle className="h-5 w-5 mr-2 text-[#800000]" />
-              Application Status
+        <Card className="card-hover border-0 shadow-soft bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-purple-600" />
+              </div>
+              <span>Application Status</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
               Click to view detailed application progress
             </p>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full border-purple-200 text-purple-600 hover:bg-purple-50 transition-smooth">
               <CheckCircle className="h-4 w-4 mr-2" />
-              View Application Status
+              View Status
             </Button>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="form" className="w-full" id="application-form">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
-          <TabsTrigger value="form">Application Form</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="test">Personality Test</TabsTrigger>
-          <TabsTrigger value="status">Application Status</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 mb-8 h-12 bg-white shadow-soft border-0 p-1">
+          <TabsTrigger value="form" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Application Form</TabsTrigger>
+          <TabsTrigger value="documents" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Documents</TabsTrigger>
+          <TabsTrigger value="test" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Personality Test</TabsTrigger>
+          <TabsTrigger value="status" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Application Status</TabsTrigger>
         </TabsList>
 
         <TabsContent value="form">

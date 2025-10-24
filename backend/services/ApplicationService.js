@@ -34,16 +34,39 @@ class ApplicationService {
     return sanitizedData;
   }
 
-  // Create a new application
+  // Create a new application or update existing one
   static async createApplication(userId, applicationData) {
     try {
       const sanitizedData = ApplicationService.sanitizeApplicationData(applicationData);
 
       const existingApplication = await ApplicationForm.findOne({ user: userId, is_deleted: false });
+      
+      // If application exists, update it instead of throwing error
       if (existingApplication) {
-        throw new Error('User already has an application');
+        console.log('📝 Updating existing application for user:', userId);
+        
+        // Update the existing application
+        Object.assign(existingApplication, sanitizedData);
+        await existingApplication.save();
+
+        // Log application update
+        await ActivityLogger.logApplicationSubmission(
+          userId, 
+          existingApplication._id, 
+          sanitizedData.typeOfScholarship || 'scholarship'
+        );
+
+        // Create notification for update
+        await NotificationService.createApplicationSubmittedNotification(
+          userId,
+          existingApplication._id
+        );
+
+        return await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: existingApplication._id }))
+          .select('-status -approvalsSummary');
       }
 
+      // Create new application if none exists
       const application = new ApplicationForm({
         user: userId,
         ...sanitizedData
@@ -237,7 +260,7 @@ class ApplicationService {
     const updatedApplication = await ApplicationForm.findOneAndUpdate(
       SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }),
       { $set: sanitizedData },
-      { new: true, runValidators: true }
+      { new: true, runValidators: false }
     ).select('-status -approvalsSummary');
 
     return updatedApplication;
@@ -616,7 +639,6 @@ class ApplicationService {
     }
 
     const DocumentUpload = require('../models/DocumentUpload');
-    const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
     const documents = await DocumentUpload.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: application.user }));
 
     const documentStatus = {

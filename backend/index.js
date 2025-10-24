@@ -24,6 +24,7 @@ const EvaluationController = require('./controllers/EvaluationController');
 const PersonalityTestController = require('./controllers/PersonalityTestController');
 const DepartmentController = require("./controllers/DepartmentController");
 const InterviewController = require("./controllers/InterviewController");
+const ScholarEvaluationController = require('./controllers/ScholarEvaluationController');
 
 const AuditLogController = require('./controllers/AuditLogController');
 
@@ -308,6 +309,9 @@ app.get('/api/departments/deleted', authenticate, checkPermission('department.re
 app.post('/api/departments/:departmentCode/head/id', authenticate, checkPermission('department.update'), DepartmentController.setDepartmentHeadById);
 app.post('/api/departments/:departmentCode/head/idnumber', authenticate, checkPermission('department.update'), DepartmentController.setDepartmentHeadByIdNumber);
 
+// Assign applicant to department
+app.post('/api/admin/assign-applicant-to-department', authenticate, checkPermission('department.update'), DepartmentController.assignApplicantToDepartment);
+
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {
   await fileUtils.downloadFile(req.params.fileName, req, res);
@@ -395,6 +399,25 @@ app.get('/api/oas/analytics', authenticate, checkPermission('applicationForm.rea
 // Department Head: Schedule interview with notification
 app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
 app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate, checkPermission('application.readAll'), InterviewController.rescheduleInterviewForDepartmentHead);
+
+// ==================== SCHOLAR EVALUATION ROUTES ====================
+
+// Evaluation Period Management (Admin only)
+app.get('/api/evaluation-period/current', authenticate, ScholarEvaluationController.getCurrentPeriod);
+app.get('/api/evaluation-period/all', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getAllPeriods);
+app.post('/api/evaluation-period/open', authenticate, checkPermission('evaluation.manage'), ScholarEvaluationController.openEvaluationPeriod);
+app.post('/api/evaluation-period/close', authenticate, checkPermission('evaluation.manage'), ScholarEvaluationController.closeEvaluationPeriod);
+
+// Scholar Evaluations (Department Head)
+app.post('/api/scholar-evaluation', authenticate, checkPermission('evaluation.create'), ScholarEvaluationController.createEvaluation);
+app.get('/api/scholar-evaluation/my', authenticate, checkPermission('evaluation.create'), ScholarEvaluationController.getMyEvaluations);
+app.get('/api/scholar-evaluation/:id', authenticate, ScholarEvaluationController.getEvaluationById);
+app.patch('/api/scholar-evaluation/:id', authenticate, checkPermission('evaluation.create'), ScholarEvaluationController.updateEvaluation);
+app.delete('/api/scholar-evaluation/:id', authenticate, checkPermission('evaluation.delete'), ScholarEvaluationController.deleteEvaluation);
+
+// Admin Views
+app.get('/api/scholar-evaluation/all/list', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getAllEvaluations);
+app.get('/api/scholar-evaluation/statistics/summary', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getEvaluationStatistics);
 
 // Graceful shutdown
 const server = app.listen(port,host, () => {

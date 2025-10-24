@@ -116,11 +116,20 @@ export const departmentHeadService = {
   },
 
   async getPersonalityTestData(userId: string) {
-    const response = await axios.get(`${API_URL}/personality-test/user/${userId}`, {
-      withCredentials: true,
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return response.data;
+    try {
+      const response = await axios.get(`${API_URL}/personality-test/user/${userId}`, {
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // No personality test found - this is normal for applicants who haven't taken it yet
+        console.log('No personality test found for user:', userId);
+        return null;
+      }
+      throw error;
+    }
   },
 
   async getInterviewData(userId: string) {

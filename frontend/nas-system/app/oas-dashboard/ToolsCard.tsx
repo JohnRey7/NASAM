@@ -1,12 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Bell, BookOpen, Users, List, UserPlus } from "lucide-react";
+import { FileText, Bell, BookOpen, Users, List, UserPlus, ClipboardCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import React, { useState } from "react";
 import RegisterDepartmentHeadForm from "../department-head/RegisterDepartmentHeadForm";
 import DepartmentManagement from "@/components/DepartmentManagement";
+import { AdminEvaluationControl } from "@/components/admin-evaluation-control";
+import { AdminEvaluationView } from "@/components/admin-evaluation-view";
 
 export function ToolsCard() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -15,6 +17,8 @@ export function ToolsCard() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [departmentManagementOpen, setDepartmentManagementOpen] = useState(false);
+  const [evaluationControlOpen, setEvaluationControlOpen] = useState(false);
+  const [evaluationViewOpen, setEvaluationViewOpen] = useState(false);
 
   // const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setForm({ ...form, [e.target.name]: e.target.value });
@@ -64,6 +68,9 @@ export function ToolsCard() {
           <Button variant="default" className="flex items-center gap-2 bg-[#800000] text-white" onClick={() => setDialogOpen(true)}>
             <UserPlus className="h-5 w-5" /> Create Department Head
           </Button>
+          <Button variant="outline" className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50" onClick={() => setEvaluationControlOpen(true)}>
+            <ClipboardCheck className="h-5 w-5" /> Scholar Evaluations
+          </Button>
         </div>
         <div className="text-xs text-gray-500 mt-2">Select a tool to perform quick OAS actions. (Some actions are stubs for now.)</div>
       </CardContent>
@@ -109,6 +116,23 @@ export function ToolsCard() {
         open={departmentManagementOpen} 
         onOpenChange={setDepartmentManagementOpen} 
       />
+
+      {/* Scholar Evaluation Management Dialog */}
+      <Dialog open={evaluationControlOpen} onOpenChange={setEvaluationControlOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Scholar Evaluation Management</DialogTitle>
+            <DialogDescription>Manage evaluation periods and view all scholar evaluations</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 overflow-y-auto max-h-[70vh]">
+            <AdminEvaluationControl />
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold mb-4">All Evaluations</h3>
+              <AdminEvaluationView />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 } 

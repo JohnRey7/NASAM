@@ -386,6 +386,51 @@ class DepartmentService {
       throw error;
     }
   }
+
+  static async assignApplicantToDepartment(userId, departmentCode) {
+    try {
+      const ApplicationForm = require('../models/ApplicationForm');
+      
+      // Validate inputs
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Check if department exists
+      const department = await Department.findOne({ 
+        departmentCode: departmentCode.toUpperCase(), 
+        is_deleted: false 
+      });
+      
+      if (!department) {
+        throw new Error('Department not found');
+      }
+
+      // Find the application by user ID
+      const application = await ApplicationForm.findOne({ 
+        user: userId,
+        is_deleted: false 
+      });
+
+      if (!application) {
+        throw new Error('Application not found for this user');
+      }
+
+      // Update the application with department assignment
+      application.assignedDepartment = departmentCode.toUpperCase();
+      await application.save();
+
+      console.log(`✅ Assigned applicant ${userId} to department ${departmentCode}`);
+
+      return {
+        application,
+        department
+      };
+    } catch (error) {
+      console.error('Error assigning applicant to department:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = DepartmentService;

@@ -22,8 +22,10 @@ import {
   Download,
   Eye,
   MessageSquare,
-  RefreshCw
+  RefreshCw,
+  Edit
 } from "lucide-react"
+import { AdminEditApplication } from "@/components/admin-edit-application"
 import {
   Dialog,
   DialogContent,
@@ -100,7 +102,7 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
 
   const handleDownloadDocument = async (docType: string, filename: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/documents/download/${filename}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/files/${filename}`, {
         credentials: 'include'
       });
 
@@ -459,10 +461,13 @@ export function ApplicationReview() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [counts, setCounts] = useState<any | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [applicationToEdit, setApplicationToEdit] = useState<any>(null)
 
-  useEffect(() => {
+  const fetchApplications = () => {
     console.log('🚀 Starting to fetch applications...');
-    applicationService.getAllApplicationsForStaff()  // CHANGED THIS LINE
+    setLoading(true)
+    applicationService.getAllApplicationsForStaff()
       .then((apps) => {
         console.log('✅ Raw applications received:', apps);
         console.log('✅ Number of applications:', apps?.length || 0);
@@ -477,7 +482,25 @@ export function ApplicationReview() {
         setError(err.message || "Failed to load applications")
       })
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchApplications()
   }, [])
+
+  const handleEditClick = (application: any) => {
+    setApplicationToEdit(application)
+    setEditDialogOpen(true)
+  }
+
+  const handleEditSuccess = () => {
+    fetchApplications() // Refresh the list
+    toast({
+      title: "Success",
+      description: "Application list refreshed with latest changes",
+      duration: 2000
+    })
+  }
 
   // Fetch server-side counts
   useEffect(() => {
@@ -1094,6 +1117,7 @@ export function ApplicationReview() {
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => setSelectedApplication(application)}
+                              title="View Application"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -1515,8 +1539,19 @@ export function ApplicationReview() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleEditClick(application)}
+                          title="Edit Application"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8"
                           onClick={() => handleDownloadApplicationPDF(application)}
+                          title="Download PDF"
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -1551,6 +1586,16 @@ export function ApplicationReview() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Admin Edit Dialog */}
+      {applicationToEdit && (
+        <AdminEditApplication
+          application={applicationToEdit}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   )
 }

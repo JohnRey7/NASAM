@@ -10,7 +10,12 @@ export const oasDashboardService = {
     return response.data;
   },
   async assignApplicantToDepartment(userId: string, departmentCode: string) {
-    const response = await axios.post(`${API_URL}/admin/assign-applicant-to-department`, { userId, departmentCode }, { withCredentials: true });
-    return response.data;
+    try {
+      const response = await axios.post(`${API_URL}/admin/assign-applicant-to-department`, { userId, departmentCode }, { withCredentials: true });
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Assignment service error:', error.response?.data || error);
+      throw new Error(error.response?.data?.message || 'Failed to assign applicant to department');
+    }
   },
 }; 

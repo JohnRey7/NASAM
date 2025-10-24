@@ -3,11 +3,37 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 
+// Development mode flag - set to true to enable console logging instead of DB saves
+const DEV_MODE = process.env.NODE_ENV === 'development' || process.env.NOTIFICATION_DEV_MODE === 'true';
+
 class NotificationService {
   // Create notification
   static async createNotification(notificationData) {
     try {
       const { userId, type, title, message, priority, metadata } = notificationData;
+      
+      // In development mode, just log the notification
+      if (DEV_MODE) {
+        console.log('📧 [DEV MODE] Notification would be created:', {
+          userId,
+          type,
+          title,
+          message,
+          priority,
+          metadata
+        });
+        return { 
+          _id: 'dev-notification-' + Date.now(),
+          user: userId,
+          type,
+          title,
+          message,
+          priority,
+          metadata,
+          isRead: false,
+          createdAt: new Date()
+        };
+      }
       
       const notification = new Notification({
         user: userId,
