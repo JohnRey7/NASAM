@@ -15,17 +15,80 @@ import { useRouter } from "next/navigation"
 import { LogOut, Settings, User } from "lucide-react"
 import { authService } from "@/services/authService"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/contexts/auth-context"
+import { useState, useEffect } from "react"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 
 export function UserNav() {
   const router = useRouter()
   const { toast } = useToast()
+  const { user, status } = useAuth()
+  const [profileImage, setProfileImage] = useState<string | null>(null)
+  
+  console.log('👤 UserNav - User data:', user)
+  console.log('👤 UserNav - Auth status:', status)
 
-  // In a real app, this would come from an auth context
-  const user = {
-    name: "Juan Dela Cruz",
-    email: "juan.delacruz@example.com",
-    role: "Applicant",
-    image: "/placeholder.svg?height=32&width=32",
+  // Fetch student picture
+  useEffect(() => {
+    console.log('👤 UserNav useEffect triggered, user:', user)
+    if (user?.id) {
+      console.log('👤 Fetching student picture for user ID:', user.id)
+      fetchStudentPicture(user.id)
+    } else {
+      console.log('👤 No user ID available yet')
+    }
+  }, [user?.id])
+  
+  // Force re-render when user changes
+  useEffect(() => {
+    console.log('👤 User object changed:', user)
+  }, [user])
+
+  const fetchStudentPicture = async (userId: string) => {
+    try {
+      console.log('📸 Fetching student picture from:', `${API_URL}/document-uploads/user/${userId}`)
+      const response = await fetch(`${API_URL}/document-uploads/user/${userId}`, {
+        credentials: 'include'
+      })
+      
+      console.log('📸 Document response status:', response.status)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📸 Document data received:', data)
+        console.log('📸 Student picture data:', data.data?.studentPicture)
+        
+        if (data.data?.studentPicture?.filePath) {
+          // Remove "files/" prefix if present
+          const cleanFilePath = data.data.studentPicture.filePath.replace(/^files\//, '')
+          const imageUrl = `${API_URL}/files/${cleanFilePath}`
+          console.log('📸 Loading image from:', imageUrl)
+          
+          // Fetch the image as blob to avoid CORS issues
+          const imageResponse = await fetch(imageUrl, {
+            credentials: 'include'
+          })
+          
+          console.log('📸 Image response status:', imageResponse.status)
+          
+          if (imageResponse.ok) {
+            const blob = await imageResponse.blob()
+            const objectUrl = URL.createObjectURL(blob)
+            console.log('✅ Profile image loaded successfully:', objectUrl)
+            setProfileImage(objectUrl)
+          } else {
+            console.error('❌ Failed to load image, status:', imageResponse.status)
+          }
+        } else {
+          console.log('📸 No student picture found in data')
+        }
+      } else {
+        console.error('❌ Failed to fetch documents, status:', response.status)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching student picture:', error)
+    }
   }
 
   const handleLogout = async () => {
@@ -45,26 +108,39 @@ export function UserNav() {
     }
   };
 
+  // Show loading state while auth is loading
+  if (status === 'loading') {
+    return (
+      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback>...</AvatarFallback>
+        </Avatar>
+      </Button>
+    )
+  }
+
+  // Get user display name
+  const displayName = user?.name || 'User'
+  const displayEmail = user?.email || ''
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+    : "U"
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.image || "/placeholder.svg"} alt={user.name} />
-            <AvatarFallback>
-              {user.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </AvatarFallback>
+            <AvatarImage src={profileImage || "/placeholder.svg"} alt={displayName} />
+            <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
+            <p className="text-xs leading-none text-muted-foreground">{displayEmail}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

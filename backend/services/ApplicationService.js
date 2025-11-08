@@ -641,9 +641,22 @@ class ApplicationService {
     const DocumentUpload = require('../models/DocumentUpload');
     const documents = await DocumentUpload.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: application.user }));
 
+    // Debug logging
+    console.log('📄 Raw documents from DB:', {
+      studentPicture: documents?.studentPicture,
+      nbiClearance: documents?.nbiClearance?.[0],
+      gradeReport: documents?.gradeReport?.[0]
+    });
+
     const documentStatus = {
       studentPicture: {
         uploaded: !!(documents?.studentPicture),
+        filePath: documents?.studentPicture && typeof documents.studentPicture === 'string' 
+          ? documents.studentPicture 
+          : documents?.studentPicture?.filePath || null,
+        originalName: documents?.studentPicture && typeof documents.studentPicture === 'string' 
+          ? documents.studentPicture 
+          : documents?.studentPicture?.originalName || null,
         filename: documents?.studentPicture && typeof documents.studentPicture === 'string' 
           ? documents.studentPicture 
           : documents?.studentPicture?.originalName || null,
@@ -651,44 +664,44 @@ class ApplicationService {
       },
       nbiClearance: {
         uploaded: !!(documents?.nbiClearance),
-        filename: documents?.nbiClearance && typeof documents.nbiClearance === 'string'
-          ? documents.nbiClearance 
-          : documents?.nbiClearance?.originalName || null,
+        filePath: documents?.nbiClearance?.[0]?.filePath || null,
+        originalName: documents?.nbiClearance?.[0]?.originalName || null,
+        filename: documents?.nbiClearance?.[0]?.originalName || null,
         uploadedAt: documents?.createdAt
       },
       gradeReport: {
         uploaded: !!(documents?.gradeReport),
-        filename: documents?.gradeReport && typeof documents.gradeReport === 'string'
-          ? documents.gradeReport 
-          : documents?.gradeReport?.originalName || null,
+        filePath: documents?.gradeReport?.[0]?.filePath || null,
+        originalName: documents?.gradeReport?.[0]?.originalName || null,
+        filename: documents?.gradeReport?.[0]?.originalName || null,
         uploadedAt: documents?.createdAt
       },
       incomeTaxReturn: {
         uploaded: !!(documents?.incomeTaxReturn),
-        filename: documents?.incomeTaxReturn && typeof documents.incomeTaxReturn === 'string'
-          ? documents.incomeTaxReturn 
-          : documents?.incomeTaxReturn?.originalName || null,
+        filePath: documents?.incomeTaxReturn?.[0]?.filePath || null,
+        originalName: documents?.incomeTaxReturn?.[0]?.originalName || null,
+        filename: documents?.incomeTaxReturn?.[0]?.originalName || null,
         uploadedAt: documents?.createdAt
       },
       goodMoralCertificate: {
         uploaded: !!(documents?.goodMoralCertificate),
-        filename: documents?.goodMoralCertificate && typeof documents.goodMoralCertificate === 'string'
-          ? documents.goodMoralCertificate 
-          : documents?.goodMoralCertificate?.originalName || null,
+        filePath: documents?.goodMoralCertificate?.[0]?.filePath || null,
+        originalName: documents?.goodMoralCertificate?.[0]?.originalName || null,
+        filename: documents?.goodMoralCertificate?.[0]?.originalName || null,
         uploadedAt: documents?.createdAt
       },
       physicalCheckup: {
         uploaded: !!(documents?.physicalCheckup),
-        filename: documents?.physicalCheckup && typeof documents.physicalCheckup === 'string'
-          ? documents.physicalCheckup 
-          : documents?.physicalCheckup?.originalName || null,
+        filePath: documents?.physicalCheckup?.[0]?.filePath || null,
+        originalName: documents?.physicalCheckup?.[0]?.originalName || null,
+        filename: documents?.physicalCheckup?.[0]?.originalName || null,
         uploadedAt: documents?.createdAt
       },
       homeLocationSketch: {
         uploaded: !!(documents?.homeLocationSketch),
-        filename: documents?.homeLocationSketch && typeof documents.homeLocationSketch === 'string'
-          ? documents.homeLocationSketch 
-          : documents?.homeLocationSketch?.originalName || null,
+        filePath: documents?.homeLocationSketch?.[0]?.filePath || null,
+        originalName: documents?.homeLocationSketch?.[0]?.originalName || null,
+        filename: documents?.homeLocationSketch?.[0]?.originalName || null,
         uploadedAt: documents?.createdAt
       }
     };
@@ -696,7 +709,7 @@ class ApplicationService {
     const totalRequired = 7;
     const totalUploaded = Object.values(documentStatus).filter(doc => doc.uploaded).length;
 
-    return {
+    const result = {
       documents: documentStatus,
       gradeAverages: documents?.gradeAverages || null,
       incomeTaxInfo: documents?.incomeTaxInfo || null,
@@ -708,6 +721,14 @@ class ApplicationService {
         isComplete: totalUploaded === totalRequired
       }
     };
+
+    // Debug logging
+    console.log('📤 Sending to frontend:', {
+      studentPicture: result.documents.studentPicture,
+      nbiClearance: result.documents.nbiClearance
+    });
+
+    return result;
   }
 
   // Delete application with cleanup

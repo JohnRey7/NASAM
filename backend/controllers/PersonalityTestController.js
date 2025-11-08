@@ -68,6 +68,38 @@ const PersonalityTestController = {
     }
   },
 
+  // GET /status - Check personality test status for current user
+  async getPersonalityTestStatus(req, res) {
+    try {
+      const test = await PersonalityTestService.getMyPersonalityTest(req.user.id);
+      
+      // Return simplified status
+      res.json({
+        success: true,
+        exists: !!test,
+        status: test?.status || null,
+        completedAt: test?.completedAt || null,
+        score: test?.score || null
+      });
+    } catch (error) {
+      console.error('Error in getPersonalityTestStatus:', error);
+      if (error.message.includes('not found')) {
+        // No test found - return status indicating no test
+        return res.json({
+          success: true,
+          exists: false,
+          status: null,
+          completedAt: null,
+          score: null
+        });
+      }
+      res.status(500).json({ 
+        success: false,
+        message: `Server error: ${error.message}` 
+      });
+    }
+  },
+
   // GET /getAllUserPersonalityTest
   async getAllUserPersonalityTest(req, res) {
     try {

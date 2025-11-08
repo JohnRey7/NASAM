@@ -70,11 +70,14 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
       }
 
       const data = await response.json();
+      console.log('📄 Document response:', data);
+      console.log('📄 Document keys:', data.documents ? Object.keys(data.documents) : 'No documents');
       
       // Handle different response formats
       if (data.success !== undefined) {
         // OAS endpoint format
         if (data.success) {
+          console.log('📄 Sample document:', data.documents?.studentPicture);
           setDocuments(data);
         } else {
           throw new Error(data.message);
@@ -88,6 +91,7 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
           incomeTaxInfo: data.data.incomeTaxInfo,
           userId: data.data.user
         };
+        console.log('📄 Formatted data:', formattedData);
         setDocuments(formattedData);
       } else {
         throw new Error('Invalid response format');
@@ -100,9 +104,12 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
     }
   };
 
-  const handleDownloadDocument = async (docType: string, filename: string) => {
+  const handleDownloadDocument = async (docType: string, filePath: string, originalName?: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/files/${filename}`, {
+      // Remove "files/" prefix if present (for backward compatibility with old uploads)
+      const cleanFilePath = filePath.replace(/^files\//, '');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/files/${cleanFilePath}`, {
         credentials: 'include'
       });
 
@@ -114,7 +121,7 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = originalName || filePath; // Use originalName if available, otherwise UUID
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -336,7 +343,7 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
                     {doc?.uploaded ? (
                       <>
                         Uploaded: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Unknown'}
-                        {doc.filename && <span className="ml-2">({String(doc.filename)})</span>}  {/* ✅ Convert to string */}
+                        {doc.originalName && <span className="ml-2">({String(doc.originalName)})</span>}
                       </>
                     ) : (
                       'Not submitted'
@@ -391,11 +398,23 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
               </div>
               
               <div className="flex items-center gap-2">
-                {doc?.uploaded && doc?.filename && (
+                {doc?.uploaded && (
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => handleDownloadDocument(label, doc.filename)}
+                    onClick={() => {
+                      const downloadPath = doc.filePath || doc.filename;
+                      const downloadName = doc.originalName || doc.filename;
+                      if (downloadPath) {
+                        handleDownloadDocument(label, downloadPath, downloadName);
+                      } else {
+                        toast({
+                          title: "Download Failed",
+                          description: "File path not found",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
                   >
                     <Download className="mr-1 h-3 w-3" />
                     Download

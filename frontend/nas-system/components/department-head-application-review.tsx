@@ -91,9 +91,12 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
     }
   };
 
-  const handleDownloadDocument = async (docType: string, filename: string) => {
+  const handleDownloadDocument = async (docType: string, filePath: string, originalName?: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/documents/download/${filename}`, {
+      // Remove "files/" prefix if present (for backward compatibility with old uploads)
+      const cleanFilePath = filePath.replace(/^files\//, '');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/files/${cleanFilePath}`, {
         credentials: 'include'
       });
 
@@ -105,7 +108,7 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = originalName || filePath; // Use originalName if available, otherwise UUID
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -176,17 +179,17 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
                     {docType.required ? 'Required' : 'Optional'} • {isUploaded ? 'Uploaded' : 'Not uploaded'}
                   </p>
                   {isUploaded && (
-                    <p className="text-xs text-gray-400">{docData.filename}</p>
+                    <p className="text-xs text-gray-400">{docData.originalName || docData.filename}</p>
                   )}
                 </div>
               </div>
               
               <div className="flex items-center space-x-2">
-                {isUploaded && (
+                {isUploaded && docData.filePath && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDownloadDocument(docType.label, docData.filename)}
+                    onClick={() => handleDownloadDocument(docType.label, docData.filePath, docData.originalName)}
                   >
                     <Download className="h-4 w-4 mr-1" />
                     Download

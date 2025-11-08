@@ -112,6 +112,9 @@ export function UserProfile() {
           
           console.log("Setting form data to:", updatedFormData) // Debug log
           setFormData(updatedFormData)
+          
+          // Fetch student picture from documents
+          fetchStudentPicture(data.user?.id)
         } else {
           console.error("Failed to fetch user data. Status:", response.status)
           const errorData = await response.json().catch(() => null)
@@ -137,6 +140,42 @@ export function UserProfile() {
 
     fetchUserData()
   }, [toast]) // Remove user from dependencies since we're getting email from backend
+
+  // Fetch student picture from documents
+  const fetchStudentPicture = async (userId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/document-uploads/user/${userId}`, {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📸 Student picture data:', data.data?.studentPicture)
+        
+        if (data.data?.studentPicture?.filePath) {
+          // Remove "files/" prefix if present
+          const cleanFilePath = data.data.studentPicture.filePath.replace(/^files\//, '')
+          const imageUrl = `${API_URL}/files/${cleanFilePath}`
+          console.log('📸 Loading image from:', imageUrl)
+          
+          // Fetch the image as blob to avoid CORS issues
+          const imageResponse = await fetch(imageUrl, {
+            credentials: 'include'
+          })
+          
+          if (imageResponse.ok) {
+            const blob = await imageResponse.blob()
+            const objectUrl = URL.createObjectURL(blob)
+            setProfileImage(objectUrl)
+          } else {
+            console.error('Failed to fetch image:', imageResponse.status)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching student picture:', error)
+    }
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -192,14 +231,78 @@ export function UserProfile() {
     }
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setProfileImage(event.target?.result as string)
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File",
+        description: "Please select an image file.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Image must be less than 5MB.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Show preview immediately
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setProfileImage(event.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    // Upload to backend
+    setIsLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('studentPicture', file)
+
+      const response = await fetch(`${API_URL}/document-uploads`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image')
       }
-      reader.readAsDataURL(file)
+
+      const data = await response.json()
+      console.log('📸 Upload response:', data)
+
+      toast({
+        title: "Photo Updated",
+        description: "Your profile photo has been updated successfully.",
+      })
+
+      // Refresh the image from backend
+      if (user?.id) {
+        fetchStudentPicture(user.id)
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload photo. Please try again.",
+        variant: "destructive",
+      })
+      // Revert preview on error
+      if (user?.id) {
+        fetchStudentPicture(user.id)
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 

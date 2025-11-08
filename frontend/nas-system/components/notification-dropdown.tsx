@@ -18,6 +18,8 @@ interface Notification {
   createdAt: string
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
+
 export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -25,6 +27,8 @@ export function NotificationDropdown() {
   const [unreadCount, setUnreadCount] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
+
+  console.log('🔔 Notification API URL:', API_URL)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -40,16 +44,37 @@ export function NotificationDropdown() {
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications?limit=10`, {
-        credentials: 'include'
+      console.log('🔔 Fetching notifications from:', `${API_URL}/notifications?limit=10`)
+      const response = await fetch(`${API_URL}/notifications?limit=10`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
+      
+      console.log('🔔 Notification response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('🔔 Notifications received:', data)
         setNotifications(data.notifications || [])
         setUnreadCount(data.notifications.filter((n: Notification) => !n.isRead).length)
+      } else {
+        const errorData = await response.json().catch(() => null)
+        console.error('🔔 Failed to fetch notifications:', response.status, errorData)
+        toast({
+          title: "Error",
+          description: `Failed to load notifications: ${errorData?.message || response.statusText}`,
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error)
+      console.error('🔔 Error fetching notifications:', error)
+      toast({
+        title: "Connection Error",
+        description: "Could not connect to notification service. Please check your connection.",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
@@ -64,41 +89,54 @@ export function NotificationDropdown() {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/${notificationId}/read`, {
+      const response = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
         method: 'PATCH',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
       if (response.ok) {
         setNotifications(prev => 
           prev.map(n => n._id === notificationId ? { ...n, isRead: true } : n)
         )
         setUnreadCount(prev => Math.max(0, prev - 1))
+      } else {
+        console.error('🔔 Failed to mark as read:', response.status)
       }
     } catch (error) {
-      console.error('Error marking notification as read:', error)
+      console.error('🔔 Error marking notification as read:', error)
     }
   }
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/mark-all-read`, {
+      const response = await fetch(`${API_URL}/notifications/mark-all-read`, {
         method: 'PATCH',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
       if (response.ok) {
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
         setUnreadCount(0)
+      } else {
+        console.error('🔔 Failed to mark all as read:', response.status)
       }
     } catch (error) {
-      console.error('Error marking all notifications as read:', error)
+      console.error('🔔 Error marking all notifications as read:', error)
     }
   }
 
   const deleteNotification = async (notificationId: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications/${notificationId}`, {
+      const response = await fetch(`${API_URL}/notifications/${notificationId}`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
 
       if (response.ok) {
@@ -107,9 +145,11 @@ export function NotificationDropdown() {
           const deletedNotification = notifications.find(n => n._id === notificationId)
           return deletedNotification && !deletedNotification.isRead ? Math.max(0, prev - 1) : prev
         })
+      } else {
+        console.error('🔔 Failed to delete notification:', response.status)
       }
     } catch (error) {
-      console.error('Error deleting notification:', error)
+      console.error('🔔 Error deleting notification:', error)
     }
   }
 
@@ -118,9 +158,12 @@ export function NotificationDropdown() {
     if (!confirmed) return
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications`, {
+      const response = await fetch(`${API_URL}/notifications`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
 
       if (response.ok) {
@@ -130,9 +173,16 @@ export function NotificationDropdown() {
           title: "All notifications deleted",
           description: "All notifications have been removed successfully."
         })
+      } else {
+        console.error('🔔 Failed to delete all notifications:', response.status)
+        toast({
+          title: "Error",
+          description: "Failed to delete notifications",
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      console.error('Error deleting all notifications:', error)
+      console.error('🔔 Error deleting all notifications:', error)
       toast({
         title: "Error",
         description: "Failed to delete notifications",

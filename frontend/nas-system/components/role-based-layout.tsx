@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -32,6 +32,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { NotificationDropdown } from "./notification-dropdown"
+import { useAuth } from "@/contexts/auth-context"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 
 interface RoleBasedLayoutProps {
   children: React.ReactNode
@@ -42,8 +45,48 @@ interface RoleBasedLayoutProps {
 export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const { user } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState(3)
+  const [profileImage, setProfileImage] = useState<string | null>(null)
+
+  // Fetch student picture
+  useEffect(() => {
+    if (user?.id) {
+      fetchStudentPicture(user.id)
+    }
+  }, [user?.id])
+
+  const fetchStudentPicture = async (userId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/document-uploads/user/${userId}`, {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        
+        if (data.data?.studentPicture?.filePath) {
+          // Remove "files/" prefix if present
+          const cleanFilePath = data.data.studentPicture.filePath.replace(/^files\//, '')
+          const imageUrl = `${API_URL}/files/${cleanFilePath}`
+          
+          // Fetch the image as blob to avoid CORS issues
+          const imageResponse = await fetch(imageUrl, {
+            credentials: 'include'
+          })
+          
+          if (imageResponse.ok) {
+            const blob = await imageResponse.blob()
+            const objectUrl = URL.createObjectURL(blob)
+            setProfileImage(objectUrl)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching student picture:', error)
+    }
+  }
 
   // Get user initials for avatar
   const getInitials = (name: string) => {
@@ -153,7 +196,7 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2 text-white hover:bg-[#600000]">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg?height=32&width=32" alt={userName} />
+                    <AvatarImage src={profileImage || undefined} alt={userName} />
                     <AvatarFallback>{getInitials(userName)}</AvatarFallback>
                   </Avatar>
                   <span className="hidden md:inline-block">{userName}</span>

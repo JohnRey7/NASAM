@@ -78,8 +78,16 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Access-Control-Allow-Origin', 'Authorization', 'Cookie'],
-  exposedHeaders: ['Set-Cookie'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Access-Control-Allow-Origin', 
+    'Authorization', 
+    'Cookie',
+    'Cache-Control',
+    'Pragma',
+    'Expires'
+  ],
+  exposedHeaders: ['Set-Cookie', 'Content-Disposition', 'Content-Length', 'Content-Type'],
 }));
 
 app.use(express.json());
@@ -231,6 +239,7 @@ app.delete('/api/document-uploads/:userId/permanent', authenticate, checkPermiss
 app.get('/api/document-uploads/deleted', authenticate, checkPermission('document.read'), DocumentUploadController.getSoftDeletedDocuments);
 
 // Personality Test routes
+app.get('/api/personality-test/status', authenticate, PersonalityTestController.getPersonalityTestStatus);
 app.post('/api/personality-test/start', authenticate, checkPermission('personality_test.create'), PersonalityTestController.startPersonalityTest);
 app.post('/api/personality-test/answer', authenticate, checkPermission('personality_test.answer'), PersonalityTestController.answerPersonalityTest);
 app.get('/api/personality-test/stop', authenticate, checkPermission('personality_test.stop'), PersonalityTestController.stopPersonalityTest);
@@ -418,6 +427,12 @@ app.delete('/api/scholar-evaluation/:id', authenticate, checkPermission('evaluat
 // Admin Views
 app.get('/api/scholar-evaluation/all/list', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getAllEvaluations);
 app.get('/api/scholar-evaluation/statistics/summary', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getEvaluationStatistics);
+
+// ==================== AUDIT LOG ROUTES ====================
+app.get('/api/audit-logs', authenticate, checkPermission('audit.read'), AuditLogController.getLogs);
+app.get('/api/audit-logs/export/pdf', authenticate, checkPermission('audit.read'), AuditLogController.exportLogsPDF);
+app.get('/api/audit-logs/export/excel', authenticate, checkPermission('audit.read'), AuditLogController.exportLogsExcel);
+app.patch('/api/audit-logs/:id/archive', authenticate, checkPermission('audit.manage'), AuditLogController.archiveLog);
 
 // Graceful shutdown
 const server = app.listen(port,host, () => {

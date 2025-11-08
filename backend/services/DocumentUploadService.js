@@ -47,8 +47,13 @@ class DocumentUploadService {
   static processFileUpload(file) {
     if (!file) return null;
     
+    // Extract just the filename from the full path
+    // file.path might be "uploads/documents/filename.png" or "files/filename.png"
+    // We only want "filename.png"
+    const fileName = file.filename || path.basename(file.path);
+    
     return {
-      filePath: file.path,
+      filePath: fileName,  // Just the filename, not the full path
       originalName: file.originalname,
       uploadedAt: new Date()
     };
@@ -57,6 +62,8 @@ class DocumentUploadService {
   // Upload or update documents
   static async uploadDocuments(userId, files, additionalData = {}) {
     try {
+      console.log('📤 Upload request - files received:', files ? Object.keys(files) : 'none');
+      
       // Validate files
       if (files) {
         Object.entries(files).forEach(([fieldName, fileArray]) => {
@@ -70,6 +77,8 @@ class DocumentUploadService {
         SoftDeleteUtils.addSoftDeleteFilter({ user: userId })
       );
 
+      console.log('📄 Existing studentPicture before update:', document?.studentPicture);
+
       if (!document) {
         document = new DocumentUpload({ user: userId });
       }
@@ -79,18 +88,30 @@ class DocumentUploadService {
         Object.entries(files).forEach(([fieldName, fileArray]) => {
           const fileList = Array.isArray(fileArray) ? fileArray : [fileArray];
           
+          console.log(`🔍 Processing field: ${fieldName}, has file:`, !!fileList[0]);
+          
           if (fieldName === 'studentPicture') {
-            // Single file field
-            document[fieldName] = this.processFileUpload(fileList[0]);
+            // Single file field - only update if file is provided
+            if (fileList[0]) {
+              console.log('✅ Updating studentPicture with new file');
+              document[fieldName] = this.processFileUpload(fileList[0]);
+            } else {
+              console.log('⏭️ Skipping studentPicture - no file provided, keeping existing');
+            }
+            // If no file provided, keep existing value (don't overwrite)
           } else {
-            // Array fields
+            // Array fields - only add new files, don't replace existing
             if (!document[fieldName]) document[fieldName] = [];
             fileList.forEach(file => {
-              document[fieldName].push(this.processFileUpload(file));
+              if (file) {
+                document[fieldName].push(this.processFileUpload(file));
+              }
             });
           }
         });
       }
+      
+      console.log('📄 studentPicture after update:', document.studentPicture);
 
       // Add semester duration if provided
       if (additionalData.semesterDuration) {

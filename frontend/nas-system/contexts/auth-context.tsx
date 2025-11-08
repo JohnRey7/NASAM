@@ -35,6 +35,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading")
   const router = useRouter()
 
+  // Helper function to fetch user's full name from application form
+  const fetchUserFullName = async (userId: string): Promise<string | null> => {
+    try {
+      const response = await fetch(`${API_URL}/application/user/${userId}`, {
+        credentials: "include",
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.data?.firstName && data.data?.lastName) {
+          const fullName = `${data.data.firstName} ${data.data.middleName ? data.data.middleName + ' ' : ''}${data.data.lastName}${data.data.suffix ? ' ' + data.data.suffix : ''}`
+          return fullName.trim()
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching application name:", error)
+    }
+    return null
+  }
+
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
@@ -60,18 +80,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             if (response.ok) {
               const data = await response.json()
-              console.log("Backend user data:", data) // Debug log
+              
+              // Try to get the full name from application form
+              let displayName = data.user?.name || parsedUser.name || data.user?.idNumber || "User"
+              
+              // If the name looks like an ID number, try to fetch from application
+              if (displayName.match(/^\d{2}-\d{4}-\d{3}$/)) {
+                const fullName = await fetchUserFullName(data.user?.id || parsedUser.id)
+                if (fullName) {
+                  displayName = fullName
+                }
+              }
               
               // Update user data with the latest from the server
               const updatedUser = {
                 ...parsedUser,
                 ...data.user,
-                // Always use the backend name if available
-                name: data.user?.name || parsedUser.name || "Student",
+                name: displayName,
                 role: data.user?.role?.name || parsedUser.role,
               }
               
-              console.log("Updated user data:", updatedUser) // Debug log
               setUser(updatedUser)
               localStorage.setItem("nas_user", JSON.stringify(updatedUser))
               setStatus("authenticated")
@@ -123,24 +151,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       const data = await response.json()
-      console.log("Login response data:", data) // Debug log
-      
-      // Check if the user data exists
-      console.log("User role data:", data.user?.role); // Debug log
       
       if (!data.user) {
         throw new Error("User information is missing. Please contact administrator.");
       }
       
+      // Try to get the full name from application form
+      let displayName = data.user?.name || data.user?.idNumber || "User"
+      
+      // If the name looks like an ID number, try to fetch from application
+      if (displayName.match(/^\d{2}-\d{4}-\d{3}$/)) {
+        const fullName = await fetchUserFullName(data.user.id)
+        if (fullName) {
+          displayName = fullName
+        }
+      }
+      
       // Map backend user data to frontend user format
       const loggedInUser: User = {
         id: data.user.id,
-        name: data.user?.name || "Student",
+        name: displayName,
         email: data.user.email || "",
         role: data.user.role?.name || "applicant", // Default to applicant if role name is missing
       }
       
-      console.log("Logged in user data:", loggedInUser) // Debug log
       setUser(loggedInUser)
       setStatus("authenticated")
       

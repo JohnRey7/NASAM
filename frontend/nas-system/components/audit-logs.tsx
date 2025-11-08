@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,131 +10,130 @@ import { Download, Search, Filter, AlertCircle, CheckCircle, XCircle } from "luc
 import { Badge } from "@/components/ui/badge"
 
 interface AuditLog {
-  id: string
+  _id: string
   timestamp: string
-  user: string
+  userId: {
+    _id: string
+    username?: string
+    email?: string
+    name?: string
+  } | null
   action: string
-  details: string
-  ipAddress: string
-  status: "success" | "warning" | "error"
+  module: string
+  archived: boolean
 }
 
-// Sample audit logs
-const AUDIT_LOGS: AuditLog[] = [
-  {
-    id: "LOG-001",
-    timestamp: "2023-06-15 09:23:45",
-    user: "admin@cit-u.edu.ph",
-    action: "User Login",
-    details: "Admin user logged in successfully",
-    ipAddress: "192.168.1.1",
-    status: "success",
-  },
-  {
-    id: "LOG-002",
-    timestamp: "2023-06-15 10:15:22",
-    user: "staff1@cit-u.edu.ph",
-    action: "Application Status Update",
-    details: "Changed application APP-2023-001 status from 'pending' to 'document_verification'",
-    ipAddress: "192.168.1.2",
-    status: "success",
-  },
-  {
-    id: "LOG-003",
-    timestamp: "2023-06-15 11:05:17",
-    user: "panelist2@cit-u.edu.ph",
-    action: "Interview Schedule Created",
-    details: "Scheduled interview for applicant 2020-00001 on 2023-06-20",
-    ipAddress: "192.168.1.3",
-    status: "success",
-  },
-  {
-    id: "LOG-004",
-    timestamp: "2023-06-15 13:45:30",
-    user: "unknown",
-    action: "Failed Login Attempt",
-    details: "Multiple failed login attempts for user account staff3@cit-u.edu.ph",
-    ipAddress: "203.177.42.10",
-    status: "error",
-  },
-  {
-    id: "LOG-005",
-    timestamp: "2023-06-15 14:22:18",
-    user: "staff2@cit-u.edu.ph",
-    action: "Document Access",
-    details: "Accessed sensitive financial documents for applicant 2020-00002",
-    ipAddress: "192.168.1.5",
-    status: "warning",
-  },
-  {
-    id: "LOG-006",
-    timestamp: "2023-06-15 15:10:05",
-    user: "admin@cit-u.edu.ph",
-    action: "User Role Modified",
-    details: "Changed user staff4@cit-u.edu.ph role from 'staff' to 'admin'",
-    ipAddress: "192.168.1.1",
-    status: "success",
-  },
-  {
-    id: "LOG-007",
-    timestamp: "2023-06-15 16:30:12",
-    user: "staff3@cit-u.edu.ph",
-    action: "Bulk Application Export",
-    details: "Exported data for 25 applications in CSV format",
-    ipAddress: "192.168.1.6",
-    status: "success",
-  },
-]
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
+
 
 export function AuditLogs() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [actionFilter, setActionFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [moduleFilter, setModuleFilter] = useState("all")
+  const [logs, setLogs] = useState<AuditLog[]>([])
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  const handleExportLogs = () => {
-    toast({
-      title: "Logs Exported",
-      description: "Audit logs have been exported successfully.",
-    })
-  }
+  // Fetch audit logs from API
+  useEffect(() => {
+    fetchLogs()
+  }, [])
 
-  const getStatusBadge = (status: AuditLog["status"]) => {
-    switch (status) {
-      case "success":
-        return (
-          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Success
-          </Badge>
-        )
-      case "warning":
-        return (
-          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            Warning
-          </Badge>
-        )
-      case "error":
-        return (
-          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
-            <XCircle className="h-3 w-3 mr-1" />
-            Error
-          </Badge>
-        )
+  const fetchLogs = async () => {
+    setLoading(true)
+    try {
+      console.log('📋 Fetching audit logs from:', `${API_URL}/audit-logs`)
+      const response = await fetch(`${API_URL}/audit-logs`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📋 Audit logs received:', data)
+        setLogs(data)
+      } else {
+        const errorData = await response.json().catch(() => null)
+        console.error('📋 Failed to fetch audit logs:', response.status, errorData)
+        toast({
+          title: "Error",
+          description: `Failed to load audit logs: ${errorData?.message || response.statusText}`,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('📋 Error fetching audit logs:', error)
+      toast({
+        title: "Connection Error",
+        description: "Could not connect to audit log service.",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const filteredLogs = AUDIT_LOGS.filter((log) => {
-    const matchesSearch =
-      log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.ipAddress.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesAction = actionFilter === "all" || log.action.includes(actionFilter)
-    const matchesStatus = statusFilter === "all" || log.status === statusFilter
+  const handleExportLogs = async (format: 'pdf' | 'excel') => {
+    try {
+      const url = `${API_URL}/audit-logs/export/${format}`
+      const response = await fetch(url, {
+        credentials: 'include'
+      })
 
-    return matchesSearch && matchesAction && matchesStatus
+      if (response.ok) {
+        const blob = await response.blob()
+        const downloadUrl = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = downloadUrl
+        link.download = `audit_logs.${format === 'pdf' ? 'pdf' : 'xlsx'}`
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        window.URL.revokeObjectURL(downloadUrl)
+
+        toast({
+          title: "Logs Exported",
+          description: `Audit logs have been exported as ${format.toUpperCase()}.`,
+        })
+      } else {
+        throw new Error('Export failed')
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+      toast({
+        title: "Export Failed",
+        description: "Failed to export audit logs.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const getModuleBadge = (module: string) => {
+    const colors: Record<string, string> = {
+      'Authentication': 'bg-blue-100 text-blue-800 border-blue-200',
+      'Application': 'bg-green-100 text-green-800 border-green-200',
+      'Document': 'bg-purple-100 text-purple-800 border-purple-200',
+      'Interview': 'bg-orange-100 text-orange-800 border-orange-200',
+      'Evaluation': 'bg-pink-100 text-pink-800 border-pink-200',
+    }
+    
+    return (
+      <Badge variant="outline" className={colors[module] || 'bg-gray-100 text-gray-800 border-gray-200'}>
+        {module}
+      </Badge>
+    )
+  }
+
+  const filteredLogs = logs.filter((log) => {
+    const userName = log.userId?.username || log.userId?.email || log.userId?.name || 'Unknown'
+    const matchesSearch =
+      userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.module.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesModule = moduleFilter === "all" || log.module === moduleFilter
+
+    return matchesSearch && matchesModule
   })
 
   return (
@@ -146,10 +145,16 @@ export function AuditLogs() {
               <CardTitle className="text-[#800000]">System Audit Logs</CardTitle>
               <CardDescription>Track all system activities and user actions</CardDescription>
             </div>
-            <Button variant="outline" className="flex items-center gap-2" onClick={handleExportLogs}>
-              <Download className="h-4 w-4" />
-              Export Logs
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex items-center gap-2" onClick={() => handleExportLogs('pdf')}>
+                <Download className="h-4 w-4" />
+                Export PDF
+              </Button>
+              <Button variant="outline" className="flex items-center gap-2" onClick={() => handleExportLogs('excel')}>
+                <Download className="h-4 w-4" />
+                Export Excel
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-6">
@@ -165,29 +170,17 @@ export function AuditLogs() {
             </div>
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-gray-500" />
-              <Select value={actionFilter} onValueChange={setActionFilter}>
+              <Select value={moduleFilter} onValueChange={setModuleFilter}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by action" />
+                  <SelectValue placeholder="Filter by module" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Actions</SelectItem>
-                  <SelectItem value="Login">Login</SelectItem>
+                  <SelectItem value="all">All Modules</SelectItem>
+                  <SelectItem value="Authentication">Authentication</SelectItem>
                   <SelectItem value="Application">Application</SelectItem>
                   <SelectItem value="Document">Document</SelectItem>
-                  <SelectItem value="User">User Management</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="success">Success</SelectItem>
-                  <SelectItem value="warning">Warning</SelectItem>
-                  <SelectItem value="error">Error</SelectItem>
+                  <SelectItem value="Interview">Interview</SelectItem>
+                  <SelectItem value="Evaluation">Evaluation</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -207,31 +200,36 @@ export function AuditLogs() {
                     Action
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Details
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    IP Address
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    Module
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLogs.map((log) => (
-                  <tr key={log.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-500">{log.timestamp}</td>
-                    <td className="px-4 py-3 text-sm">{log.user}</td>
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                        <span className="ml-2 text-gray-500">Loading audit logs...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredLogs.map((log) => (
+                  <tr key={log._id} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {log.userId?.username || log.userId?.email || log.userId?.name || 'Unknown User'}
+                    </td>
                     <td className="px-4 py-3 text-sm">{log.action}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{log.details}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{log.ipAddress}</td>
-                    <td className="px-4 py-3 text-sm">{getStatusBadge(log.status)}</td>
+                    <td className="px-4 py-3 text-sm">{getModuleBadge(log.module)}</td>
                   </tr>
                 ))}
 
-                {filteredLogs.length === 0 && (
+                {!loading && filteredLogs.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                       No logs found matching your filters
                     </td>
                   </tr>
@@ -242,16 +240,11 @@ export function AuditLogs() {
 
           <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
             <span>
-              Showing {filteredLogs.length} of {AUDIT_LOGS.length} logs
+              Showing {filteredLogs.length} of {logs.length} logs
             </span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled>
-                Next
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={fetchLogs}>
+              Refresh
+            </Button>
           </div>
         </CardContent>
       </Card>
