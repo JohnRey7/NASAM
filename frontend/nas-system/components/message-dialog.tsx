@@ -142,30 +142,20 @@ export function MessageDialog({
       <DialogContent className="max-w-2xl h-[600px] flex flex-col p-0">
         {/* Header */}
         <DialogHeader className="px-6 py-4 border-b bg-[#800000]/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 bg-[#800000] text-white">
-                <AvatarFallback className="bg-[#800000] text-white">
-                  {getInitials(receiverName)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <DialogTitle className="text-[#800000]">{receiverName}</DialogTitle>
-                <DialogDescription className="text-xs text-gray-500">
-                  {conversationType === 'admin-applicant' && 'Applicant'}
-                  {conversationType === 'admin-department-head' && 'Department Head'}
-                  {conversationType === 'general' && 'User'}
-                </DialogDescription>
-              </div>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 bg-[#800000] text-white">
+              <AvatarFallback className="bg-[#800000] text-white">
+                {getInitials(receiverName)}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <DialogTitle className="text-[#800000]">{receiverName}</DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                {conversationType === 'admin-applicant' && 'Applicant'}
+                {conversationType === 'admin-department-head' && 'Department Head'}
+                {conversationType === 'general' && 'User'}
+              </DialogDescription>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
