@@ -14,9 +14,9 @@ interface AuditLog {
   timestamp: string
   userId: {
     _id: string
-    username?: string
-    email?: string
     name?: string
+    idNumber?: string
+    email?: string
   } | null
   action: string
   module: string
@@ -126,7 +126,7 @@ export function AuditLogs() {
   }
 
   const filteredLogs = logs.filter((log) => {
-    const userName = log.userId?.username || log.userId?.email || log.userId?.name || 'Unknown'
+    const userName = log.userId?.name || log.userId?.email || log.userId?.idNumber || 'Unknown'
     const matchesSearch =
       userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -220,7 +220,7 @@ export function AuditLogs() {
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {log.userId?.username || log.userId?.email || log.userId?.name || 'Unknown User'}
+                      {log.userId?.name || log.userId?.email || log.userId?.idNumber || 'Unknown User'}
                     </td>
                     <td className="px-4 py-3 text-sm">{log.action}</td>
                     <td className="px-4 py-3 text-sm">{getModuleBadge(log.module)}</td>

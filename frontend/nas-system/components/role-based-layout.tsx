@@ -32,6 +32,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { NotificationDropdown } from "./notification-dropdown"
+import { MessageNotificationBadge } from "./message-notification-badge"
 import { useAuth } from "@/contexts/auth-context"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
@@ -190,6 +191,7 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
           </div>
 
           <div className="flex items-center space-x-4">
+            <MessageNotificationBadge />
             <NotificationDropdown />
 
             <DropdownMenu>

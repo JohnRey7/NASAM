@@ -15,6 +15,7 @@ import React, { useState, useEffect } from "react";
 import { departmentHeadService } from "@/services/departmentHeadService";
 import { scholarEvaluationService } from "@/services/scholarEvaluationService";
 import { ScholarEvaluationForm } from "@/components/scholar-evaluation-form";
+import { MessageButton } from "@/components/message-button";
 import { useToast } from "@/components/ui/use-toast";
 
 interface InterviewData {
@@ -877,26 +878,15 @@ export default function DepartmentHeadDashboardPage() {
                                 </DialogContent>
                               </Dialog>
                               
-                              {/* Remarks Button - Send Message/Remarks */}
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <MessageSquare className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Send Remarks - {interview.applicantName}</DialogTitle>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <div>
-                                      <Label>Message/Remarks</Label>
-                                      <Textarea placeholder="Enter your message or remarks..." />
-                                    </div>
-                                    <Button>Send Message</Button>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
+                              {/* Message Button */}
+                              <MessageButton
+                                receiverId={interview._id}
+                                receiverName={interview.applicantName}
+                                applicationId={interview._id}
+                                conversationType="admin-department-head"
+                                variant="ghost"
+                                size="sm"
+                              />
                             </div>
                           </td>
                         </tr>

@@ -232,6 +232,88 @@ class NotificationService {
     }
   }
 
+  // Create message notification
+  static async createMessageNotification(receiverId, senderId, messageText, conversationId) {
+    try {
+      // Get sender info
+      const sender = await User.findById(senderId).select('name email idNumber');
+      const senderName = sender?.name || sender?.email || sender?.idNumber || 'Someone';
+      
+      // Truncate message preview
+      const messagePreview = messageText.length > 50 
+        ? messageText.substring(0, 50) + '...' 
+        : messageText;
+
+      return await NotificationService.createNotification({
+        userId: receiverId,
+        type: 'new_message',
+        title: `New message from ${senderName}`,
+        message: messagePreview,
+        priority: 'medium',
+        metadata: {
+          senderId: senderId,
+          conversationId: conversationId,
+          action: 'new_message'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating message notification:', error);
+      throw error;
+    }
+  }
+
+  // Create interview reminder notification
+  static async createInterviewReminderNotification(userId, interviewDate, interviewId) {
+    try {
+      const formattedDate = new Date(interviewDate).toLocaleString('en-US', {
+        dateStyle: 'long',
+        timeStyle: 'short'
+      });
+
+      return await NotificationService.createNotification({
+        userId: userId,
+        type: 'interview_reminder',
+        title: 'Interview Reminder',
+        message: `You have an interview scheduled on ${formattedDate}. Please be prepared.`,
+        priority: 'high',
+        metadata: {
+          interviewId: interviewId,
+          interviewDate: interviewDate,
+          action: 'interview_reminder'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating interview reminder notification:', error);
+      throw error;
+    }
+  }
+
+  // Create interview rescheduled notification
+  static async createInterviewRescheduledNotification(userId, newInterviewDate, interviewId) {
+    try {
+      const formattedDate = new Date(newInterviewDate).toLocaleString('en-US', {
+        dateStyle: 'long',
+        timeStyle: 'short'
+      });
+
+      return await NotificationService.createNotification({
+        userId: userId,
+        type: 'interview_rescheduled',
+        title: 'Interview Rescheduled',
+        message: `Your interview has been rescheduled to ${formattedDate}.`,
+        priority: 'high',
+        metadata: {
+          interviewId: interviewId,
+          interviewDate: newInterviewDate,
+          action: 'interview_rescheduled'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating interview rescheduled notification:', error);
+      throw error;
+    }
+  }
+
   // Soft Delete Methods
   static async softDeleteNotification(notificationId) {
     try {

@@ -25,6 +25,7 @@ const PersonalityTestController = require('./controllers/PersonalityTestControll
 const DepartmentController = require("./controllers/DepartmentController");
 const InterviewController = require("./controllers/InterviewController");
 const ScholarEvaluationController = require('./controllers/ScholarEvaluationController');
+const MessageController = require('./controllers/MessageController');
 
 const AuditLogController = require('./controllers/AuditLogController');
 
@@ -405,6 +406,9 @@ app.get('/api/oas/application-counts', authenticate, checkPermission('applicatio
 // Analytics endpoint for OAS staff (applications overview & charts)
 app.get('/api/oas/analytics', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAnalytics);
 
+// Admin: Schedule interview with notification
+app.post('/api/admin/interview/schedule', authenticate, checkPermission('interview.create'), InterviewController.createInterviewForApplicant);
+
 // Department Head: Schedule interview with notification
 app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
 app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate, checkPermission('application.readAll'), InterviewController.rescheduleInterviewForDepartmentHead);
@@ -433,6 +437,18 @@ app.get('/api/audit-logs', authenticate, checkPermission('audit.read'), AuditLog
 app.get('/api/audit-logs/export/pdf', authenticate, checkPermission('audit.read'), AuditLogController.exportLogsPDF);
 app.get('/api/audit-logs/export/excel', authenticate, checkPermission('audit.read'), AuditLogController.exportLogsExcel);
 app.patch('/api/audit-logs/:id/archive', authenticate, checkPermission('audit.manage'), AuditLogController.archiveLog);
+
+// ==================== MESSAGING ROUTES ====================
+app.post('/api/messages/conversation/start', authenticate, MessageController.startConversation);
+app.post('/api/messages/send', authenticate, MessageController.sendMessage);
+app.get('/api/messages/conversations', authenticate, MessageController.getUserConversations);
+app.get('/api/messages/conversation/:conversationId', authenticate, MessageController.getConversationMessages);
+app.get('/api/messages/conversation/application/:applicationId', authenticate, MessageController.getConversationByApplication);
+app.patch('/api/messages/conversation/:conversationId/read', authenticate, MessageController.markAsRead);
+app.patch('/api/messages/conversation/:conversationId/archive', authenticate, MessageController.toggleArchive);
+app.get('/api/messages/unread-count', authenticate, MessageController.getUnreadCount);
+app.get('/api/messages/search', authenticate, MessageController.searchConversations);
+app.delete('/api/messages/:messageId', authenticate, MessageController.deleteMessage);
 
 // Graceful shutdown
 const server = app.listen(port,host, () => {

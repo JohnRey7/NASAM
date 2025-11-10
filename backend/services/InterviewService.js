@@ -89,28 +89,70 @@ class InterviewService {
         // Generate interview ID for existing interview
         const existingInterviewId = `INT-${new Date().getFullYear()}-${String(existingInterview._id).slice(-6).toUpperCase()}`;
         
-        console.log('📅 Interview already exists, sending notification to applicant');
-        
-        // Send notification to the applicant about their existing interview
-        try {
-          await NotificationService.createInterviewReminderNotification(
-            application.user, // userId from the application
-            applicationId,
-            existingInterview.startTime,
-            'OAS Staff' // remindedBy
-          );
-          console.log('✅ Interview reminder notification sent to applicant:', application.user);
-        } catch (notificationError) {
-          console.error('⚠️ Failed to send interview reminder notification:', notificationError);
+        // Parse the new interview date
+        const newInterviewStart = new Date(interviewDate);
+        if (isNaN(newInterviewStart.getTime())) {
+          throw new Error('Invalid interview date format');
         }
         
-        return { 
-          message: 'Interview already scheduled for this application. Notification sent to applicant.',
-          interview: existingInterview,
-          interviewId: existingInterviewId,
-          isExisting: true,
-          interviewDate: existingInterview.startTime
-        };
+        // Check if the date is different (rescheduling)
+        const existingDate = new Date(existingInterview.startTime).toDateString();
+        const newDate = newInterviewStart.toDateString();
+        
+        if (existingDate !== newDate) {
+          console.log('📅 Rescheduling interview from', existingDate, 'to', newDate);
+          
+          // Update the interview date
+          const newInterviewEnd = new Date(newInterviewStart.getTime() + 60 * 60 * 1000);
+          existingInterview.startTime = newInterviewStart;
+          existingInterview.endTime = newInterviewEnd;
+          await existingInterview.save();
+          
+          // Send reschedule notification
+          try {
+            await NotificationService.createInterviewRescheduledNotification(
+              application.user,
+              applicationId,
+              newInterviewStart,
+              'OAS Staff'
+            );
+            console.log('✅ Interview rescheduled notification sent to applicant:', application.user);
+          } catch (notificationError) {
+            console.error('⚠️ Failed to send reschedule notification:', notificationError);
+          }
+          
+          return { 
+            message: 'Interview rescheduled successfully. Notification sent to applicant.',
+            interview: existingInterview,
+            interviewId: existingInterviewId,
+            isExisting: true,
+            isRescheduled: true,
+            interviewDate: existingInterview.startTime
+          };
+        } else {
+          console.log('📅 Interview already exists with same date, sending reminder');
+          
+          // Send notification to the applicant about their existing interview
+          try {
+            await NotificationService.createInterviewReminderNotification(
+              application.user,
+              applicationId,
+              existingInterview.startTime,
+              'OAS Staff'
+            );
+            console.log('✅ Interview reminder notification sent to applicant:', application.user);
+          } catch (notificationError) {
+            console.error('⚠️ Failed to send interview reminder notification:', notificationError);
+          }
+          
+          return { 
+            message: 'Interview already scheduled for this application. Notification sent to applicant.',
+            interview: existingInterview,
+            interviewId: existingInterviewId,
+            isExisting: true,
+            interviewDate: existingInterview.startTime
+          };
+        }
       }
 
       // Parse the interview date and create start/end times

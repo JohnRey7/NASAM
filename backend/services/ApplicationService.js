@@ -209,31 +209,51 @@ class ApplicationService {
       console.log('📋 IDs without is_deleted field:', appsWithoutDeletedField.map(app => app._id));
     }
 
-    const formattedApps = applications.map(app => ({
-      _id: app._id,
-      firstName: app.firstName || '',
-      lastName: app.lastName || '',
-      middleName: app.middleName || '',
-      suffix: app.suffix || '',
-      emailAddress: app.emailAddress || '',
-      gender: app.gender || 'Unknown', // Add gender field
-      programOfStudyAndYear: app.programOfStudyAndYear || 'N/A',
-      existingScholarship: app.existingScholarship || 'None',
-      remainingUnitsIncludingThisTerm: app.remainingUnitsIncludingThisTerm || 'N/A',
-      remainingTermsToGraduate: app.remainingTermsToGraduate || 'N/A',
-      citizenship: app.citizenship || 'N/A',
-      civilStatus: app.civilStatus || 'N/A',
-      annualFamilyIncome: app.annualFamilyIncome || 'N/A',
-      currentResidenceAddress: app.currentResidenceAddress || 'N/A',
-      permanentResidentialAddress: app.permanentResidentialAddress || 'N/A',
-      contactNumber: app.contactNumber || 'N/A',
-      submissionDate: app.createdAt,
-      createdAt: app.createdAt,
-      status: app.status || 'pending',
-      user: app.user
-    }));
+    // Fetch interview data for all applications
+    const Interview = require('../models/Interview');
+    const applicationIds = applications.map(app => app._id);
+    const interviews = await Interview.find({ applicationId: { $in: applicationIds } }).lean();
+    
+    // Create a map of applicationId -> interview
+    const interviewMap = {};
+    interviews.forEach(interview => {
+      interviewMap[interview.applicationId.toString()] = interview;
+    });
 
-    console.log(`✅ Returning ${formattedApps.length} formatted applications`);
+    const formattedApps = applications.map(app => {
+      const interview = interviewMap[app._id.toString()];
+      
+      return {
+        _id: app._id,
+        firstName: app.firstName || '',
+        lastName: app.lastName || '',
+        middleName: app.middleName || '',
+        suffix: app.suffix || '',
+        emailAddress: app.emailAddress || '',
+        gender: app.gender || 'Unknown',
+        programOfStudyAndYear: app.programOfStudyAndYear || 'N/A',
+        existingScholarship: app.existingScholarship || 'None',
+        remainingUnitsIncludingThisTerm: app.remainingUnitsIncludingThisTerm || 'N/A',
+        remainingTermsToGraduate: app.remainingTermsToGraduate || 'N/A',
+        citizenship: app.citizenship || 'N/A',
+        civilStatus: app.civilStatus || 'N/A',
+        annualFamilyIncome: app.annualFamilyIncome || 'N/A',
+        currentResidenceAddress: app.currentResidenceAddress || 'N/A',
+        permanentResidentialAddress: app.permanentResidentialAddress || 'N/A',
+        contactNumber: app.contactNumber || 'N/A',
+        submissionDate: app.createdAt,
+        createdAt: app.createdAt,
+        status: app.status || 'pending',
+        user: app.user,
+        // Add interview data
+        interviewScheduled: !!interview,
+        interviewDate: interview?.startTime || null,
+        interviewCompleted: interview?.status === 'complete' || false,
+        interviewStatus: interview?.status || null
+      };
+    });
+
+    console.log(`✅ Returning ${formattedApps.length} formatted applications with interview data`);
     return formattedApps;
   }
 

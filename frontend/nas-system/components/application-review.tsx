@@ -26,6 +26,7 @@ import {
   Edit
 } from "lucide-react"
 import { AdminEditApplication } from "@/components/admin-edit-application"
+import { MessageButton } from "@/components/message-button"
 import {
   Dialog,
   DialogContent,
@@ -472,6 +473,7 @@ export function ApplicationReview() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedApplication, setSelectedApplication] = useState<any>(null)
   const [interviewDate, setInterviewDate] = useState("")
+  const [isRescheduling, setIsRescheduling] = useState(false)
   const [personalityTestData, setPersonalityTestData] = useState<any>(null);
   const [personalityTestLoading, setPersonalityTestLoading] = useState(false);
   const [remarks, setRemarks] = useState("")
@@ -655,13 +657,23 @@ export function ApplicationReview() {
 
       // Handle both new and existing interviews
       if (result.isExisting) {
-        // Interview already exists - show existing interview details
-        const existingDate = new Date(result.interviewDate).toLocaleDateString();
-        toast({
-          title: "Interview Already Scheduled",
-          description: `${selectedApplication.firstName} ${selectedApplication.lastName} already has an interview scheduled for ${existingDate}. A reminder notification has been sent to the applicant.`,
-          duration: 7000
-        })
+        if (result.isRescheduled) {
+          // Interview was rescheduled
+          const newDate = new Date(result.interviewDate).toLocaleDateString();
+          toast({
+            title: "Interview Rescheduled",
+            description: `Interview for ${selectedApplication.firstName} ${selectedApplication.lastName} has been rescheduled to ${newDate}. Notification sent to the applicant.`,
+            duration: 5000
+          })
+        } else {
+          // Interview already exists - show existing interview details
+          const existingDate = new Date(result.interviewDate).toLocaleDateString();
+          toast({
+            title: "Interview Already Scheduled",
+            description: `${selectedApplication.firstName} ${selectedApplication.lastName} already has an interview scheduled for ${existingDate}. A reminder notification has been sent to the applicant.`,
+            duration: 7000
+          })
+        }
       } else {
         // New interview scheduled
         toast({
@@ -677,9 +689,10 @@ export function ApplicationReview() {
       // Close dialog and reset form
       setSelectedApplication(null)
       setInterviewDate("")
+      setIsRescheduling(false)
       
       // Refresh the applications list to show updated status
-      window.location.reload();
+      fetchApplications();
       
     } catch (error) {
       console.error('Error scheduling interview:', error);
@@ -1401,17 +1414,38 @@ export function ApplicationReview() {
                               </TabsContent>
 
                               <TabsContent value="interview" className="space-y-4 py-4">
+                                {(() => {
+                                  console.log('📅 Interview Data:', {
+                                    scheduled: application.interviewScheduled,
+                                    date: application.interviewDate,
+                                    completed: application.interviewCompleted,
+                                    status: application.interviewStatus
+                                  });
+                                  return null;
+                                })()}
                                 {application.interviewScheduled ? (
                                   <div className="space-y-4">
                                     <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                                      <div className="flex">
+                                      <div className="flex items-start">
                                         <div className="flex-shrink-0">
                                           <Calendar className="h-5 w-5 text-blue-400" />
                                         </div>
-                                        <div className="ml-3">
-                                          <p className="text-sm text-blue-700">
-                                            <strong>Interview Scheduled:</strong> {application.interviewDate}
+                                        <div className="ml-3 flex-1">
+                                          <p className="text-sm text-blue-700 font-semibold mb-1">
+                                            Interview Scheduled
                                           </p>
+                                          {application.interviewDate ? (
+                                            <p className="text-sm font-medium text-blue-800">
+                                              {new Date(application.interviewDate).toLocaleDateString('en-US', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                              })}
+                                            </p>
+                                          ) : (
+                                            <p className="text-sm text-gray-500">Date not available</p>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
@@ -1477,13 +1511,127 @@ export function ApplicationReview() {
                                           The interview has been scheduled but not yet completed.
                                         </p>
 
+                                        {!isRescheduling ? (
+                                          <div className="flex gap-3">
+                                            <Button
+                                              variant="outline"
+                                              onClick={() => {
+                                                toast({
+                                                  title: "Reminder Sent",
+                                                  description:
+                                                    "Interview reminder has been sent to the applicant and panelists.",
+                                                })
+                                              }}
+                                            >
+                                              <MessageSquare className="mr-2 h-4 w-4" />
+                                              Send Reminder
+                                            </Button>
+
+                                            <Button
+                                              variant="outline"
+                                              className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                              onClick={() => {
+                                                setIsRescheduling(true)
+                                                setInterviewDate(application.interviewDate ? new Date(application.interviewDate).toISOString().split('T')[0] : '')
+                                              }}
+                                            >
+                                              <Calendar className="mr-2 h-4 w-4" />
+                                              Reschedule
+                                            </Button>
+                                          </div>
+                                        ) : (
+                                          <div className="space-y-4">
+                                            <div className="space-y-2">
+                                              <Label htmlFor="reschedule-date">New Interview Date</Label>
+                                              <Input
+                                                id="reschedule-date"
+                                                type="date"
+                                                value={interviewDate}
+                                                onChange={(e) => setInterviewDate(e.target.value)}
+                                                min={new Date().toISOString().split('T')[0]}
+                                              />
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                              <Button
+                                                className="bg-[#800000] hover:bg-[#600000]"
+                                                onClick={handleScheduleInterview}
+                                              >
+                                                <Calendar className="mr-2 h-4 w-4" />
+                                                Confirm Reschedule
+                                              </Button>
+                                              
+                                              <Button
+                                                variant="outline"
+                                                onClick={() => setIsRescheduling(false)}
+                                              >
+                                                Cancel
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="space-y-4">
+                                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                                      <div className="flex">
+                                        <div className="flex-shrink-0">
+                                          <Calendar className="h-5 w-5 text-blue-400" />
+                                        </div>
+                                        <div className="ml-3">
+                                          <p className="text-sm text-blue-700">
+                                            <strong>Interview Status:</strong> {application.interviewScheduled ? 'Scheduled' : 'Not Scheduled'}
+                                          </p>
+                                          {application.interviewDate && (
+                                            <p className="text-sm text-blue-700 mt-1">
+                                              <strong>Date:</strong> {new Date(application.interviewDate).toLocaleDateString('en-US', { 
+                                                weekday: 'long', 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric' 
+                                              })}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {!application.interviewScheduled && (
+                                      <div className="space-y-4 pt-4">
+                                        <div className="space-y-2">
+                                          <Label htmlFor="interview-date">Schedule Interview Date</Label>
+                                          <Input
+                                            id="interview-date"
+                                            type="date"
+                                            value={interviewDate}
+                                            onChange={(e) => setInterviewDate(e.target.value)}
+                                            min={new Date().toISOString().split('T')[0]}
+                                          />
+                                        </div>
+
+                                        <Button
+                                          className="bg-[#800000] hover:bg-[#600000]"
+                                          onClick={handleScheduleInterview}
+                                        >
+                                          <Calendar className="mr-2 h-4 w-4" />
+                                          Schedule Interview
+                                        </Button>
+                                      </div>
+                                    )}
+                                    
+                                    {application.interviewScheduled && (
+                                      <div className="pt-4">
+                                        <p className="text-sm text-gray-600 mb-3">
+                                          Interview has been scheduled. You can send a reminder to the applicant.
+                                        </p>
                                         <Button
                                           variant="outline"
                                           onClick={() => {
                                             toast({
                                               title: "Reminder Sent",
-                                              description:
-                                                "Interview reminder has been sent to the applicant and panelists.",
+                                              description: "Interview reminder has been sent to the applicant.",
                                             })
                                           }}
                                         >
@@ -1492,41 +1640,6 @@ export function ApplicationReview() {
                                         </Button>
                                       </div>
                                     )}
-                                  </div>
-                                ) : (
-                                  <div className="space-y-4">
-                                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                                      <div className="flex">
-                                        <div className="flex-shrink-0">
-                                          <Clock className="h-5 w-5 text-yellow-400" />
-                                        </div>
-                                        <div className="ml-3">
-                                          <p className="text-sm text-yellow-700">
-                                            <strong>Pending:</strong> No interview has been scheduled yet.
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="space-y-4 pt-4">
-                                      <div className="space-y-2">
-                                        <Label htmlFor="interview-date">Schedule Interview Date</Label>
-                                        <Input
-                                          id="interview-date"
-                                          type="date"
-                                          value={interviewDate}
-                                          onChange={(e) => setInterviewDate(e.target.value)}
-                                        />
-                                      </div>
-
-                                      <Button
-                                        className="bg-[#800000] hover:bg-[#600000]"
-                                        onClick={handleScheduleInterview}
-                                      >
-                                        <Calendar className="mr-2 h-4 w-4" />
-                                        Schedule Interview
-                                      </Button>
-                                    </div>
                                   </div>
                                 )}
                               </TabsContent>
@@ -1546,7 +1659,10 @@ export function ApplicationReview() {
                                 
                                 <Button 
                                   variant="outline" 
-                                  onClick={() => setSelectedApplication(null)}
+                                  onClick={() => {
+                                    setSelectedApplication(null)
+                                    setIsRescheduling(false)
+                                  }}
                                 >
                                   Close
                                 </Button>
@@ -1575,19 +1691,17 @@ export function ApplicationReview() {
                           <Download className="h-4 w-4" />
                         </Button>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            toast({
-                              title: "Message Sent",
-                              description: "A message has been sent to the applicant.",
-                            })
-                          }}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
+                        {application.user?._id && application.firstName && (
+                          <MessageButton
+                            receiverId={application.user._id}
+                            receiverName={`${application.firstName} ${application.lastName || ''}`}
+                            applicationId={application._id}
+                            conversationType="admin-applicant"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

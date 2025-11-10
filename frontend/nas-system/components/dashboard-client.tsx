@@ -4,9 +4,11 @@ import { useAuth } from "@/contexts/auth-context"
 import { RoleBasedLayout } from "@/components/role-based-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, FileText, Upload, CheckSquare, CheckCircle } from "lucide-react"
+import { Calendar, FileText, Upload, CheckSquare, CheckCircle, MessageSquare } from "lucide-react"
 import { ActivityHistory } from "@/components/activity-history"
+import { ConversationsList } from "@/components/conversations-list"
 import Link from "next/link"
+import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApplicationForm } from "@/components/application-form"
 import { DocumentUpload } from "@/components/document-upload"
@@ -43,6 +45,8 @@ export function DashboardClient() {
 }
 
 function ApplicantDashboard() {
+  const [showMessages, setShowMessages] = useState(false)
+  
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ModeToggle } from "@/components/mode-toggle"
 import { NotificationSystem } from "@/components/notification-system"
+import { MessageNotificationBadge } from "@/components/message-notification-badge"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Award } from "lucide-react"
 import { UserNav } from "@/components/user-nav"
@@ -18,6 +19,7 @@ export function DashboardHeader() {
         </div>
 
         <div className="flex items-center gap-4">
+          <MessageNotificationBadge />
           <NotificationSystem />
           <ModeToggle />
           <UserNav />

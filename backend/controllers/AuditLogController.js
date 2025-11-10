@@ -18,7 +18,7 @@ exports.getLogs = async (req, res) => {
     }
 
     const logs = await AuditLog.find(filter)
-      .populate('userId', 'username email')
+      .populate('userId', 'name idNumber email')
       .sort({ timestamp: -1 });
 
     res.status(200).json(logs);
@@ -30,7 +30,7 @@ exports.getLogs = async (req, res) => {
 // ✅ Export logs as PDF
 exports.exportLogsPDF = async (req, res) => {
   try {
-    const logs = await AuditLog.find({ archived: false }).populate('userId', 'username email');
+    const logs = await AuditLog.find({ archived: false }).populate('userId', 'name idNumber email');
 
     const doc = new PDFDocument();
     res.setHeader('Content-Disposition', 'attachment; filename=audit_logs.pdf');
@@ -42,8 +42,11 @@ exports.exportLogsPDF = async (req, res) => {
     doc.moveDown();
 
     logs.forEach(log => {
+      // Try to get user identifier in order of preference: name, email, idNumber
+      const userIdentifier = log.userId?.name || log.userId?.email || log.userId?.idNumber || 'N/A';
+      
       doc.fontSize(12).text(
-        `User: ${log.userId?.username || 'N/A'} | Action: ${log.action} | Module: ${log.module} | Date: ${log.timestamp}`
+        `User: ${userIdentifier} | Action: ${log.action} | Module: ${log.module} | Date: ${new Date(log.timestamp).toLocaleString()}`
       );
       doc.moveDown(0.5);
     });
@@ -57,7 +60,7 @@ exports.exportLogsPDF = async (req, res) => {
 // ✅ Export logs as Excel/CSV
 exports.exportLogsExcel = async (req, res) => {
   try {
-    const logs = await AuditLog.find({ archived: false }).populate('userId', 'username email');
+    const logs = await AuditLog.find({ archived: false }).populate('userId', 'name idNumber email');
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Audit Logs');
@@ -70,11 +73,20 @@ exports.exportLogsExcel = async (req, res) => {
     ];
 
     logs.forEach(log => {
+      // Try to get user identifier in order of preference: name, email, idNumber
+      let userIdentifier = 'N/A';
+      if (log.userId) {
+        userIdentifier = log.userId.name || 
+                        log.userId.email || 
+                        log.userId.idNumber ||
+                        'N/A';
+      }
+
       sheet.addRow({
-        user: log.userId?.username || 'N/A',
+        user: userIdentifier,
         action: log.action,
         module: log.module,
-        date: log.timestamp
+        date: new Date(log.timestamp).toLocaleString()
       });
     });
 
