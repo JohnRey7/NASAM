@@ -12,7 +12,8 @@ async function sendVerificationEmail(email, code, subject = 'NAS Registration | 
     },
   });
 
-  const verificationUrl = `http://localhost:3000/api/auth/email/verify?code=${code}`;
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const verificationUrl = `${baseUrl}/api/auth/email/verify?code=${code}`;
 
   const mailOptions = {
     from: process.env.EMAIL_USER, 

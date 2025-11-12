@@ -63,7 +63,7 @@ export function RegisterForm() {
       // Show success toast
       toast({
         title: "Registration Successful",
-        description: "Please check your email for verification instructions.",
+        description: "Please check your email for verification instructions. Redirecting to login...",
       })
 
       // Reset form safely
@@ -73,8 +73,10 @@ export function RegisterForm() {
         setCourse("")
       }
       
-      // Switch to login tab
-      document.querySelector('[data-value="login"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+      // Redirect to login page after 2 seconds
+      setTimeout(() => {
+        router.push('/login')
+      }, 2000)
     } catch (error) {
       console.error("Registration error:", error)
       const errorMsg = error instanceof Error ? error.message : "Registration failed. Please try again."
