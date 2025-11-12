@@ -75,7 +75,8 @@ export function RegisterForm() {
       
       // Switch to login tab after 2 seconds
       setTimeout(() => {
-        const loginTab = document.querySelector('[value="login"]') as HTMLElement
+        // Find the login tab button by its ID pattern or data-state
+        const loginTab = document.querySelector('[id*="trigger-login"]') as HTMLElement
         if (loginTab) {
           loginTab.click()
         }

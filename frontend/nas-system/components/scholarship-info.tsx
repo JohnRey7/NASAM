@@ -5,28 +5,22 @@ export function ScholarshipInfo() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-[#800000]">Non-Academic Scholarship Program</h2>
-        <p className="mt-2 text-gray-600">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+        <p className="mt-4 text-gray-700 leading-relaxed">
+          The CIT-U Non-Academic Scholarship Program is designed to support students who demonstrate 
+          exceptional talent and dedication in non-academic fields such as sports, arts, culture, and 
+          community service. This scholarship aims to recognize and nurture well-rounded individuals 
+          who contribute to the university's vibrant campus life while maintaining satisfactory academic standing.
         </p>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold">Key Benefits</h3>
-        <ul className="space-y-2">
-          {[
-            "STILLL IN BETAAA"
-          ].map((benefit, index) => (
-            <li key={index} className="flex items-start">
-              <CheckCircle className="h-5 w-5 text-[#800000] mr-2 shrink-0 mt-0.5" />
-              <span>{benefit}</span>
-            </li>
-          ))}
-        </ul>
+        <p className="mt-3 text-gray-700 leading-relaxed">
+          Eligible students can receive financial assistance to help cover tuition fees and other educational 
+          expenses, allowing them to focus on both their academic pursuits and their passion for excellence 
+          in their chosen non-academic field.
+        </p>
       </div>
 
       <div className="bg-[#800000]/10 p-4 rounded-lg border border-[#800000]/20">
         <h3 className="font-semibold text-[#800000]">Application Period</h3>
-        <p className="mt-1">Applications for the NA.</p>
+        <p className="mt-1 text-gray-700">Applications for the NA.</p>
       </div>
     </div>
   )
