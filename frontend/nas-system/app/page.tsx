@@ -4,10 +4,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LoginForm } from "@/components/login-form"
 import { RegisterForm } from "@/components/register-form"
 import { ScholarshipInfo } from "@/components/scholarship-info"
+import { VerificationHandler } from "@/components/verification-handler"
+import { Suspense } from "react"
 
 export default function Home() {
   return (
     <div className="min-h-screen gradient-bg flex flex-col">
+      <Suspense fallback={null}>
+        <VerificationHandler />
+      </Suspense>
       <header className="gradient-maroon text-white py-6 shadow-maroon-lg">
         <div className="container mx-auto px-4 flex justify-left items-center">
           <h1 className="text-3xl font-bold tracking-tight">CIT-U Non-Academic Scholars</h1>

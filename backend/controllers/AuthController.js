@@ -137,13 +137,17 @@ const AuthController = {
       await AuthService.verifyEmail(code);
 
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      return res.redirect(`${frontendUrl}/verified`);
+      // Redirect to home page with success message
+      return res.redirect(`${frontendUrl}?verified=success`);
     } catch (error) {
       console.error(error);
       if (error.message.includes('required') || error.message.includes('Invalid') || error.message.includes('already verified') || error.message.includes('expired')) {
-        return res.status(400).json({ message: error.message });
+        // Redirect to home page with error message
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+        return res.redirect(`${frontendUrl}?verified=error&message=${encodeURIComponent(error.message)}`);
       }
-      return res.status(500).json({ message: 'Server error' });
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+      return res.redirect(`${frontendUrl}?verified=error&message=Server error`);
     }
   },
 

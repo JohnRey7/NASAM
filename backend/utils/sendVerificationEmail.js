@@ -15,6 +15,13 @@ async function sendVerificationEmail(email, code, subject = 'NAS Registration | 
   // Use backend URL for API endpoint (will redirect to frontend after verification)
   const backendUrl = process.env.BACKEND_URL || process.env.BASE_URL || 'http://localhost:3000';
   const verificationUrl = `${backendUrl}/api/auth/email/verify?code=${code}`;
+  
+  // Debug logging
+  console.log('📧 Email Verification Debug:');
+  console.log('   BACKEND_URL:', process.env.BACKEND_URL);
+  console.log('   BASE_URL:', process.env.BASE_URL);
+  console.log('   Using URL:', backendUrl);
+  console.log('   Full verification URL:', verificationUrl);
 
   const mailOptions = {
     from: `"CIT-U Non-Academic Scholars" <${process.env.EMAIL_USER}>`, 
