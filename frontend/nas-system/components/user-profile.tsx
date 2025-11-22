@@ -14,26 +14,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { Camera, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-// Sample courses - in a real app, these would come from an API
-const COURSES = [
-  { id: "bsit", name: "BS Information Technology" },
-  { id: "bscs", name: "BS Computer Science" },
-  { id: "bsce", name: "BS Civil Engineering" },
-  { id: "bsee", name: "BS Electrical Engineering" },
-  { id: "bsme", name: "BS Mechanical Engineering" },
-  { id: "bsarch", name: "BS Architecture" },
-  { id: "bsacct", name: "BS Accountancy" },
-  { id: "bsba", name: "BS Business Administration" },
-  { id: "bstm", name: "BS Tourism Management" },
-  { id: "bshm", name: "BS Hospitality Management" },
-]
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"
-
-interface Course {
-  _id: string
-  name: string
-}
 
 interface ApplicationHistoryItem {
   id: string
@@ -44,22 +25,12 @@ interface ApplicationHistoryItem {
   type: "submission" | "verification" | "test" | "interview" | "decision" | "review"
 }
 
-interface Application {
-  _id: string
-  typeOfScholarship: string
-  status: string
-  createdAt: string
-  updatedAt: string
-  userId: string
-}
-
 export function UserProfile() {
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const { toast } = useToast()
-  const [courses, setCourses] = useState<Course[]>([])
   const [applicationHistory, setApplicationHistory] = useState<ApplicationHistoryItem[]>([])
   
   // Add state for password change
@@ -80,7 +51,12 @@ export function UserProfile() {
     address: "",
     contact: "",
     birthday: "",
-    gender: ""
+    gender: "",
+    province: "",
+    city: "",
+    barangay: "",
+    street: "",
+    postalCode: ""
   })
 
   // Fetch user data when component mounts
@@ -95,7 +71,20 @@ export function UserProfile() {
 
         if (response.ok) {
           const data = await response.json()
-          console.log("Full user data from /auth/me:", data) // Debug log
+          console.log("📥 Full user data from GET /auth/me:", data)
+          console.log("📥 Personal info from response:", {
+            address: data.user?.address,
+            contact: data.user?.contact,
+            birthday: data.user?.birthday,
+            gender: data.user?.gender
+          })
+          console.log("📥 Location info from response:", {
+            province: data.user?.province,
+            city: data.user?.city,
+            barangay: data.user?.barangay,
+            street: data.user?.street,
+            postalCode: data.user?.postalCode
+          })
           
           // Update form data with user data
           const updatedFormData = {
@@ -103,14 +92,19 @@ export function UserProfile() {
             studentId: data.user?.idNumber || "",
             courseId: data.user?.course?._id || "",
             courseName: data.user?.course?.name || "",
-            email: data.user?.email || "", // Get email from backend response
+            email: data.user?.email || "",
             address: data.user?.address || "",
             contact: data.user?.contact || "",
-            birthday: data.user?.birthday || "",
-            gender: data.user?.gender || ""
+            birthday: data.user?.birthday ? data.user.birthday.split('T')[0] : "",
+            gender: data.user?.gender || "",
+            province: data.user?.province || "",
+            city: data.user?.city || "",
+            barangay: data.user?.barangay || "",
+            street: data.user?.street || "",
+            postalCode: data.user?.postalCode || ""
           }
           
-          console.log("Setting form data to:", updatedFormData) // Debug log
+          console.log("📥 Setting form data to:", updatedFormData)
           setFormData(updatedFormData)
           
           // Fetch student picture from documents
@@ -188,6 +182,23 @@ export function UserProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true)
 
+    const dataToSave = {
+      name: formData.fullName,
+      idNumber: formData.studentId,
+      address: formData.address,
+      contact: formData.contact,
+      birthday: formData.birthday,
+      gender: formData.gender,
+      province: formData.province,
+      city: formData.city,
+      barangay: formData.barangay,
+      street: formData.street,
+      postalCode: formData.postalCode
+    }
+
+    console.log('💾 Saving profile data to PUT /api/users/profile')
+    console.log('💾 Data being sent:', dataToSave)
+
     try {
       // Make API call to save changes
       const response = await fetch(`${API_URL}/users/profile`, {
@@ -196,19 +207,19 @@ export function UserProfile() {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          name: formData.fullName,
-          idNumber: formData.studentId,
-          address: formData.address,
-          contact: formData.contact,
-          birthday: formData.birthday,
-          gender: formData.gender || undefined
-        }),
+        body: JSON.stringify(dataToSave),
       })
 
+      console.log('💾 Response status:', response.status)
+
       if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        console.error('💾 Error response:', errorData)
         throw new Error("Failed to update profile")
       }
+
+      const result = await response.json()
+      console.log('✅ Profile saved successfully:', result)
 
       // Update the user's name in the auth context
       if (user) {
@@ -220,7 +231,7 @@ export function UserProfile() {
         description: "Your profile has been updated successfully.",
       })
     } catch (error) {
-      console.error("Update error:", error)
+      console.error("❌ Update error:", error)
       toast({
         title: "Update Failed",
         description: "Failed to update profile. Please try again.",
@@ -385,78 +396,6 @@ export function UserProfile() {
     }
   }
 
-  // In your user-profile.tsx, create mock history based on real application data
-  const generateHistoryFromApplication = (application: Application) => {
-    const history: ApplicationHistoryItem[] = []
-    
-    // Always show submission
-    history.push({
-      id: `${application._id}-submitted`,
-      title: "Application Submitted",
-      description: `You submitted your application for the ${application.typeOfScholarship} program.`,
-      date: application.createdAt,
-      status: "completed",
-      type: "submission"
-    })
-    
-    // Add more events based on status - UPDATED WORDINGS
-    if (application.status === "under_review" || application.status === "reviewing") {
-      history.push({
-        id: `${application._id}-review`,
-        title: "Under Review",
-        description: "Your application is currently being reviewed by OAS staff.",
-        date: application.updatedAt,
-        status: "current",
-        type: "review"
-      })
-    }
-
-    if (application.status === "form_verified") {
-      history.push({
-        id: `${application._id}-form-verified`,
-        title: "Application Form Verified",
-        description: "Your application form has been reviewed and verified.",
-        date: application.updatedAt,
-        status: "completed",
-        type: "verification"
-      })
-    }
-
-    if (application.status === "document_verification") {
-      history.push({
-        id: `${application._id}-doc-review`,
-        title: "Document Verification",
-        description: "Your submitted documents are being verified.",
-        date: application.updatedAt,
-        status: "current",
-        type: "verification"
-      })
-    }
-    
-    if (application.status === "approved") {
-      history.push({
-        id: `${application._id}-decision`,
-        title: "Application Approved",
-        description: "Congratulations! Your scholarship application has been approved.",
-        date: application.updatedAt,
-        status: "completed",
-        type: "decision"
-      })
-    }
-
-    if (application.status === "rejected") {
-      history.push({
-        id: `${application._id}-decision`,
-        title: "Application Decision",
-        description: "Your application has been reviewed. Please check with OAS for details.",
-        date: application.updatedAt,
-        status: "completed",
-        type: "decision"
-      })
-    }
-    
-    return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }
 
   // Fetch application history
   useEffect(() => {
@@ -495,81 +434,7 @@ export function UserProfile() {
     }
   }
 
-  // Add this function to your dashboard component (wherever you see the pending statuses)
-  const getProgressStatus = (stepId: string, applicationData: any) => {
-    if (!applicationData) {
-      // No application submitted yet - ALL steps should be "not_submitted"
-      return "not_submitted"
-    }
-    
-    // Map your application status to progress steps
-    const status = applicationData.status
-    
-    switch (stepId) {
-      case "submission":
-        return "completed" // Always completed if application exists
-        
-      case "review":
-        if (status === "under_review" || status === "reviewing") return "pending"  // ✅ Only pending when actually under review
-        if (status === "form_verified" || status === "document_verification" || status === "approved") return "completed"
-        return "not_submitted"
-        
-      case "evaluation":
-        if (status === "document_verification") return "pending"  // ✅ Only pending when in this phase
-        if (status === "approved") return "completed"
-        return "not_submitted"
-        
-      case "decision":
-        if (status === "approved" || status === "rejected") return "completed"
-        return "not_submitted"  // ✅ Not submitted until final decision
-        
-      default:
-        return "not_submitted"  // ✅ Default to not_submitted
-    }
-  }
 
-  // Update status label function
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "Completed"
-      case "pending":
-        return "Pending"
-      case "not_submitted":
-        return "Not Submitted"  // ✅ This will show by default
-      default:
-        return "Not Submitted"  // ✅ Changed from "Not Submitted" to this as fallback
-    }
-  }
-
-  // New progress tracker state
-  const totalSteps = 4
-  const [applicationData, setApplicationData] = useState<Application | null>(null)
-  const completedSteps = applicationData ? (applicationData.status === "approved" ? 4 : 3) : 0 // Mocked logic for completed steps
-
-  // Mocked progress steps - replace with your actual steps
-  const progressSteps = [
-    {
-      id: "submission",
-      title: "Application Submitted",
-      description: "Application form and documents received"
-    },
-    {
-      id: "review", 
-      title: "Under Review",
-      description: "Document verification and initial screening"
-    },
-    {
-      id: "evaluation",
-      title: "Evaluation Phase",
-      description: "Assessment and interview process"
-    },
-    {
-      id: "decision",
-      title: "Final Decision",
-      description: "Application approval or rejection"
-    },
-  ]
 
   return (
     <Card>
@@ -671,6 +536,7 @@ export function UserProfile() {
                       name="address"
                       value={formData.address}
                       onChange={handleInputChange}
+                      placeholder="Enter your complete address"
                     />
                   </div>
 
@@ -682,6 +548,7 @@ export function UserProfile() {
                         name="contact"
                         value={formData.contact}
                         onChange={handleInputChange}
+                        placeholder="e.g., 09123456789"
                       />
                     </div>
                     <div className="space-y-2">
@@ -694,18 +561,19 @@ export function UserProfile() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select value={formData.gender} onValueChange={(val) => setFormData(prev => ({ ...prev, gender: val }))}>
-                        <SelectTrigger id="gender">
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Select value={formData.gender} onValueChange={(val) => setFormData(prev => ({ ...prev, gender: val }))}>
+                      <SelectTrigger id="gender">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -846,26 +714,57 @@ export function UserProfile() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="province">Province</Label>
-                  <Input id="province" defaultValue="Cebu" />
+                  <Input 
+                    id="province" 
+                    name="province"
+                    value={formData.province}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Cebu"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="city">City/Municipality</Label>
-                  <Input id="city" defaultValue="Cebu City" />
+                  <Input 
+                    id="city" 
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Cebu City"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="barangay">Barangay</Label>
-                  <Input id="barangay" defaultValue="Lahug" />
+                  <Input 
+                    id="barangay" 
+                    name="barangay"
+                    value={formData.barangay}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Lahug"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="street">Street Address</Label>
-                  <Input id="street" defaultValue="123 Main Street" />
+                  <Input 
+                    id="street" 
+                    name="street"
+                    value={formData.street}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 123 Main Street"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="postal">Postal Code</Label>
-                  <Input id="postal" defaultValue="6000" />
+                  <Label htmlFor="postalCode">Postal Code</Label>
+                  <Input 
+                    id="postalCode" 
+                    name="postalCode"
+                    value={formData.postalCode}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 6000"
+                  />
                 </div>
               </div>
             </TabsContent>
+
           </Tabs>
         )}
 
@@ -873,49 +772,6 @@ export function UserProfile() {
           <Button onClick={handleSaveProfile} disabled={isLoading} className="bg-[#800000] hover:bg-[#600000]">
             {isLoading ? "Saving..." : "Save Changes"}
           </Button>
-        </div>
-
-        {/* Replace your existing progress tracker with this */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-semibold">Application Progress</h3>
-          
-          {applicationData ? (
-            <div className="text-sm text-gray-600 mb-4">
-              {Math.round((completedSteps / totalSteps) * 100)}% Complete
-            </div>
-          ) : (
-            <div className="text-sm text-gray-600 mb-4">
-              0% Complete - Start your application
-            </div>
-          )}
-          
-          <div className="space-y-4">
-            {progressSteps.map((step) => {
-              const status = getProgressStatus(step.id, applicationData)
-              
-              return (
-                <div key={step.id} className="flex items-center justify-between p-4 rounded-lg border">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      status === 'completed' ? 'bg-green-500' :
-                      status === 'pending' ? 'bg-yellow-500' : 'bg-gray-300'
-                    }`}></div>
-                    <div>
-                      <h4 className="font-medium">{step.title}</h4>
-                      <p className="text-sm text-gray-600">{step.description}</p>
-                    </div>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    status === 'completed' ? 'bg-green-100 text-green-800' :
-                    status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                    'bg-gray-100 text-gray-600'  // ✅ Gray for "Not Submitted" instead of yellow
-                  }`}>
-                    {getStatusLabel(status)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
         </div>
       </CardContent>
     </Card>

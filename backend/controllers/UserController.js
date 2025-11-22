@@ -444,26 +444,43 @@ const UserController = {
   async updateProfile(req, res) {
     try {
       const userId = req.user.id;
-      const { name, email } = req.body;
+      const { name, email, address, contact, birthday, gender, idNumber, province, city, barangay, street, postalCode } = req.body;
 
-      if (!name && !email) {
+      console.log('📝 Profile update request for user:', userId);
+      console.log('📝 Received data:', { name, email, address, contact, birthday, gender, province, city, barangay, street, postalCode });
+
+      const updateData = {};
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (address !== undefined) updateData.address = address;
+      if (contact !== undefined) updateData.contact = contact;
+      if (birthday !== undefined) updateData.birthday = birthday;
+      if (gender !== undefined) updateData.gender = gender;
+      if (idNumber !== undefined) updateData.idNumber = idNumber;
+      if (province !== undefined) updateData.province = province;
+      if (city !== undefined) updateData.city = city;
+      if (barangay !== undefined) updateData.barangay = barangay;
+      if (street !== undefined) updateData.street = street;
+      if (postalCode !== undefined) updateData.postalCode = postalCode;
+
+      console.log('📝 Fields to update:', updateData);
+
+      // Check if at least one field is provided
+      if (Object.keys(updateData).length === 0) {
         return res.status(400).json({
-          message: 'At least one field (name or email) is required to update'
+          message: 'At least one field is required to update'
         });
       }
 
-      const updateData = {};
-      if (name) updateData.name = name;
-      if (email) updateData.email = email;
-
       const updatedUser = await UserService.updateUser(userId, updateData);
+      console.log('✅ Profile updated successfully for user:', userId);
 
       return res.json({
         message: 'Profile updated successfully',
         user: updatedUser
       });
     } catch (error) {
-      console.error('Update profile error:', error);
+      console.error('❌ Update profile error:', error);
       if (error.message.includes('not found')) {
         return res.status(404).json({ message: error.message });
       }

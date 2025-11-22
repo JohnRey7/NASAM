@@ -127,6 +127,7 @@ app.get('/', (req, res) => {
 // Routes
 app.post('/api/auth/login', AuthController.login);
 app.post('/api/auth/register', AuthController.register);
+app.post('/api/auth/register/dept-head', authenticate, checkPermission('user.create'), AuthController.registerDepartmentHead);
 app.post('/api/auth/logout', authenticate, AuthController.logout);
 app.post('/api/auth/forgot-password', AuthController.forgotPasswordVerifyEmail);
 app.post('/api/auth/forgot-password/change-password', AuthController.forgotPasswordChangePassword);

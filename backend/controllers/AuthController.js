@@ -69,6 +69,23 @@ const AuthController = {
     }
   },
 
+  async registerDepartmentHead(req, res) {
+    try {
+      const result = await AuthService.registerDepartmentHead(req.body);
+      
+      return res.status(201).json({
+        message: result.message,
+        user: result.user
+      });
+    } catch (error) {
+      console.error('Error in registerDepartmentHead:', error);
+      if (error.message.includes('required') || error.message.includes('already exists') || error.message.includes('Invalid') || error.message.includes('not found')) {
+        return res.status(400).json({ message: error.message });
+      }
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
   async logout(req, res) {
     try {
       const token = req.cookies.jwt;

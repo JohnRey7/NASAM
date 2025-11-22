@@ -70,7 +70,7 @@ const ApplicationController = {
       });
     } catch (error) {
       console.error('Error in readMyApplicationForm:', error);
-      if (error.message.includes('not found')) {
+      if (error.message.includes('not found') || error.message.includes('No application found')) {
         return res.status(404).json({ message: error.message });
       }
       res.status(500).json({ message: 'Server error' });

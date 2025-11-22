@@ -26,7 +26,16 @@ const userSchema = new mongoose.Schema({
     index: true,
     required: false,
   },
+  // Personal information fields
+  address: { type: String },
+  contact: { type: String },
+  birthday: { type: Date },
+  // Location fields
+  province: { type: String },
+  city: { type: String },
+  barangay: { type: String },
+  street: { type: String },
+  postalCode: { type: String },
 });
-
 
 module.exports = mongoose.model('User', userSchema);

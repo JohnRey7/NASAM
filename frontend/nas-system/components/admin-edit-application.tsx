@@ -309,12 +309,12 @@ export function AdminEditApplication({ application, open, onOpenChange, onSucces
             <TabsContent value="academic" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label htmlFor="programOfStudyAndYear">Program of Study and Year *</Label>
+                  <Label htmlFor="programOfStudyAndYear">Program of Study *</Label>
                   <Input
                     id="programOfStudyAndYear"
                     value={formData.programOfStudyAndYear || ''}
                     onChange={(e) => handleInputChange('programOfStudyAndYear', e.target.value)}
-                    placeholder="e.g., BS Computer Science - 2nd Year"
+                    placeholder="e.g., BSIT, BSCS, BSBA"
                   />
                 </div>
                 <div>

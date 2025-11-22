@@ -171,6 +171,71 @@ class AuthService {
     };
   }
 
+  // Register new department head
+  static async registerDepartmentHead(userData) {
+    const { name, idNumber, email, password, departmentCode } = userData;
+    
+    if (!name || !idNumber || !password || !departmentCode) {
+      throw new Error('Name, ID number, password, and department code are required');
+    }
+
+    // Check if user already exists
+    if (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ idNumber }))) {
+      throw new Error('ID number already exists');
+    }
+    
+    if (email && (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ email })))) {
+      throw new Error('Email already exists');
+    }
+
+    // Verify department exists
+    const Department = require('../models/Department');
+    const department = await Department.findOne({ departmentCode });
+    if (!department) {
+      throw new Error('Department not found');
+    }
+
+    // Get department_head role
+    const role = await Role.findOne({ name: "department_head" });
+    if (!role) {
+      throw new Error('Department head role not found');
+    }
+
+    // Hash password and create user
+    const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
+    const user = new User({ 
+      name, 
+      idNumber, 
+      email, 
+      password: hashedPassword, 
+      role: role._id,
+      department: department._id
+    });
+
+    // Send verification email if email provided
+    let verificationCode = null;
+    if (email) {
+      verificationCode = AuthService.updateVerificationDetails(user);
+      await sendVerificationEmail(user.email, verificationCode);
+    }
+
+    await user.save();
+
+    return {
+      message: email ? 'Department head registered successfully. Please verify email.' : 'Department head registered successfully',
+      user: { 
+        id: user._id, 
+        idNumber: user.idNumber,
+        name: user.name,
+        email: user.email,
+        department: departmentCode,
+        role: { 
+          id: role._id, 
+          name: role.name 
+        }
+      }
+    };
+  }
 
   // Logout user
   static async logout(token) {
@@ -432,8 +497,20 @@ class AuthService {
     if (user.disabled) {
       throw new Error('Account is disabled');
     }
+
+    console.log('👤 getCurrentUser - Raw user data from DB:', {
+      address: user.address,
+      contact: user.contact,
+      birthday: user.birthday,
+      gender: user.gender,
+      province: user.province,
+      city: user.city,
+      barangay: user.barangay,
+      street: user.street,
+      postalCode: user.postalCode
+    });
     
-    return {
+    const response = {
       user: {
         id: user._id,
         idNumber: user.idNumber,
@@ -441,6 +518,17 @@ class AuthService {
         email: user.email,
         course: user.course,
         department: user.department,
+        // Personal information fields
+        address: user.address,
+        contact: user.contact,
+        birthday: user.birthday,
+        gender: user.gender,
+        // Location fields
+        province: user.province,
+        city: user.city,
+        barangay: user.barangay,
+        street: user.street,
+        postalCode: user.postalCode,
         role: {
           id: user.role._id,
           name: user.role.name,
@@ -451,6 +539,17 @@ class AuthService {
         }
       }
     };
+
+    console.log('👤 getCurrentUser - Returning data:', {
+      address: response.user.address,
+      contact: response.user.contact,
+      birthday: response.user.birthday,
+      gender: response.user.gender,
+      province: response.user.province,
+      city: response.user.city
+    });
+
+    return response;
   }
 
   // Blacklist token

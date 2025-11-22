@@ -130,6 +130,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   const { user } = useAuth();
   const isAdminOrStaff = user?.role === "admin" || user?.role === "oas_staff";
   const [showConfirm, setShowConfirm] = useState(false);
+  const [hasExistingApplication, setHasExistingApplication] = useState(false);
 
   const totalSteps = 4
 
@@ -169,6 +170,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       console.log('Loaded application:', existingApplication);
       const appData = existingApplication?.application || existingApplication;
       if (appData && appData.firstName) {
+        setHasExistingApplication(true);
         setIsReadOnly(true);
         setFormData({
           ...defaultFormData,
@@ -223,6 +225,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
           ? appData.references
           : [{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
       } else {
+        setHasExistingApplication(false);
         setFormData(defaultFormData);
         setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
         setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
@@ -230,8 +233,13 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
         setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
         setIsReadOnly(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading application:', error);
+      // If 404 or no application found, user hasn't submitted yet
+      if (error?.response?.status === 404 || error?.message?.includes('not found')) {
+        setHasExistingApplication(false);
+        setIsReadOnly(false);
+      }
     }
   }
 
@@ -510,6 +518,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       } else {
         // Create new application
         await applicationService.submitApplication(submissionData);
+        setHasExistingApplication(true); // Now user has an application
         toast({ title: "Success", description: "Application submitted successfully.", duration: 3000 });
       }
     } catch (error) {
@@ -906,12 +915,12 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="program-study">Program of Study and Year</Label>
+                  <Label htmlFor="program-study">Program of Study</Label>
                   <Input
                     id="program-study"
                     value={formData.programOfStudyAndYear}
                     onChange={(e) => setFormData({ ...formData, programOfStudyAndYear: e.target.value })}
-                    placeholder="e.g., BSIT 3rd Year"
+                    placeholder="e.g., BSIT, BSCS, BSBA"
                     disabled={isReadOnly}
                     required
                   />
@@ -1935,13 +1944,15 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
             )}
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleExportPDF}
-            >
-              <FileDown className="h-4 w-4 mr-2" />
-              Export PDF
-            </Button>
+            {hasExistingApplication && (
+              <Button
+                variant="outline"
+                onClick={handleExportPDF}
+              >
+                <FileDown className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
+            )}
             {currentStep < totalSteps ? (
               <Button
                 onClick={handleNext}
