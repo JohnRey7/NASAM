@@ -1,0 +1,140 @@
+/api/roles:
+  post:
+    tags:
+      - Roles
+    summary: Create new role
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Role'
+    responses:
+      '201':
+        description: Role created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Role'
+  get:
+    tags:
+      - Roles
+    summary: Get all roles
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of roles
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Role'
+
+/api/roles/{id}:
+  get:
+    tags:
+      - Roles
+    summary: Get role by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Role found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Role'
+  patch:
+    tags:
+      - Roles
+    summary: Update role
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Role'
+    responses:
+      '200':
+        description: Role updated
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Role'
+  delete:
+    tags:
+      - Roles
+    summary: Delete role
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/roles/{id}/soft:
+  delete:
+    tags:
+      - Roles
+    summary: Soft delete role
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/roles/{id}/restore:
+  put:
+    tags:
+      - Roles
+    summary: Restore soft deleted role
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Role restored
+
+/api/roles/{id}/permanent:
+  delete:
+    tags:
+      - Roles
+    summary: Permanently delete role
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/roles/deleted:
+  get:
+    tags:
+      - Roles
+    summary: Get soft deleted roles
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted roles
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Role'

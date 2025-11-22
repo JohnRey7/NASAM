@@ -1,0 +1,228 @@
+/api/departments:
+  post:
+    tags:
+      - Departments
+    summary: Create department
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Department'
+    responses:
+      '201':
+        description: Department created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Department'
+  get:
+    tags:
+      - Departments
+    summary: Get all departments
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of departments
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Department'
+
+/api/departments/{departmentCode}:
+  get:
+    tags:
+      - Departments
+    summary: Get department by code
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: departmentCode
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Department details
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Department'
+  patch:
+    tags:
+      - Departments
+    summary: Update department
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: departmentCode
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Department'
+    responses:
+      '200':
+        description: Department updated
+  delete:
+    tags:
+      - Departments
+    summary: Delete department
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: departmentCode
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/departments/{departmentCode}/soft:
+  delete:
+    tags:
+      - Departments
+    summary: Soft delete department
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: departmentCode
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/departments/{departmentCode}/restore:
+  put:
+    tags:
+      - Departments
+    summary: Restore soft deleted department
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: departmentCode
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Department restored
+
+/api/departments/{departmentCode}/permanent:
+  delete:
+    tags:
+      - Departments
+    summary: Permanently delete department
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: departmentCode
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/departments/deleted:
+  get:
+    tags:
+      - Departments
+    summary: Get soft deleted departments
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted departments
+
+/api/departments/{departmentCode}/head/id:
+  post:
+    tags:
+      - Departments
+    summary: Set department head by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: departmentCode
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              headId:
+                type: string
+    responses:
+      '200':
+        description: Head updated
+
+/api/departments/{departmentCode}/head/idnumber:
+  post:
+    tags:
+      - Departments
+    summary: Set department head by ID Number
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: departmentCode
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              idNumber:
+                type: string
+    responses:
+      '200':
+        description: Head updated
+
+/api/admin/assign-applicant-to-department:
+  post:
+    tags:
+      - Departments
+    summary: Assign applicant to department
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              applicantId:
+                type: string
+              departmentId:
+                type: string
+    responses:
+      '200':
+        description: Applicant assigned

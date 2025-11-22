@@ -1,0 +1,162 @@
+/api/evaluation-period/current:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get current evaluation period
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Current period
+        content:
+          application/json:
+            schema:
+              type: object
+
+/api/evaluation-period/all:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get all evaluation periods
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of periods
+        content:
+          application/json:
+            schema:
+              type: array
+
+/api/evaluation-period/open:
+  post:
+    tags:
+      - Scholar Evaluations
+    summary: Open evaluation period
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Period opened
+
+/api/evaluation-period/close:
+  post:
+    tags:
+      - Scholar Evaluations
+    summary: Close evaluation period
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Period closed
+
+/api/scholar-evaluation:
+  post:
+    tags:
+      - Scholar Evaluations
+    summary: Create scholar evaluation
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ScholarEvaluation'
+    responses:
+      '201':
+        description: Evaluation created
+
+/api/scholar-evaluation/my:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get my evaluations
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of evaluations
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/ScholarEvaluation'
+
+/api/scholar-evaluation/{id}:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get evaluation by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Evaluation details
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ScholarEvaluation'
+  patch:
+    tags:
+      - Scholar Evaluations
+    summary: Update evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ScholarEvaluation'
+    responses:
+      '200':
+        description: Evaluation updated
+  delete:
+    tags:
+      - Scholar Evaluations
+    summary: Delete evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/scholar-evaluation/all/list:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get all evaluations list
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of evaluations
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/ScholarEvaluation'
+
+/api/scholar-evaluation/statistics/summary:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get evaluation statistics
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Statistics
+        content:
+          application/json:
+            schema:
+              type: object

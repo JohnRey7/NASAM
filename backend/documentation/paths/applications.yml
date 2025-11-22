@@ -1,0 +1,325 @@
+/api/application:
+  post:
+    tags:
+      - Applications
+    summary: Create application form
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ApplicationForm'
+    responses:
+      '201':
+        description: Application created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ApplicationForm'
+  get:
+    tags:
+      - Applications
+    summary: Get my application form
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Application form
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ApplicationForm'
+  patch:
+    tags:
+      - Applications
+    summary: Update my application form
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ApplicationForm'
+    responses:
+      '200':
+        description: Application updated
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ApplicationForm'
+
+/api/application/{id}/pdf:
+  get:
+    tags:
+      - Applications
+    summary: Export application as PDF by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: PDF file
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+
+/api/application/pdf:
+  get:
+    tags:
+      - Applications
+    summary: Export my application as PDF
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: PDF file
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+
+/api/application/all:
+  get:
+    tags:
+      - Applications
+    summary: Get all applications
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of applications
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/ApplicationForm'
+
+/api/application/{id}:
+  get:
+    tags:
+      - Applications
+    summary: Get application by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Application found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ApplicationForm'
+  patch:
+    tags:
+      - Applications
+    summary: Update application by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/ApplicationForm'
+    responses:
+      '200':
+        description: Application updated
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ApplicationForm'
+  delete:
+    tags:
+      - Applications
+    summary: Delete application by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/application/user/{userId}:
+  get:
+    tags:
+      - Applications
+    summary: Get application by User ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        description: Application found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ApplicationForm'
+
+/api/application/status:
+  put:
+    tags:
+      - Applications
+    summary: Set application status
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+              status:
+                type: string
+                enum: [pending, approved, rejected]
+    responses:
+      '200':
+        description: Status updated
+
+/api/application/approvals:
+  put:
+    tags:
+      - Applications
+    summary: Set approval summary
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+              approvals:
+                type: object
+    responses:
+      '200':
+        description: Approvals updated
+
+/api/application/{id}/soft:
+  delete:
+    tags:
+      - Applications
+    summary: Soft delete application
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/application/{id}/restore:
+  put:
+    tags:
+      - Applications
+    summary: Restore soft deleted application
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Application restored
+
+/api/application/{id}/permanent:
+  delete:
+    tags:
+      - Applications
+    summary: Permanently delete application
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/applications/deleted:
+  get:
+    tags:
+      - Applications
+    summary: Get soft deleted applications
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted applications
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/ApplicationForm'
+
+/api/application/history:
+  get:
+    tags:
+      - Applications
+    summary: Get my application history
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Application history
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+
+/api/application/history/user/{userId}:
+  get:
+    tags:
+      - Applications
+    summary: Get application history by User ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        description: Application history
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+
+/api/application/history/{id}:
+  get:
+    tags:
+      - Applications
+    summary: Get application history by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Application history
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object

@@ -1,0 +1,283 @@
+/api/user:
+  post:
+    tags:
+      - Users
+    summary: Create new user (Admin)
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/User'
+    responses:
+      '201':
+        description: User created successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/User'
+
+/api/users/disabled:
+  get:
+    tags:
+      - Users
+    summary: Get disabled users
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of disabled users
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/User'
+
+/api/users/deleted:
+  get:
+    tags:
+      - Users
+    summary: Get soft deleted users
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted users
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/User'
+
+/api/users/idnumber/{idNumber}:
+  get:
+    tags:
+      - Users
+    summary: Get user by ID number
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: idNumber
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/User'
+
+/api/users/profile:
+  get:
+    tags:
+      - Users
+    summary: Get user profile
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: User profile
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/User'
+  put:
+    tags:
+      - Users
+    summary: Update user profile
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/User'
+    responses:
+      '200':
+        description: Profile updated
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/User'
+
+/api/users:
+  get:
+    tags:
+      - Users
+    summary: Get all users
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+      - $ref: '../components/parameters.yml#/search'
+    responses:
+      '200':
+        description: List of users
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                users:
+                  type: array
+                  items:
+                    $ref: '../components/schemas.yml#/User'
+                total:
+                  type: integer
+
+/api/users/{id}:
+  get:
+    tags:
+      - Users
+    summary: Get user by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: User found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/User'
+  patch:
+    tags:
+      - Users
+    summary: Update user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/User'
+    responses:
+      '200':
+        description: User updated
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/User'
+  delete:
+    tags:
+      - Users
+    summary: Delete user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/users/{id}/disable:
+  patch:
+    tags:
+      - Users
+    summary: Disable user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: User disabled
+
+/api/users/{id}/enable:
+  patch:
+    tags:
+      - Users
+    summary: Enable user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: User enabled
+
+/api/users/idnumber/{idNumber}/disable:
+  patch:
+    tags:
+      - Users
+    summary: Disable user by ID number
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: idNumber
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User disabled
+
+/api/users/idnumber/{idNumber}/enable:
+  patch:
+    tags:
+      - Users
+    summary: Enable user by ID number
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: idNumber
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User enabled
+
+/api/users/{id}/soft:
+  delete:
+    tags:
+      - Users
+    summary: Soft delete user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/users/{id}/restore:
+  put:
+    tags:
+      - Users
+    summary: Restore soft deleted user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: User restored
+
+/api/users/{id}/permanent:
+  delete:
+    tags:
+      - Users
+    summary: Permanently delete user
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'

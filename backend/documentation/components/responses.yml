@@ -1,0 +1,87 @@
+Unauthorized:
+  description: Unauthorized access
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          message:
+            type: string
+            example: "Unauthorized"
+
+Forbidden:
+  description: Forbidden access
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          message:
+            type: string
+            example: "Forbidden"
+
+NotFound:
+  description: Resource not found
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          message:
+            type: string
+            example: "Resource not found"
+
+ValidationError:
+  description: Validation error
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          message:
+            type: string
+            example: "Validation failed"
+          errors:
+            type: array
+            items:
+              type: object
+              properties:
+                field:
+                  type: string
+                message:
+                  type: string
+
+InternalServerError:
+  description: Internal server error
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          message:
+            type: string
+            example: "Internal server error"
+
+DeletedResponse:
+  description: Resource deleted successfully
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          message:
+            type: string
+            example: "Resource deleted successfully"
+
+UpdatedResponse:
+  description: Resource updated successfully
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          message:
+            type: string
+            example: "Resource updated successfully"
+          data:
+            type: object

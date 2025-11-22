@@ -1,0 +1,64 @@
+/api/audit-logs:
+  get:
+    tags:
+      - Audit Logs
+    summary: Get audit logs
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/page'
+      - $ref: '../components/parameters.yml#/limit'
+    responses:
+      '200':
+        description: List of logs
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/AuditLog'
+
+/api/audit-logs/export/pdf:
+  get:
+    tags:
+      - Audit Logs
+    summary: Export logs as PDF
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: PDF file
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+
+/api/audit-logs/export/excel:
+  get:
+    tags:
+      - Audit Logs
+    summary: Export logs as Excel
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Excel file
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+
+/api/audit-logs/{id}/archive:
+  patch:
+    tags:
+      - Audit Logs
+    summary: Archive audit log
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Log archived

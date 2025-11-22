@@ -1,0 +1,315 @@
+/api/documents:
+  put:
+    tags:
+      - Documents
+    summary: Upload documents
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      '200':
+        description: Documents uploaded
+  get:
+    tags:
+      - Documents
+    summary: Get documents
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of documents
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Document'
+  delete:
+    tags:
+      - Documents
+    summary: Delete documents
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/documents/{id}/soft:
+  delete:
+    tags:
+      - Documents
+    summary: Soft delete document
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/documents/{id}/restore:
+  put:
+    tags:
+      - Documents
+    summary: Restore soft deleted document
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Document restored
+
+/api/documents/{id}/permanent:
+  delete:
+    tags:
+      - Documents
+    summary: Permanently delete document
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/documents/deleted:
+  get:
+    tags:
+      - Documents
+    summary: Get soft deleted documents
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted documents
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Document'
+
+/api/document-uploads:
+  post:
+    tags:
+      - Documents
+    summary: Upload documents (Enhanced)
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      '200':
+        description: Documents uploaded
+  get:
+    tags:
+      - Documents
+    summary: Get my documents (Enhanced)
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of documents
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Document'
+
+/api/document-uploads/all:
+  get:
+    tags:
+      - Documents
+    summary: Get all documents (Enhanced)
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of all documents
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Document'
+
+/api/document-uploads/user/{userId}:
+  get:
+    tags:
+      - Documents
+    summary: Get documents by User ID (Enhanced)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        description: List of documents
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Document'
+
+/api/document-uploads/{userId}:
+  patch:
+    tags:
+      - Documents
+    summary: Update document
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+    responses:
+      '200':
+        description: Document updated
+  delete:
+    tags:
+      - Documents
+    summary: Delete document
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/document-uploads/end-term-grade:
+  post:
+    tags:
+      - Documents
+    summary: Upload end term grade
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+    responses:
+      '200':
+        description: Grade uploaded
+
+/api/document-uploads/{userId}/end-term-grade/{gradeId}:
+  patch:
+    tags:
+      - Documents
+    summary: Update end term grade
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+      - name: gradeId
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+    responses:
+      '200':
+        description: Grade updated
+
+/api/document-uploads/{userId}/soft:
+  delete:
+    tags:
+      - Documents
+    summary: Soft delete document (Enhanced)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/document-uploads/{userId}/restore:
+  put:
+    tags:
+      - Documents
+    summary: Restore soft deleted document (Enhanced)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        description: Document restored
+
+/api/document-uploads/{userId}/permanent:
+  delete:
+    tags:
+      - Documents
+    summary: Permanently delete document (Enhanced)
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/document-uploads/deleted:
+  get:
+    tags:
+      - Documents
+    summary: Get soft deleted documents (Enhanced)
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted documents
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Document'

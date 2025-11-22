@@ -1,0 +1,359 @@
+openapi: 3.1.0
+info:
+  title: NASAM API
+  version: 1.0.0
+  description: API documentation for the NASAM backend
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.nasam.example.com
+    description: Production server
+
+security:
+  - cookieAuth: []
+
+paths:
+  # Authentication routes
+  /api/auth/login:
+    $ref: './paths/auth.yml#/~1api~1auth~1login'
+  /api/auth/register:
+    $ref: './paths/auth.yml#/~1api~1auth~1register'
+  /api/auth/logout:
+    $ref: './paths/auth.yml#/~1api~1auth~1logout'
+  /api/auth/forgot-password:
+    $ref: './paths/auth.yml#/~1api~1auth~1forgot-password'
+  /api/auth/forgot-password/change-password:
+    $ref: './paths/auth.yml#/~1api~1auth~1forgot-password~1change-password'
+  /api/auth/change-password:
+    $ref: './paths/auth.yml#/~1api~1auth~1change-password'
+  /api/auth/me:
+    $ref: './paths/auth.yml#/~1api~1auth~1me'
+  /api/auth/email/verify:
+    $ref: './paths/auth.yml#/~1api~1auth~1email~1verify'
+  /api/auth/email/resend:
+    $ref: './paths/auth.yml#/~1api~1auth~1email~1resend'
+  /api/auth/email:
+    $ref: './paths/auth.yml#/~1api~1auth~1email'
+
+  # User routes
+  /api/user:
+    $ref: './paths/users.yml#/~1api~1user'
+  /api/users/disabled:
+    $ref: './paths/users.yml#/~1api~1users~1disabled'
+  /api/users/deleted:
+    $ref: './paths/users.yml#/~1api~1users~1deleted'
+  /api/users/idnumber/{idNumber}:
+    $ref: './paths/users.yml#/~1api~1users~1idnumber~1{idNumber}'
+  /api/users/profile:
+    $ref: './paths/users.yml#/~1api~1users~1profile'
+  /api/users:
+    $ref: './paths/users.yml#/~1api~1users'
+  /api/users/{id}:
+    $ref: './paths/users.yml#/~1api~1users~1{id}'
+  /api/users/{id}/disable:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1disable'
+  /api/users/{id}/enable:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1enable'
+  /api/users/idnumber/{idNumber}/disable:
+    $ref: './paths/users.yml#/~1api~1users~1idnumber~1{idNumber}~1disable'
+  /api/users/idnumber/{idNumber}/enable:
+    $ref: './paths/users.yml#/~1api~1users~1idnumber~1{idNumber}~1enable'
+  /api/users/{id}/soft:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1soft'
+  /api/users/{id}/restore:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1restore'
+  /api/users/{id}/permanent:
+    $ref: './paths/users.yml#/~1api~1users~1{id}~1permanent'
+
+  # Role routes
+  /api/roles:
+    $ref: './paths/roles.yml#/~1api~1roles'
+  /api/roles/{id}:
+    $ref: './paths/roles.yml#/~1api~1roles~1{id}'
+  /api/roles/{id}/soft:
+    $ref: './paths/roles.yml#/~1api~1roles~1{id}~1soft'
+  /api/roles/{id}/restore:
+    $ref: './paths/roles.yml#/~1api~1roles~1{id}~1restore'
+  /api/roles/{id}/permanent:
+    $ref: './paths/roles.yml#/~1api~1roles~1{id}~1permanent'
+  /api/roles/deleted:
+    $ref: './paths/roles.yml#/~1api~1roles~1deleted'
+
+  # Application routes
+  /api/application:
+    $ref: './paths/applications.yml#/~1api~1application'
+  /api/application/{id}/pdf:
+    $ref: './paths/applications.yml#/~1api~1application~1{id}~1pdf'
+  /api/application/pdf:
+    $ref: './paths/applications.yml#/~1api~1application~1pdf'
+  /api/application/all:
+    $ref: './paths/applications.yml#/~1api~1application~1all'
+  /api/application/{id}:
+    $ref: './paths/applications.yml#/~1api~1application~1{id}'
+  /api/application/user/{userId}:
+    $ref: './paths/applications.yml#/~1api~1application~1user~1{userId}'
+  /api/application/status:
+    $ref: './paths/applications.yml#/~1api~1application~1status'
+  /api/application/approvals:
+    $ref: './paths/applications.yml#/~1api~1application~1approvals'
+  /api/application/{id}/soft:
+    $ref: './paths/applications.yml#/~1api~1application~1{id}~1soft'
+  /api/application/{id}/restore:
+    $ref: './paths/applications.yml#/~1api~1application~1{id}~1restore'
+  /api/application/{id}/permanent:
+    $ref: './paths/applications.yml#/~1api~1application~1{id}~1permanent'
+  /api/applications/deleted:
+    $ref: './paths/applications.yml#/~1api~1applications~1deleted'
+  /api/application/history:
+    $ref: './paths/applications.yml#/~1api~1application~1history'
+  /api/application/history/user/{userId}:
+    $ref: './paths/applications.yml#/~1api~1application~1history~1user~1{userId}'
+  /api/application/history/{id}:
+    $ref: './paths/applications.yml#/~1api~1application~1history~1{id}'
+
+  # Document routes
+  /api/documents:
+    $ref: './paths/documents.yml#/~1api~1documents'
+  /api/documents/{id}/soft:
+    $ref: './paths/documents.yml#/~1api~1documents~1{id}~1soft'
+  /api/documents/{id}/restore:
+    $ref: './paths/documents.yml#/~1api~1documents~1{id}~1restore'
+  /api/documents/{id}/permanent:
+    $ref: './paths/documents.yml#/~1api~1documents~1{id}~1permanent'
+  /api/documents/deleted:
+    $ref: './paths/documents.yml#/~1api~1documents~1deleted'
+  /api/document-uploads:
+    $ref: './paths/documents.yml#/~1api~1document-uploads'
+  /api/document-uploads/all:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1all'
+  /api/document-uploads/user/{userId}:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1user~1{userId}'
+  /api/document-uploads/{userId}:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1{userId}'
+  /api/document-uploads/end-term-grade:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1end-term-grade'
+  /api/document-uploads/{userId}/end-term-grade/{gradeId}:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1{userId}~1end-term-grade~1{gradeId}'
+  /api/document-uploads/{userId}/soft:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1{userId}~1soft'
+  /api/document-uploads/{userId}/restore:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1{userId}~1restore'
+  /api/document-uploads/{userId}/permanent:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1{userId}~1permanent'
+  /api/document-uploads/deleted:
+    $ref: './paths/documents.yml#/~1api~1document-uploads~1deleted'
+
+  # Personality Test routes
+  /api/personality-test/status:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1status'
+  /api/personality-test/start:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1start'
+  /api/personality-test/answer:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1answer'
+  /api/personality-test/stop:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1stop'
+  /api/personality-test/me:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1me'
+  /api/personality-test/all:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1all'
+  /api/personality-test/user/{userId}:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1user~1{userId}'
+  /api/personality-test/test/{testId}:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1test~1{testId}'
+  /api/personality-test/template:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1template'
+  /api/personality-test/template/{id}:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1template~1{id}'
+  /api/personality-test/{id}/soft:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1{id}~1soft'
+  /api/personality-test/{id}/restore:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1{id}~1restore'
+  /api/personality-test/{id}/permanent:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1{id}~1permanent'
+  /api/personality-test/deleted:
+    $ref: './paths/personality-tests.yml#/~1api~1personality-test~1deleted'
+
+  # Interview routes
+  /api/interview:
+    $ref: './paths/interviews.yml#/~1api~1interview'
+  /api/interview/all:
+    $ref: './paths/interviews.yml#/~1api~1interview~1all'
+  /api/interview/{id}:
+    $ref: './paths/interviews.yml#/~1api~1interview~1{id}'
+  /api/interview/user/{userId}:
+    $ref: './paths/interviews.yml#/~1api~1interview~1user~1{userId}'
+  /api/interview/{id}/soft:
+    $ref: './paths/interviews.yml#/~1api~1interview~1{id}~1soft'
+  /api/interview/{id}/restore:
+    $ref: './paths/interviews.yml#/~1api~1interview~1{id}~1restore'
+  /api/interview/{id}/permanent:
+    $ref: './paths/interviews.yml#/~1api~1interview~1{id}~1permanent'
+  /api/interviews/deleted:
+    $ref: './paths/interviews.yml#/~1api~1interviews~1deleted'
+  /api/review/{interviewId}:
+    $ref: './paths/interviews.yml#/~1api~1review~1{interviewId}'
+  /api/review:
+    $ref: './paths/interviews.yml#/~1api~1review'
+  /api/admin/interview/schedule:
+    $ref: './paths/interviews.yml#/~1api~1admin~1interview~1schedule'
+  /api/department-head/interview/schedule:
+    $ref: './paths/interviews.yml#/~1api~1department-head~1interview~1schedule'
+  /api/department-head/interview/{interviewId}/reschedule:
+    $ref: './paths/interviews.yml#/~1api~1department-head~1interview~1{interviewId}~1reschedule'
+
+  # Evaluation routes
+  /api/evaluations:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations'
+  /api/evaluations/{id}:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations~1{id}'
+  /api/evaluations/{id}/soft:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations~1{id}~1soft'
+  /api/evaluations/{id}/restore:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations~1{id}~1restore'
+  /api/evaluations/{id}/permanent:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations~1{id}~1permanent'
+  /api/evaluations/deleted:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations~1deleted'
+  /api/evaluations/{id}/timekeeping:
+    $ref: './paths/evaluations.yml#/~1api~1evaluations~1{id}~1timekeeping'
+
+  # Department routes
+  /api/departments:
+    $ref: './paths/departments.yml#/~1api~1departments'
+  /api/departments/{departmentCode}:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}'
+  /api/departments/{departmentCode}/soft:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}~1soft'
+  /api/departments/{departmentCode}/restore:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}~1restore'
+  /api/departments/{departmentCode}/permanent:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}~1permanent'
+  /api/departments/deleted:
+    $ref: './paths/departments.yml#/~1api~1departments~1deleted'
+  /api/departments/{departmentCode}/head/id:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}~1head~1id'
+  /api/departments/{departmentCode}/head/idnumber:
+    $ref: './paths/departments.yml#/~1api~1departments~1{departmentCode}~1head~1idnumber'
+  /api/admin/assign-applicant-to-department:
+    $ref: './paths/departments.yml#/~1api~1admin~1assign-applicant-to-department'
+
+  # Notification routes
+  /api/notifications:
+    $ref: './paths/notifications.yml#/~1api~1notifications'
+  /api/notifications/{notificationId}/read:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1{notificationId}~1read'
+  /api/notifications/mark-all-read:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1mark-all-read'
+  /api/notifications/{notificationId}:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1{notificationId}'
+  /api/notifications/{notificationId}/soft:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1{notificationId}~1soft'
+  /api/notifications/{notificationId}/restore:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1{notificationId}~1restore'
+  /api/notifications/{notificationId}/permanent:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1{notificationId}~1permanent'
+  /api/notifications/deleted:
+    $ref: './paths/notifications.yml#/~1api~1notifications~1deleted'
+
+  # File routes
+  /api/files/{fileName}:
+    $ref: './paths/files.yml#/~1api~1files~1{fileName}'
+
+  # OAS routes
+  /api/oas/applications:
+    $ref: './paths/oas.yml#/~1api~1oas~1applications'
+  /api/oas/application/{applicationId}/documents:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1documents'
+  /api/oas/application/{applicationId}/status:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1status'
+  /api/oas/application-by-id/{applicationId}/pdf:
+    $ref: './paths/oas.yml#/~1api~1oas~1application-by-id~1{applicationId}~1pdf'
+  /api/oas/application/{applicationId}:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}'
+  /api/oas/application/{applicationId}/form-only:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1form-only'
+  /api/oas/application/{applicationId}/documents-only:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1documents-only'
+  /api/oas/application/{applicationId}/soft:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1soft'
+  /api/oas/application/{applicationId}/restore:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1restore'
+  /api/oas/application/{applicationId}/permanent:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1permanent'
+  /api/oas/applications/deleted:
+    $ref: './paths/oas.yml#/~1api~1oas~1applications~1deleted'
+  /api/oas/application/{applicationId}/verify:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1verify'
+  /api/oas/application/{applicationId}/verify-documents:
+    $ref: './paths/oas.yml#/~1api~1oas~1application~1{applicationId}~1verify-documents'
+  /api/oas/dashboard-stats:
+    $ref: './paths/oas.yml#/~1api~1oas~1dashboard-stats'
+  /api/oas/application-counts:
+    $ref: './paths/oas.yml#/~1api~1oas~1application-counts'
+  /api/oas/analytics:
+    $ref: './paths/oas.yml#/~1api~1oas~1analytics'
+
+  # Scholar Evaluation routes
+  /api/evaluation-period/current:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1evaluation-period~1current'
+  /api/evaluation-period/all:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1evaluation-period~1all'
+  /api/evaluation-period/open:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1evaluation-period~1open'
+  /api/evaluation-period/close:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1evaluation-period~1close'
+  /api/scholar-evaluation:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1scholar-evaluation'
+  /api/scholar-evaluation/my:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1scholar-evaluation~1my'
+  /api/scholar-evaluation/{id}:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1scholar-evaluation~1{id}'
+  /api/scholar-evaluation/all/list:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1scholar-evaluation~1all~1list'
+  /api/scholar-evaluation/statistics/summary:
+    $ref: './paths/scholar-evaluations.yml#/~1api~1scholar-evaluation~1statistics~1summary'
+
+  # Audit Log routes
+  /api/audit-logs:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs'
+  /api/audit-logs/export/pdf:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1export~1pdf'
+  /api/audit-logs/export/excel:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1export~1excel'
+  /api/audit-logs/{id}/archive:
+    $ref: './paths/audit-logs.yml#/~1api~1audit-logs~1{id}~1archive'
+
+  # Message routes
+  /api/messages/conversation/start:
+    $ref: './paths/messages.yml#/~1api~1messages~1conversation~1start'
+  /api/messages/send:
+    $ref: './paths/messages.yml#/~1api~1messages~1send'
+  /api/messages/conversations:
+    $ref: './paths/messages.yml#/~1api~1messages~1conversations'
+  /api/messages/conversation/{conversationId}:
+    $ref: './paths/messages.yml#/~1api~1messages~1conversation~1{conversationId}'
+  /api/messages/conversation/application/{applicationId}:
+    $ref: './paths/messages.yml#/~1api~1messages~1conversation~1application~1{applicationId}'
+  /api/messages/conversation/{conversationId}/read:
+    $ref: './paths/messages.yml#/~1api~1messages~1conversation~1{conversationId}~1read'
+  /api/messages/conversation/{conversationId}/archive:
+    $ref: './paths/messages.yml#/~1api~1messages~1conversation~1{conversationId}~1archive'
+  /api/messages/unread-count:
+    $ref: './paths/messages.yml#/~1api~1messages~1unread-count'
+  /api/messages/search:
+    $ref: './paths/messages.yml#/~1api~1messages~1search'
+  /api/messages/{messageId}:
+    $ref: './paths/messages.yml#/~1api~1messages~1{messageId}'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+  schemas:
+    $ref: './components/schemas.yml'
+  responses:
+    $ref: './components/responses.yml'
+  parameters:
+    $ref: './components/parameters.yml'

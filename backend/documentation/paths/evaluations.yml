@@ -1,0 +1,160 @@
+/api/evaluations:
+  post:
+    tags:
+      - Evaluations
+    summary: Create evaluation
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Evaluation'
+    responses:
+      '201':
+        description: Evaluation created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Evaluation'
+  get:
+    tags:
+      - Evaluations
+    summary: Get all evaluations
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of evaluations
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Evaluation'
+
+/api/evaluations/{id}:
+  get:
+    tags:
+      - Evaluations
+    summary: Get evaluation by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Evaluation details
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Evaluation'
+  patch:
+    tags:
+      - Evaluations
+    summary: Update evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Evaluation'
+    responses:
+      '200':
+        description: Evaluation updated
+  delete:
+    tags:
+      - Evaluations
+    summary: Delete evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/evaluations/{id}/soft:
+  delete:
+    tags:
+      - Evaluations
+    summary: Soft delete evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/evaluations/{id}/restore:
+  put:
+    tags:
+      - Evaluations
+    summary: Restore soft deleted evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Evaluation restored
+
+/api/evaluations/{id}/permanent:
+  delete:
+    tags:
+      - Evaluations
+    summary: Permanently delete evaluation
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/evaluations/deleted:
+  get:
+    tags:
+      - Evaluations
+    summary: Get soft deleted evaluations
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted evaluations
+
+/api/evaluations/{id}/timekeeping:
+  patch:
+    tags:
+      - Evaluations
+    summary: Update timekeeping record
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Timekeeping updated
+  get:
+    tags:
+      - Evaluations
+    summary: Get timekeeping record
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Timekeeping record
