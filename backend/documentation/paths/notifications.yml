@@ -1,0 +1,147 @@
+/api/notifications:
+  post:
+    tags:
+      - Notifications
+    summary: Create notification
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Notification'
+    responses:
+      '201':
+        description: Notification created
+  get:
+    tags:
+      - Notifications
+    summary: Get user notifications
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of notifications
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Notification'
+  delete:
+    tags:
+      - Notifications
+    summary: Delete all notifications
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/notifications/{notificationId}/read:
+  patch:
+    tags:
+      - Notifications
+    summary: Mark notification as read
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Notification marked as read
+
+/api/notifications/mark-all-read:
+  patch:
+    tags:
+      - Notifications
+    summary: Mark all notifications as read
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: All notifications marked as read
+
+/api/notifications/{notificationId}:
+  delete:
+    tags:
+      - Notifications
+    summary: Delete notification
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/notifications/{notificationId}/soft:
+  delete:
+    tags:
+      - Notifications
+    summary: Soft delete notification
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/notifications/{notificationId}/restore:
+  put:
+    tags:
+      - Notifications
+    summary: Restore soft deleted notification
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Notification restored
+
+/api/notifications/{notificationId}/permanent:
+  delete:
+    tags:
+      - Notifications
+    summary: Permanently delete notification
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/notifications/deleted:
+  get:
+    tags:
+      - Notifications
+    summary: Get soft deleted notifications
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted notifications

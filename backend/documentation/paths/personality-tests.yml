@@ -1,0 +1,261 @@
+/api/personality-test/status:
+  get:
+    tags:
+      - Personality Tests
+    summary: Get personality test status
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Test status
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+
+/api/personality-test/start:
+  post:
+    tags:
+      - Personality Tests
+    summary: Start personality test
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Test started
+
+/api/personality-test/answer:
+  post:
+    tags:
+      - Personality Tests
+    summary: Submit answer
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              questionId:
+                type: string
+              answer:
+                type: string
+    responses:
+      '200':
+        description: Answer submitted
+
+/api/personality-test/stop:
+  get:
+    tags:
+      - Personality Tests
+    summary: Stop personality test
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Test stopped
+
+/api/personality-test/me:
+  get:
+    tags:
+      - Personality Tests
+    summary: Get my personality test result
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Test result
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/PersonalityTest'
+
+/api/personality-test/all:
+  get:
+    tags:
+      - Personality Tests
+    summary: Get all personality tests
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of tests
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/PersonalityTest'
+
+/api/personality-test/user/{userId}:
+  get:
+    tags:
+      - Personality Tests
+    summary: Get personality test by User ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        description: Test result
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/PersonalityTest'
+  delete:
+    tags:
+      - Personality Tests
+    summary: Delete personality test by User ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/personality-test/test/{testId}:
+  patch:
+    tags:
+      - Personality Tests
+    summary: Update personality test
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: testId
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/PersonalityTest'
+    responses:
+      '200':
+        description: Test updated
+
+/api/personality-test/template:
+  post:
+    tags:
+      - Personality Tests
+    summary: Create test template
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '201':
+        description: Template created
+  get:
+    tags:
+      - Personality Tests
+    summary: Get all templates
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of templates
+
+/api/personality-test/template/{id}:
+  get:
+    tags:
+      - Personality Tests
+    summary: Get template by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Template found
+  patch:
+    tags:
+      - Personality Tests
+    summary: Update template
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Template updated
+  delete:
+    tags:
+      - Personality Tests
+    summary: Delete template
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/personality-test/{id}/soft:
+  delete:
+    tags:
+      - Personality Tests
+    summary: Soft delete personality test
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/personality-test/{id}/restore:
+  put:
+    tags:
+      - Personality Tests
+    summary: Restore soft deleted personality test
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Test restored
+
+/api/personality-test/{id}/permanent:
+  delete:
+    tags:
+      - Personality Tests
+    summary: Permanently delete personality test
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/personality-test/deleted:
+  get:
+    tags:
+      - Personality Tests
+    summary: Get soft deleted personality tests
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted tests

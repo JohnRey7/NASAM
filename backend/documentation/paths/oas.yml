@@ -1,0 +1,280 @@
+/api/oas/applications:
+  get:
+    tags:
+      - OAS
+    summary: Get all applications (Staff)
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of applications
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/ApplicationForm'
+
+/api/oas/application/{applicationId}/documents:
+  get:
+    tags:
+      - OAS
+    summary: Get application documents
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: List of documents
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Document'
+
+/api/oas/application/{applicationId}/status:
+  patch:
+    tags:
+      - OAS
+    summary: Update application status
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [pending, approved, rejected]
+    responses:
+      '200':
+        description: Status updated
+
+/api/oas/application-by-id/{applicationId}/pdf:
+  get:
+    tags:
+      - OAS
+    summary: Export application as PDF
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: PDF file
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+
+/api/oas/application/{applicationId}:
+  delete:
+    tags:
+      - OAS
+    summary: Delete application
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/oas/application/{applicationId}/form-only:
+  delete:
+    tags:
+      - OAS
+    summary: Delete application form only
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/oas/application/{applicationId}/documents-only:
+  delete:
+    tags:
+      - OAS
+    summary: Delete documents only
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/oas/application/{applicationId}/soft:
+  delete:
+    tags:
+      - OAS
+    summary: Soft delete application
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/oas/application/{applicationId}/restore:
+  put:
+    tags:
+      - OAS
+    summary: Restore soft deleted application
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application restored
+
+/api/oas/application/{applicationId}/permanent:
+  delete:
+    tags:
+      - OAS
+    summary: Permanently delete application
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/oas/applications/deleted:
+  get:
+    tags:
+      - OAS
+    summary: Get soft deleted applications
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted applications
+
+/api/oas/application/{applicationId}/verify:
+  patch:
+    tags:
+      - OAS
+    summary: Verify application form
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application verified
+
+/api/oas/application/{applicationId}/verify-documents:
+  patch:
+    tags:
+      - OAS
+    summary: Verify application documents
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Documents verified
+
+/api/oas/dashboard-stats:
+  get:
+    tags:
+      - OAS
+    summary: Get dashboard stats
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Dashboard stats
+        content:
+          application/json:
+            schema:
+              type: object
+
+/api/oas/application-counts:
+  get:
+    tags:
+      - OAS
+    summary: Get application counts
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Application counts
+        content:
+          application/json:
+            schema:
+              type: object
+
+/api/oas/analytics:
+  get:
+    tags:
+      - OAS
+    summary: Get analytics
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Analytics data
+        content:
+          application/json:
+            schema:
+              type: object

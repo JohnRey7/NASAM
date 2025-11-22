@@ -1,0 +1,219 @@
+/api/auth/login:
+  post:
+    tags:
+      - Auth
+    summary: Login user
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+                format: email
+              password:
+                type: string
+            required:
+              - email
+              - password
+    responses:
+      '200':
+        description: Login successful
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  $ref: '../components/schemas.yml#/User'
+                token:
+                  type: string
+      '401':
+        $ref: '../components/responses.yml#/Unauthorized'
+
+/api/auth/register:
+  post:
+    tags:
+      - Auth
+    summary: Register new user
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              email:
+                type: string
+                format: email
+              password:
+                type: string
+              idNumber:
+                type: string
+            required:
+              - name
+              - email
+              - password
+              - idNumber
+    responses:
+      '201':
+        description: User registered successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/User'
+      '400':
+        $ref: '../components/responses.yml#/ValidationError'
+
+/api/auth/logout:
+  post:
+    tags:
+      - Auth
+    summary: Logout user
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Logout successful
+
+/api/auth/forgot-password:
+  post:
+    tags:
+      - Auth
+    summary: Request password reset
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+                format: email
+            required:
+              - email
+    responses:
+      '200':
+        description: Password reset email sent
+
+/api/auth/forgot-password/change-password:
+  post:
+    tags:
+      - Auth
+    summary: Change password with token
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              token:
+                type: string
+              newPassword:
+                type: string
+            required:
+              - token
+              - newPassword
+    responses:
+      '200':
+        description: Password changed successfully
+
+/api/auth/change-password:
+  post:
+    tags:
+      - Auth
+    summary: Change password (authenticated)
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              currentPassword:
+                type: string
+              newPassword:
+                type: string
+            required:
+              - currentPassword
+              - newPassword
+    responses:
+      '200':
+        description: Password changed successfully
+
+/api/auth/me:
+  get:
+    tags:
+      - Auth
+    summary: Get current user
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Current user profile
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/User'
+
+/api/auth/email/verify:
+  get:
+    tags:
+      - Auth
+    summary: Verify email
+    parameters:
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Email verified successfully
+
+/api/auth/email/resend:
+  get:
+    tags:
+      - Auth
+    summary: Resend verification email
+    parameters:
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+          format: email
+    responses:
+      '200':
+        description: Verification email sent
+
+/api/auth/email:
+  put:
+    tags:
+      - Auth
+    summary: Update email address
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+                format: email
+            required:
+              - email
+    responses:
+      '200':
+        description: Email updated successfully

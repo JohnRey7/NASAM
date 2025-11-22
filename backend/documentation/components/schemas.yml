@@ -1,0 +1,357 @@
+User:
+  type: object
+  properties:
+    _id:
+      type: string
+      example: "60d0fe4f5311236168a109ca"
+    name:
+      type: string
+      example: "John Doe"
+    idNumber:
+      type: string
+      example: "12-3456-789"
+    email:
+      type: string
+      format: email
+      example: "john.doe@example.com"
+    role:
+      type: string
+      description: Role ID
+      example: "60d0fe4f5311236168a109cb"
+    department:
+      type: string
+      description: Department ID
+      example: "60d0fe4f5311236168a109cc"
+    disabled:
+      type: boolean
+      example: false
+    verified:
+      type: boolean
+      example: true
+    gender:
+      type: string
+      enum: [Male, Female]
+      example: "Male"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+ApplicationForm:
+  type: object
+  properties:
+    _id:
+      type: string
+      example: "60d0fe4f5311236168a109cd"
+    user:
+      type: string
+      description: User ID
+      example: "60d0fe4f5311236168a109ca"
+    shsgraduateCIT:
+      type: boolean
+      example: true
+    emailAddress:
+      type: string
+      format: email
+      example: "john.doe@example.com"
+    firstName:
+      type: string
+      example: "John"
+    lastName:
+      type: string
+      example: "Doe"
+    programOfStudyAndYear:
+      type: string
+      example: "BSCS-4"
+    remainingUnitsIncludingThisTerm:
+      type: integer
+      example: 18
+    remainingTermsToGraduate:
+      type: integer
+      example: 2
+    citizenship:
+      type: string
+      example: "Filipino"
+    civilStatus:
+      type: string
+      example: "Single"
+    annualFamilyIncome:
+      type: string
+      enum: ['<100k', '100k-200k', '200k-300k', '>300k']
+      example: "100k-200k"
+    residingAt:
+      type: string
+      enum: ['Boarding House', "Parent's House", "Relative's House"]
+      example: "Parent's House"
+    permanentResidentialAddress:
+      type: string
+      example: "123 Main St, Cebu City"
+    contactNumber:
+      type: string
+      example: "09123456789"
+    isCitUSeniorHighGraduate:
+      type: boolean
+      example: true
+    yearLevel:
+      type: string
+      enum: ['First Year', 'Second Year', 'Third Year', 'Fourth Year', 'Fifth Year']
+      example: "Fourth Year"
+    status:
+      type: string
+      enum: [pending, approved, rejected]
+      example: "pending"
+    familyBackground:
+      type: object
+      properties:
+        father:
+          $ref: '#/FamilyMember'
+        mother:
+          $ref: '#/FamilyMember'
+        guardian:
+          $ref: '#/FamilyMember'
+
+FamilyMember:
+  type: object
+  properties:
+    firstName:
+      type: string
+    lastName:
+      type: string
+    occupation:
+      type: string
+    grossAnnualIncome:
+      type: string
+    contactNumber:
+      type: string
+
+Role:
+  type: object
+  properties:
+    _id:
+      type: string
+      example: "60d0fe4f5311236168a109cb"
+    name:
+      type: string
+      example: "admin"
+    permissions:
+      type: array
+      items:
+        type: string
+      example: ["user.read", "user.create"]
+
+Document:
+  type: object
+  properties:
+    _id:
+      type: string
+    user:
+      type: string
+    type:
+      type: string
+    filename:
+      type: string
+    path:
+      type: string
+    status:
+      type: string
+      enum: [pending, approved, rejected]
+
+AuditLog:
+  type: object
+  properties:
+    _id:
+      type: string
+      description: Audit log ID
+      example: "507f1f77bcf86cd799439011"
+    userId:
+      type: string
+      description: ID of the user who performed the action
+      example: "507f1f77bcf86cd799439012"
+    username:
+      type: string
+      description: Username of the user who performed the action
+      example: "johndoe"
+    action:
+      type: string
+      description: Description of the action performed
+      example: "User Login"
+    method:
+      type: string
+      enum: [GET, POST, PUT, PATCH, DELETE]
+      description: HTTP method used
+      example: "POST"
+    endpoint:
+      type: string
+      description: API endpoint accessed
+      example: "/api/auth/login"
+    resourceType:
+      type: string
+      description: Type of resource affected
+      example: "user"
+    resourceId:
+      type: string
+      description: ID of the affected resource
+      example: "507f1f77bcf86cd799439013"
+    ipAddress:
+      type: string
+      description: IP address of the client
+      example: "192.168.1.100"
+    userAgent:
+      type: string
+      description: User agent string from the client
+      example: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    requestBody:
+      type: object
+      description: Sanitized request body (sensitive data removed)
+      example: { "username": "johndoe" }
+    responseStatus:
+      type: number
+      description: HTTP response status code
+      example: 200
+    responseMessage:
+      type: string
+      description: Response message or error description
+      example: "Login successful"
+    duration:
+      type: number
+      description: Request processing duration in milliseconds
+      example: 245
+    metadata:
+      type: object
+      description: Additional metadata about the action
+      example: { "loginMethod": "password", "sessionId": "sess_123" }
+    isDeleted:
+      type: boolean
+      description: Soft delete flag
+      example: false
+    deletedAt:
+      type: string
+      format: date-time
+      description: Date when the log was soft deleted
+      example: null
+    createdAt:
+      type: string
+      format: date-time
+      description: Date when the log was created
+      example: "2024-01-15T10:30:00Z"
+    updatedAt:
+      type: string
+      format: date-time
+      description: Date when the log was last updated
+      example: "2024-01-15T10:30:00Z"
+  required:
+    - userId
+    - action
+    - method
+    - endpoint
+    - responseStatus
+
+Message:
+  type: object
+  properties:
+    _id:
+      type: string
+    sender:
+      type: string
+    recipient:
+      type: string
+    content:
+      type: string
+    read:
+      type: boolean
+    createdAt:
+      type: string
+      format: date-time
+
+Notification:
+  type: object
+  properties:
+    _id:
+      type: string
+    user:
+      type: string
+    title:
+      type: string
+    message:
+      type: string
+    read:
+      type: boolean
+    type:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+
+Evaluation:
+  type: object
+  properties:
+    _id:
+      type: string
+    evaluator:
+      type: string
+    evaluatee:
+      type: string
+    score:
+      type: number
+    comments:
+      type: string
+    period:
+      type: string
+
+ScholarEvaluation:
+  type: object
+  properties:
+    _id:
+      type: string
+    scholar:
+      type: string
+    evaluator:
+      type: string
+    ratings:
+      type: object
+    remarks:
+      type: string
+
+Interview:
+  type: object
+  properties:
+    _id:
+      type: string
+    applicant:
+      type: string
+    interviewer:
+      type: string
+    schedule:
+      type: string
+      format: date-time
+    status:
+      type: string
+      enum: [scheduled, completed, cancelled]
+    notes:
+      type: string
+
+Department:
+  type: object
+  properties:
+    _id:
+      type: string
+    code:
+      type: string
+    name:
+      type: string
+    head:
+      type: string
+
+PersonalityTest:
+  type: object
+  properties:
+    _id:
+      type: string
+    user:
+      type: string
+    answers:
+      type: object
+    result:
+      type: string

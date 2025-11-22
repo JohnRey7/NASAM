@@ -1,0 +1,303 @@
+/api/interview:
+  post:
+    tags:
+      - Interviews
+    summary: Create interview
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Interview'
+    responses:
+      '201':
+        description: Interview created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Interview'
+  get:
+    tags:
+      - Interviews
+    summary: Get my interview
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Interview details
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Interview'
+  patch:
+    tags:
+      - Interviews
+    summary: Update my interview
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Interview'
+    responses:
+      '200':
+        description: Interview updated
+  delete:
+    tags:
+      - Interviews
+    summary: Delete my interview
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/interview/all:
+  get:
+    tags:
+      - Interviews
+    summary: Get all interviews
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of interviews
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Interview'
+
+/api/interview/{id}:
+  get:
+    tags:
+      - Interviews
+    summary: Get interview by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Interview details
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Interview'
+  patch:
+    tags:
+      - Interviews
+    summary: Update interview by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Interview'
+    responses:
+      '200':
+        description: Interview updated
+  delete:
+    tags:
+      - Interviews
+    summary: Delete interview by ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/interview/user/{userId}:
+  get:
+    tags:
+      - Interviews
+    summary: Get interview by User ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        description: Interview details
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/Interview'
+  patch:
+    tags:
+      - Interviews
+    summary: Update interview by User ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Interview'
+    responses:
+      '200':
+        description: Interview updated
+  delete:
+    tags:
+      - Interviews
+    summary: Delete interview by User ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/userId'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/interview/{id}/soft:
+  delete:
+    tags:
+      - Interviews
+    summary: Soft delete interview
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/interview/{id}/restore:
+  put:
+    tags:
+      - Interviews
+    summary: Restore soft deleted interview
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        description: Interview restored
+
+/api/interview/{id}/permanent:
+  delete:
+    tags:
+      - Interviews
+    summary: Permanently delete interview
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/id'
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'
+
+/api/interviews/deleted:
+  get:
+    tags:
+      - Interviews
+    summary: Get soft deleted interviews
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of deleted interviews
+
+/api/review/{interviewId}:
+  get:
+    tags:
+      - Interviews
+    summary: Get review by Interview ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: interviewId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Review details
+
+/api/review:
+  get:
+    tags:
+      - Interviews
+    summary: Get review list
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of reviews
+
+/api/admin/interview/schedule:
+  post:
+    tags:
+      - Interviews
+    summary: Schedule interview (Admin)
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Interview'
+    responses:
+      '201':
+        description: Interview scheduled
+
+/api/department-head/interview/schedule:
+  post:
+    tags:
+      - Interviews
+    summary: Schedule interview (Dept Head)
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/Interview'
+    responses:
+      '201':
+        description: Interview scheduled
+
+/api/department-head/interview/{interviewId}/reschedule:
+  patch:
+    tags:
+      - Interviews
+    summary: Reschedule interview (Dept Head)
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: interviewId
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              schedule:
+                type: string
+                format: date-time
+    responses:
+      '200':
+        description: Interview rescheduled

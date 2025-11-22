@@ -1,0 +1,180 @@
+/api/messages/conversation/start:
+  post:
+    tags:
+      - Messages
+    summary: Start conversation
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              recipientId:
+                type: string
+              message:
+                type: string
+    responses:
+      '201':
+        description: Conversation started
+
+/api/messages/send:
+  post:
+    tags:
+      - Messages
+    summary: Send message
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              conversationId:
+                type: string
+              content:
+                type: string
+    responses:
+      '201':
+        description: Message sent
+
+/api/messages/conversations:
+  get:
+    tags:
+      - Messages
+    summary: Get user conversations
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: List of conversations
+        content:
+          application/json:
+            schema:
+              type: array
+
+/api/messages/conversation/{conversationId}:
+  get:
+    tags:
+      - Messages
+    summary: Get conversation messages
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: List of messages
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yml#/Message'
+
+/api/messages/conversation/application/{applicationId}:
+  get:
+    tags:
+      - Messages
+    summary: Get conversation by Application ID
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Conversation details
+
+/api/messages/conversation/{conversationId}/read:
+  patch:
+    tags:
+      - Messages
+    summary: Mark conversation as read
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Conversation marked as read
+
+/api/messages/conversation/{conversationId}/archive:
+  patch:
+    tags:
+      - Messages
+    summary: Archive conversation
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Conversation archived
+
+/api/messages/unread-count:
+  get:
+    tags:
+      - Messages
+    summary: Get unread message count
+    security:
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Unread count
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count:
+                  type: integer
+
+/api/messages/search:
+  get:
+    tags:
+      - Messages
+    summary: Search conversations
+    security:
+      - cookieAuth: []
+    parameters:
+      - $ref: '../components/parameters.yml#/search'
+    responses:
+      '200':
+        description: Search results
+
+/api/messages/{messageId}:
+  delete:
+    tags:
+      - Messages
+    summary: Delete message
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        $ref: '../components/responses.yml#/DeletedResponse'

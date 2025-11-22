@@ -1,0 +1,21 @@
+/api/files/{fileName}:
+  get:
+    tags:
+      - Files
+    summary: Download file
+    security:
+      - cookieAuth: []
+    parameters:
+      - name: fileName
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: File download
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
