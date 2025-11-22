@@ -1,0 +1,266 @@
+start-conversation:
+  post:
+    tags:
+      - Messages
+    summary: Start or get existing conversation
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - receiverId
+            properties:
+              receiverId:
+                type: string
+              applicationId:
+                type: string
+              conversationType:
+                type: string
+                default: 'general'
+    responses:
+      '200':
+        description: Conversation started/retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Conversation.yaml'
+      '400':
+        description: Receiver ID is required
+      '401':
+        description: Not authenticated
+      '500':
+        description: Server error
+
+send-message:
+  post:
+    tags:
+      - Messages
+    summary: Send a message
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - conversationId
+              - receiverId
+              - message
+            properties:
+              conversationId:
+                type: string
+              receiverId:
+                type: string
+              message:
+                type: string
+              attachments:
+                type: array
+                items:
+                  type: object
+    responses:
+      '201':
+        description: Message sent successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Message.yaml'
+      '400':
+        description: Missing required fields
+      '500':
+        description: Server error
+
+conversation-messages:
+  get:
+    tags:
+      - Messages
+    summary: Get conversation messages
+    parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 50
+      - in: query
+        name: skip
+        schema:
+          type: integer
+          default: 0
+    responses:
+      '200':
+        description: Messages retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/Message.yaml'
+      '500':
+        description: Server error
+
+conversations:
+  get:
+    tags:
+      - Messages
+    summary: Get all conversations for current user
+    parameters:
+      - in: query
+        name: includeArchived
+        schema:
+          type: boolean
+    responses:
+      '200':
+        description: Conversations retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/Conversation.yaml'
+      '500':
+        description: Server error
+
+mark-read:
+  patch:
+    tags:
+      - Messages
+    summary: Mark messages as read
+    parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Messages marked as read
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                message:
+                  type: string
+      '500':
+        description: Server error
+
+unread-count:
+  get:
+    tags:
+      - Messages
+    summary: Get unread message count
+    responses:
+      '200':
+        description: Unread count retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count:
+                  type: integer
+      '500':
+        description: Server error
+
+search:
+  get:
+    tags:
+      - Messages
+    summary: Search conversations
+    parameters:
+      - in: query
+        name: q
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Conversations found
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/Conversation.yaml'
+      '400':
+        description: Search term is required
+      '500':
+        description: Server error
+
+archive:
+  patch:
+    tags:
+      - Messages
+    summary: Archive/Unarchive conversation
+    parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Conversation archive status toggled
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Conversation.yaml'
+      '500':
+        description: Server error
+
+delete-message:
+  delete:
+    tags:
+      - Messages
+    summary: Delete message for user
+    parameters:
+      - in: path
+        name: messageId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Message deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                message:
+                  type: string
+      '500':
+        description: Server error
+
+conversation-by-application:
+  get:
+    tags:
+      - Messages
+    summary: Get conversation by application ID
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Conversation retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Conversation.yaml'
+      '404':
+        description: Conversation not found
+      '500':
+        description: Server error

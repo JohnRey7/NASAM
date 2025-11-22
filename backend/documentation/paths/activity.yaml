@@ -1,0 +1,40 @@
+my-history:
+  get:
+    tags:
+      - Activity
+    summary: Get my activity history
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 50
+    responses:
+      '200':
+        description: Activity history retrieved successfully
+
+user-history:
+  get:
+    tags:
+      - Activity
+    summary: Get user activity history (Admin)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 50
+    responses:
+      '200':
+        description: Activity history retrieved successfully

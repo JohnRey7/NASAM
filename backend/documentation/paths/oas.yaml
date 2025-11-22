@@ -1,0 +1,283 @@
+applications:
+  get:
+    tags:
+      - OAS
+    summary: Get all applications for OAS staff
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Applications retrieved successfully
+
+application-documents:
+  get:
+    tags:
+      - OAS
+    summary: Get application documents by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Documents retrieved successfully
+
+application-status:
+  patch:
+    tags:
+      - OAS
+    summary: Update application status by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - status
+            properties:
+              status:
+                type: string
+                enum: [pending, form_verified, document_verification, interview_scheduled, approved, rejected]
+    responses:
+      '200':
+        description: Status updated successfully
+
+application-pdf:
+  get:
+    tags:
+      - OAS
+    summary: Export application as PDF by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: PDF generated successfully
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+
+application-delete:
+  delete:
+    tags:
+      - OAS
+    summary: Delete application by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application deleted successfully
+
+application-form-only:
+  delete:
+    tags:
+      - OAS
+    summary: Delete application form only by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application form deleted successfully
+
+application-documents-only:
+  delete:
+    tags:
+      - OAS
+    summary: Delete application documents only by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application documents deleted successfully
+
+soft-delete:
+  delete:
+    tags:
+      - OAS
+    summary: Soft delete application by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application soft deleted successfully
+
+restore:
+  put:
+    tags:
+      - OAS
+    summary: Restore soft deleted application by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application restored successfully
+
+permanent-delete:
+  delete:
+    tags:
+      - OAS
+    summary: Permanently delete application by Application ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application permanently deleted successfully
+
+deleted:
+  get:
+    tags:
+      - OAS
+    summary: Get soft deleted applications
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted applications retrieved successfully
+
+verify:
+  patch:
+    tags:
+      - OAS
+    summary: Verify application form
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application form verified successfully
+
+verify-documents:
+  patch:
+    tags:
+      - OAS
+    summary: Verify application documents
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application documents verified successfully
+
+dashboard-stats:
+  get:
+    tags:
+      - OAS
+    summary: Get dashboard stats
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Dashboard stats retrieved successfully
+
+application-counts:
+  get:
+    tags:
+      - OAS
+    summary: Get application counts
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Application counts retrieved successfully
+
+analytics:
+  get:
+    tags:
+      - OAS
+    summary: Get analytics
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Analytics retrieved successfully

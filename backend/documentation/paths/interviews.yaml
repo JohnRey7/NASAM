@@ -1,0 +1,422 @@
+interview:
+  post:
+    tags:
+      - Interviews
+    summary: Create an interview for my application
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - date
+              - startTime
+              - endTime
+            properties:
+              date:
+                type: string
+                format: date
+              startTime:
+                type: string
+              endTime:
+                type: string
+              type:
+                type: string
+                enum: [Online, Face-to-Face]
+    responses:
+      '201':
+        description: Interview created successfully
+      '400':
+        description: Bad request
+  get:
+    tags:
+      - Interviews
+    summary: Get my interview
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Interview retrieved successfully
+      '404':
+        description: Interview not found
+  patch:
+    tags:
+      - Interviews
+    summary: Update my interview
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Interview updated successfully
+  delete:
+    tags:
+      - Interviews
+    summary: Delete my interview
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Interview deleted successfully
+
+all-interviews:
+  get:
+    tags:
+      - Interviews
+    summary: Get all interviews (Admin)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Interviews retrieved successfully
+
+interview-by-id:
+  get:
+    tags:
+      - Interviews
+    summary: Get interview by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Interview retrieved successfully
+      '404':
+        description: Interview not found
+  patch:
+    tags:
+      - Interviews
+    summary: Update interview by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Interview updated successfully
+  delete:
+    tags:
+      - Interviews
+    summary: Delete interview by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Interview deleted successfully
+
+interview-by-user:
+  get:
+    tags:
+      - Interviews
+    summary: Get interview by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Interview retrieved successfully
+  patch:
+    tags:
+      - Interviews
+    summary: Update interview by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Interview updated successfully
+  delete:
+    tags:
+      - Interviews
+    summary: Delete interview by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Interview deleted successfully
+
+soft-delete:
+  delete:
+    tags:
+      - Interviews
+    summary: Soft delete interview by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Interview soft deleted successfully
+
+restore:
+  put:
+    tags:
+      - Interviews
+    summary: Restore soft deleted interview by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Interview restored successfully
+
+permanent-delete:
+  delete:
+    tags:
+      - Interviews
+    summary: Permanently delete interview by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Interview permanently deleted successfully
+
+deleted:
+  get:
+    tags:
+      - Interviews
+    summary: Get soft deleted interviews
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted interviews retrieved successfully
+
+review-by-interview:
+  get:
+    tags:
+      - Interviews
+    summary: Get review by interview ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: interviewId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Review retrieved successfully
+
+review-list:
+  get:
+    tags:
+      - Interviews
+    summary: Get review list
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Review list retrieved successfully
+
+admin-schedule:
+  post:
+    tags:
+      - Interviews
+    summary: Schedule interview for applicant (Admin)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - applicantId
+              - date
+              - startTime
+              - endTime
+            properties:
+              applicantId:
+                type: string
+              date:
+                type: string
+                format: date
+              startTime:
+                type: string
+              endTime:
+                type: string
+              type:
+                type: string
+                enum: [Online, Face-to-Face]
+    responses:
+      '201':
+        description: Interview scheduled successfully
+
+dept-head-schedule:
+  post:
+    tags:
+      - Interviews
+    summary: Schedule interview for applicant (Dept Head)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - applicantId
+              - date
+              - startTime
+              - endTime
+            properties:
+              applicantId:
+                type: string
+              date:
+                type: string
+                format: date
+              startTime:
+                type: string
+              endTime:
+                type: string
+              type:
+                type: string
+                enum: [Online, Face-to-Face]
+    responses:
+      '201':
+        description: Interview scheduled successfully
+
+dept-head-reschedule:
+  patch:
+    tags:
+      - Interviews
+    summary: Reschedule interview (Dept Head)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: interviewId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              startTime:
+                type: string
+              endTime:
+                type: string
+    responses:
+      '200':
+        description: Interview rescheduled successfully

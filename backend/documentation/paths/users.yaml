@@ -1,0 +1,466 @@
+create-user:
+  post:
+    tags:
+      - Users
+    summary: Create a new user (Admin only)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - idNumber
+              - password
+              - roleId
+            properties:
+              name:
+                type: string
+              idNumber:
+                type: string
+              email:
+                type: string
+              password:
+                type: string
+              roleId:
+                type: string
+              courseId:
+                type: string
+              departmentId:
+                type: string
+    responses:
+      '201':
+        description: User created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                user:
+                  $ref: '../components/schemas/User.yaml'
+      '400':
+        description: Bad request
+
+get-users:
+  get:
+    tags:
+      - Users
+    summary: Get all users with pagination and filtering
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 10
+      - in: query
+        name: search
+        schema:
+          type: string
+      - in: query
+        name: roleId
+        schema:
+          type: string
+      - in: query
+        name: courseId
+        schema:
+          type: string
+      - in: query
+        name: departmentId
+        schema:
+          type: string
+      - in: query
+        name: disabled
+        schema:
+          type: string
+      - in: query
+        name: includeDeleted
+        schema:
+          type: boolean
+          default: false
+    responses:
+      '200':
+        description: Users retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                users:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/User.yaml'
+                totalPages:
+                  type: integer
+                currentPage:
+                  type: integer
+                totalUsers:
+                  type: integer
+
+user-by-id:
+  get:
+    tags:
+      - Users
+    summary: Get user by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                user:
+                  $ref: '../components/schemas/User.yaml'
+      '404':
+        description: User not found
+  patch:
+    tags:
+      - Users
+    summary: Update user by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              email:
+                type: string
+              roleId:
+                type: string
+              courseId:
+                type: string
+              departmentId:
+                type: string
+    responses:
+      '200':
+        description: User updated successfully
+      '400':
+        description: Bad request
+  delete:
+    tags:
+      - Users
+    summary: Delete user by ID (soft delete)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User deleted successfully
+      '404':
+        description: User not found
+
+user-by-idnumber:
+  get:
+    tags:
+      - Users
+    summary: Get user by ID Number
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: idNumber
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User retrieved successfully
+      '404':
+        description: User not found
+  patch:
+    tags:
+      - Users
+    summary: Update user by ID Number
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: idNumber
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              email:
+                type: string
+              roleId:
+                type: string
+              courseId:
+                type: string
+              departmentId:
+                type: string
+    responses:
+      '200':
+        description: User updated successfully
+  delete:
+    tags:
+      - Users
+    summary: Delete user by ID Number (soft delete)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: idNumber
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User deleted successfully
+
+profile:
+  get:
+    tags:
+      - Users
+    summary: Get current user profile
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Profile retrieved successfully
+  put:
+    tags:
+      - Users
+    summary: Update current user profile
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              email:
+                type: string
+    responses:
+      '200':
+        description: Profile updated successfully
+
+disabled-users:
+  get:
+    tags:
+      - Users
+    summary: Get disabled users
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Disabled users retrieved successfully
+
+deleted-users:
+  get:
+    tags:
+      - Users
+    summary: Get soft deleted users
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted users retrieved successfully
+
+disable-user:
+  patch:
+    tags:
+      - Users
+    summary: Disable user by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User disabled successfully
+
+enable-user:
+  patch:
+    tags:
+      - Users
+    summary: Enable user by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User enabled successfully
+
+disable-user-by-idnumber:
+  patch:
+    tags:
+      - Users
+    summary: Disable user by ID Number
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: idNumber
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User disabled successfully
+
+enable-user-by-idnumber:
+  patch:
+    tags:
+      - Users
+    summary: Enable user by ID Number
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: idNumber
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User enabled successfully
+
+soft-delete-user:
+  delete:
+    tags:
+      - Users
+    summary: Soft delete user by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User deleted successfully
+
+restore-user:
+  put:
+    tags:
+      - Users
+    summary: Restore soft deleted user by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User restored successfully
+
+permanent-delete-user:
+  delete:
+    tags:
+      - Users
+    summary: Permanently delete user by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: User permanently deleted successfully

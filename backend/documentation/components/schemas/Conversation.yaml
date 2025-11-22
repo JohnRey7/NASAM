@@ -1,0 +1,33 @@
+type: object
+properties:
+  _id:
+    type: string
+  participants:
+    type: array
+    items:
+      type: string
+      description: User IDs of participants
+  applicationId:
+    type: string
+    description: ID of the related application (optional)
+  conversationType:
+    type: string
+    enum: ['admin-applicant', 'admin-department-head', 'general']
+  lastMessage:
+    type: string
+  lastMessageTime:
+    type: string
+    format: date-time
+  unreadCount:
+    type: object
+    additionalProperties:
+      type: number
+  archived:
+    type: boolean
+    default: false
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time

@@ -1,0 +1,402 @@
+application:
+  post:
+    tags:
+      - Applications
+    summary: Create a new application
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Application.yaml'
+    responses:
+      '201':
+        description: Application created successfully
+      '400':
+        description: Bad request
+  get:
+    tags:
+      - Applications
+    summary: Get my application
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Application retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                application:
+                  $ref: '../components/schemas/Application.yaml'
+      '404':
+        description: Application not found
+  patch:
+    tags:
+      - Applications
+    summary: Update my application
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Application.yaml'
+    responses:
+      '200':
+        description: Application updated successfully
+
+all-applications:
+  get:
+    tags:
+      - Applications
+    summary: Get all applications (Admin)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Applications retrieved successfully
+
+application-by-id:
+  get:
+    tags:
+      - Applications
+    summary: Get application by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application retrieved successfully
+      '404':
+        description: Application not found
+  patch:
+    tags:
+      - Applications
+    summary: Update application by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Application.yaml'
+    responses:
+      '200':
+        description: Application updated successfully
+  delete:
+    tags:
+      - Applications
+    summary: Delete application by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application deleted successfully
+
+application-by-user-id:
+  get:
+    tags:
+      - Applications
+    summary: Get application by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application retrieved successfully
+  patch:
+    tags:
+      - Applications
+    summary: Update application by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Application.yaml'
+    responses:
+      '200':
+        description: Application updated successfully
+  delete:
+    tags:
+      - Applications
+    summary: Delete application by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application deleted successfully
+
+application-pdf:
+  get:
+    tags:
+      - Applications
+    summary: Export application as PDF by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: PDF generated successfully
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+
+my-application-pdf:
+  get:
+    tags:
+      - Applications
+    summary: Export my application as PDF
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: PDF generated successfully
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+
+application-status:
+  put:
+    tags:
+      - Applications
+    summary: Update application status
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [pending, form_verified, document_verification, interview_scheduled, approved, rejected]
+    responses:
+      '200':
+        description: Status updated successfully
+
+application-approvals:
+  put:
+    tags:
+      - Applications
+    summary: Update application approvals
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              form:
+                type: boolean
+              documents:
+                type: boolean
+              interview:
+                type: boolean
+              final:
+                type: boolean
+    responses:
+      '200':
+        description: Approvals updated successfully
+
+soft-delete-application:
+  delete:
+    tags:
+      - Applications
+    summary: Soft delete application by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application soft deleted successfully
+
+restore-application:
+  put:
+    tags:
+      - Applications
+    summary: Restore soft deleted application by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application restored successfully
+
+permanent-delete-application:
+  delete:
+    tags:
+      - Applications
+    summary: Permanently delete application by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Application permanently deleted successfully
+
+deleted-applications:
+  get:
+    tags:
+      - Applications
+    summary: Get soft deleted applications
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted applications retrieved successfully
+
+my-application-history:
+  get:
+    tags:
+      - Applications
+    summary: Get my application history
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: History retrieved successfully
+
+application-history-by-user:
+  get:
+    tags:
+      - Applications
+    summary: Get application history by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: History retrieved successfully
+
+application-history-by-id:
+  get:
+    tags:
+      - Applications
+    summary: Get application history by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: History retrieved successfully

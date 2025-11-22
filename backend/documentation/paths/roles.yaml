@@ -1,0 +1,195 @@
+roles:
+  get:
+    tags:
+      - Roles
+    summary: Get all roles
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Roles retrieved successfully
+  post:
+    tags:
+      - Roles
+    summary: Create a new role
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - permissions
+            properties:
+              name:
+                type: string
+              permissions:
+                type: array
+                items:
+                  type: string
+              description:
+                type: string
+    responses:
+      '201':
+        description: Role created successfully
+      '400':
+        description: Bad request
+
+role-by-id:
+  get:
+    tags:
+      - Roles
+    summary: Get role by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Role retrieved successfully
+      '404':
+        description: Role not found
+  patch:
+    tags:
+      - Roles
+    summary: Update role by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              permissions:
+                type: array
+                items:
+                  type: string
+              description:
+                type: string
+    responses:
+      '200':
+        description: Role updated successfully
+  delete:
+    tags:
+      - Roles
+    summary: Delete role by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Role deleted successfully
+
+soft-delete-role:
+  delete:
+    tags:
+      - Roles
+    summary: Soft delete role by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Role soft deleted successfully
+
+restore-role:
+  put:
+    tags:
+      - Roles
+    summary: Restore soft deleted role by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Role restored successfully
+
+permanent-delete-role:
+  delete:
+    tags:
+      - Roles
+    summary: Permanently delete role by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Role permanently deleted successfully
+
+deleted-roles:
+  get:
+    tags:
+      - Roles
+    summary: Get soft deleted roles
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted roles retrieved successfully

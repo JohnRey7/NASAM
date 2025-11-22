@@ -1,0 +1,99 @@
+logs:
+  get:
+    tags:
+      - Audit Logs
+    summary: Get audit logs with filters
+    parameters:
+      - in: query
+        name: userId
+        schema:
+          type: string
+      - in: query
+        name: module
+        schema:
+          type: string
+      - in: query
+        name: startDate
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: endDate
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: includeArchived
+        schema:
+          type: boolean
+    responses:
+      '200':
+        description: Audit logs retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/AuditLog.yaml'
+      '500':
+        description: Server error
+
+export-pdf:
+  get:
+    tags:
+      - Audit Logs
+    summary: Export audit logs as PDF
+    responses:
+      '200':
+        description: PDF exported successfully
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      '500':
+        description: Server error
+
+export-excel:
+  get:
+    tags:
+      - Audit Logs
+    summary: Export audit logs as Excel
+    responses:
+      '200':
+        description: Excel exported successfully
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+      '500':
+        description: Server error
+
+archive:
+  put:
+    tags:
+      - Audit Logs
+    summary: Archive an audit log
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Log archived successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                log:
+                  $ref: '../components/schemas/AuditLog.yaml'
+      '404':
+        description: Log not found
+      '500':
+        description: Server error

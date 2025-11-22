@@ -1,0 +1,252 @@
+document-uploads:
+  post:
+    tags:
+      - Document Uploads
+    summary: Upload documents
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      '201':
+        description: Documents uploaded successfully
+      '400':
+        description: Bad request
+  get:
+    tags:
+      - Document Uploads
+    summary: Get my documents
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Documents retrieved successfully
+      '404':
+        description: Documents not found
+
+all-document-uploads:
+  get:
+    tags:
+      - Document Uploads
+    summary: Get all documents (Admin)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Documents retrieved successfully
+
+document-uploads-by-user:
+  get:
+    tags:
+      - Document Uploads
+    summary: Get documents by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Documents retrieved successfully
+
+document-upload-by-user-id:
+  patch:
+    tags:
+      - Document Uploads
+    summary: Update document by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      '200':
+        description: Document updated successfully
+  delete:
+    tags:
+      - Document Uploads
+    summary: Delete document by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Document deleted successfully
+
+end-term-grade:
+  post:
+    tags:
+      - Document Uploads
+    summary: Add end term semester grade
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      '201':
+        description: Grade added successfully
+
+update-end-term-grade:
+  patch:
+    tags:
+      - Document Uploads
+    summary: Update end term semester grade
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: gradeId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      '200':
+        description: Grade updated successfully
+
+soft-delete-document-upload:
+  delete:
+    tags:
+      - Document Uploads
+    summary: Soft delete document upload by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Document soft deleted successfully
+
+restore-document-upload:
+  put:
+    tags:
+      - Document Uploads
+    summary: Restore soft deleted document upload by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Document restored successfully
+
+permanent-delete-document-upload:
+  delete:
+    tags:
+      - Document Uploads
+    summary: Permanently delete document upload by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Document permanently deleted successfully
+
+deleted-document-uploads:
+  get:
+    tags:
+      - Document Uploads
+    summary: Get soft deleted document uploads
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted documents retrieved successfully

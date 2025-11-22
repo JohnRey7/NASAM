@@ -1,0 +1,264 @@
+departments:
+  post:
+    tags:
+      - Departments
+    summary: Create a new department
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - departmentCode
+            properties:
+              name:
+                type: string
+              departmentCode:
+                type: string
+              description:
+                type: string
+    responses:
+      '201':
+        description: Department created successfully
+      '400':
+        description: Bad request
+  get:
+    tags:
+      - Departments
+    summary: Get all departments
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Departments retrieved successfully
+
+department-by-code:
+  get:
+    tags:
+      - Departments
+    summary: Get department by code
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: departmentCode
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Department retrieved successfully
+      '404':
+        description: Department not found
+  patch:
+    tags:
+      - Departments
+    summary: Update department by code
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: departmentCode
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Department updated successfully
+  delete:
+    tags:
+      - Departments
+    summary: Delete department by code
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: departmentCode
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Department deleted successfully
+
+soft-delete:
+  delete:
+    tags:
+      - Departments
+    summary: Soft delete department by code
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: departmentCode
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Department soft deleted successfully
+
+restore:
+  put:
+    tags:
+      - Departments
+    summary: Restore soft deleted department by code
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: departmentCode
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Department restored successfully
+
+permanent-delete:
+  delete:
+    tags:
+      - Departments
+    summary: Permanently delete department by code
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: departmentCode
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Department permanently deleted successfully
+
+deleted:
+  get:
+    tags:
+      - Departments
+    summary: Get soft deleted departments
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted departments retrieved successfully
+
+set-head-id:
+  post:
+    tags:
+      - Departments
+    summary: Set department head by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: departmentCode
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              userId:
+                type: string
+                nullable: true
+    responses:
+      '200':
+        description: Department head set successfully
+
+set-head-idnumber:
+  post:
+    tags:
+      - Departments
+    summary: Set department head by ID Number
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: departmentCode
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              idNumber:
+                type: string
+                nullable: true
+    responses:
+      '200':
+        description: Department head set successfully
+
+assign-applicant:
+  post:
+    tags:
+      - Departments
+    summary: Assign applicant to department
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - userId
+              - departmentCode
+            properties:
+              userId:
+                type: string
+              departmentCode:
+                type: string
+    responses:
+      '200':
+        description: Applicant assigned successfully

@@ -1,0 +1,55 @@
+type: object
+properties:
+  id:
+    type: string
+  user:
+    type: string
+    description: User ID
+  shsgraduateCIT:
+    type: boolean
+  emailAddress:
+    type: string
+  firstName:
+    type: string
+  middleName:
+    type: string
+  lastName:
+    type: string
+  suffix:
+    type: string
+  programOfStudyAndYear:
+    type: string
+  existingScholarship:
+    type: string
+  remainingUnitsIncludingThisTerm:
+    type: integer
+  remainingTermsToGraduate:
+    type: integer
+  citizenship:
+    type: string
+  civilStatus:
+    type: string
+  annualFamilyIncome:
+    type: string
+    enum: ['<100k', '100k-200k', '200k-300k', '>300k']
+  currentResidenceAddress:
+    type: string
+  residingAt:
+    type: string
+    enum: ['Boarding House', "Parent's House", "Relative's House"]
+  status:
+    type: string
+    enum: [pending, form_verified, document_verification, interview_scheduled, approved, rejected]
+  approvals:
+    type: object
+    properties:
+      form:
+        type: boolean
+      documents:
+        type: boolean
+      interview:
+        type: boolean
+      final:
+        type: boolean
+  is_deleted:
+    type: boolean

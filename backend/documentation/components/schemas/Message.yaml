@@ -1,0 +1,62 @@
+type: object
+properties:
+  _id:
+    type: string
+  conversationId:
+    type: string
+    description: ID of the conversation
+  senderId:
+    type: string
+    description: ID of the sender
+  receiverId:
+    type: string
+    description: ID of the receiver
+  message:
+    type: string
+    maxLength: 5000
+  attachments:
+    type: array
+    items:
+      type: object
+      properties:
+        filename:
+          type: string
+        originalName:
+          type: string
+        mimetype:
+          type: string
+        size:
+          type: number
+        url:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+  read:
+    type: boolean
+    default: false
+  readAt:
+    type: string
+    format: date-time
+  deleted:
+    type: boolean
+    default: false
+  deletedBy:
+    type: array
+    items:
+      type: string
+  edited:
+    type: boolean
+    default: false
+  editedAt:
+    type: string
+    format: date-time
+  timestamp:
+    type: string
+    format: date-time
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time

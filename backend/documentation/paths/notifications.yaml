@@ -1,0 +1,178 @@
+notifications:
+  post:
+    tags:
+      - Notifications
+    summary: Create a notification
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - userId
+              - title
+              - message
+            properties:
+              userId:
+                type: string
+              type:
+                type: string
+              title:
+                type: string
+              message:
+                type: string
+              priority:
+                type: string
+                enum: [low, medium, high]
+              metadata:
+                type: object
+    responses:
+      '200':
+        description: Notification created successfully
+  get:
+    tags:
+      - Notifications
+    summary: Get my notifications
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Notifications retrieved successfully
+  delete:
+    tags:
+      - Notifications
+    summary: Delete all my notifications
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Notifications deleted successfully
+
+notification-by-id:
+  delete:
+    tags:
+      - Notifications
+    summary: Delete notification by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: notificationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Notification deleted successfully
+
+mark-read:
+  patch:
+    tags:
+      - Notifications
+    summary: Mark notification as read
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: notificationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Notification marked as read
+
+mark-all-read:
+  patch:
+    tags:
+      - Notifications
+    summary: Mark all notifications as read
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: All notifications marked as read
+
+soft-delete:
+  delete:
+    tags:
+      - Notifications
+    summary: Soft delete notification by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: notificationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Notification soft deleted successfully
+
+restore:
+  put:
+    tags:
+      - Notifications
+    summary: Restore soft deleted notification by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: notificationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Notification restored successfully
+
+permanent-delete:
+  delete:
+    tags:
+      - Notifications
+    summary: Permanently delete notification by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: notificationId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Notification permanently deleted successfully
+
+deleted:
+  get:
+    tags:
+      - Notifications
+    summary: Get soft deleted notifications
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted notifications retrieved successfully

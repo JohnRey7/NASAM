@@ -1,0 +1,24 @@
+files:
+  get:
+    tags:
+      - Files
+    summary: Download a file
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: fileName
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: File downloaded successfully
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      '404':
+        description: File not found

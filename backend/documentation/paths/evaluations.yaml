@@ -1,0 +1,230 @@
+evaluations:
+  post:
+    tags:
+      - Evaluations
+    summary: Create a new evaluation
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - interviewId
+              - remarks
+              - status
+            properties:
+              interviewId:
+                type: string
+              remarks:
+                type: string
+              status:
+                type: string
+                enum: [Passed, Failed]
+    responses:
+      '201':
+        description: Evaluation created successfully
+      '400':
+        description: Bad request
+  get:
+    tags:
+      - Evaluations
+    summary: Get all evaluations (Admin)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluations retrieved successfully
+
+evaluation-by-id:
+  get:
+    tags:
+      - Evaluations
+    summary: Get evaluation by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluation retrieved successfully
+      '404':
+        description: Evaluation not found
+  patch:
+    tags:
+      - Evaluations
+    summary: Update evaluation by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Evaluation updated successfully
+  delete:
+    tags:
+      - Evaluations
+    summary: Delete evaluation by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluation deleted successfully
+
+soft-delete:
+  delete:
+    tags:
+      - Evaluations
+    summary: Soft delete evaluation by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluation soft deleted successfully
+
+restore:
+  put:
+    tags:
+      - Evaluations
+    summary: Restore soft deleted evaluation by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluation restored successfully
+
+permanent-delete:
+  delete:
+    tags:
+      - Evaluations
+    summary: Permanently delete evaluation by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluation permanently deleted successfully
+
+deleted:
+  get:
+    tags:
+      - Evaluations
+    summary: Get soft deleted evaluations
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted evaluations retrieved successfully
+
+timekeeping:
+  patch:
+    tags:
+      - Evaluations
+    summary: Update timekeeping record
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              hoursRendered:
+                type: number
+              taskDescription:
+                type: string
+    responses:
+      '200':
+        description: Timekeeping updated successfully
+  get:
+    tags:
+      - Evaluations
+    summary: Get timekeeping record
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Timekeeping retrieved successfully

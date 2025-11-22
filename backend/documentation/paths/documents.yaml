@@ -1,0 +1,127 @@
+documents:
+  put:
+    tags:
+      - Documents
+    summary: Upload or update documents
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              gradeAverages:
+                type: string
+                description: JSON string of grade averages
+              incomeTaxInfo:
+                type: string
+                description: JSON string of income tax info
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      '201':
+        description: Documents uploaded successfully
+      '400':
+        description: Bad request
+  get:
+    tags:
+      - Documents
+    summary: Get my documents
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Documents retrieved successfully
+      '404':
+        description: Documents not found
+  delete:
+    tags:
+      - Documents
+    summary: Delete my documents
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Documents deleted successfully
+
+soft-delete-document:
+  delete:
+    tags:
+      - Documents
+    summary: Soft delete document by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Document soft deleted successfully
+
+restore-document:
+  put:
+    tags:
+      - Documents
+    summary: Restore soft deleted document by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Document restored successfully
+
+permanent-delete-document:
+  delete:
+    tags:
+      - Documents
+    summary: Permanently delete document by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Document permanently deleted successfully
+
+deleted-documents:
+  get:
+    tags:
+      - Documents
+    summary: Get soft deleted documents
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted documents retrieved successfully

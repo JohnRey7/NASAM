@@ -1,0 +1,256 @@
+login:
+  post:
+    tags:
+      - Auth
+    summary: Login a user
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - idNumber
+              - password
+            properties:
+              idNumber:
+                type: string
+              password:
+                type: string
+    responses:
+      '200':
+        description: Login successful
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                user:
+                  $ref: '../components/schemas/User.yaml'
+      '401':
+        description: Invalid credentials
+      '403':
+        description: Account disabled or email not verified
+
+register:
+  post:
+    tags:
+      - Auth
+    summary: Register a new user
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - idNumber
+              - password
+            properties:
+              name:
+                type: string
+              idNumber:
+                type: string
+              email:
+                type: string
+              password:
+                type: string
+              course:
+                type: string
+              gender:
+                type: string
+                enum: [Male, Female]
+    responses:
+      '201':
+        description: Registration successful
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                user:
+                  $ref: '../components/schemas/User.yaml'
+      '400':
+        description: Bad request (e.g. user already exists)
+
+logout:
+  post:
+    tags:
+      - Auth
+    summary: Logout the current user
+    responses:
+      '200':
+        description: Logout successful
+      '400':
+        description: No token provided
+
+forgot-password:
+  post:
+    tags:
+      - Auth
+    summary: Request a password reset email
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+            properties:
+              email:
+                type: string
+    responses:
+      '200':
+        description: Email sent
+      '400':
+        description: Email required
+
+forgot-password-change:
+  post:
+    tags:
+      - Auth
+    summary: Change password using verification code
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+              - code
+              - newPassword
+            properties:
+              email:
+                type: string
+              code:
+                type: string
+              newPassword:
+                type: string
+    responses:
+      '200':
+        description: Password changed successfully
+      '400':
+        description: Invalid code or expired
+
+change-password:
+  post:
+    tags:
+      - Auth
+    summary: Change password for logged in user
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - currentPassword
+              - newPassword
+            properties:
+              currentPassword:
+                type: string
+              newPassword:
+                type: string
+    responses:
+      '200':
+        description: Password changed successfully
+      '400':
+        description: Incorrect current password
+
+me:
+  get:
+    tags:
+      - Auth
+    summary: Get current user profile
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Current user profile
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  $ref: '../components/schemas/User.yaml'
+                role:
+                  type: object
+                permissions:
+                  type: array
+                  items:
+                    type: string
+
+verify-email:
+  get:
+    tags:
+      - Auth
+    summary: Verify email address
+    parameters:
+      - in: query
+        name: code
+        schema:
+          type: string
+        required: true
+        description: Verification code
+    responses:
+      '302':
+        description: Redirects to frontend
+
+resend-email:
+  get:
+    tags:
+      - Auth
+    summary: Resend verification email
+    parameters:
+      - in: query
+        name: idNumber
+        schema:
+          type: string
+        required: true
+    responses:
+      '200':
+        description: Email resent
+      '400':
+        description: Bad request
+      '429':
+        description: Too many requests
+
+update-email:
+  put:
+    tags:
+      - Auth
+    summary: Update user email
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - idNumber
+              - email
+            properties:
+              idNumber:
+                type: string
+              email:
+                type: string
+    responses:
+      '200':
+        description: Email updated and verification sent
+      '400':
+        description: Email already in use

@@ -195,7 +195,11 @@ class UserService {
   // Update user
   static async updateUser(userId, updateData) {
     try {
-      const { name, email, roleId, courseId, departmentId } = updateData;
+      const { 
+        name, email,
+        address, contact, birthday, gender,
+        province, city, barangay, street, postalCode
+      } = updateData;
 
       const filter = { _id: userId };
       SoftDeleteUtils.addSoftDeleteFilter(filter);
@@ -213,39 +217,21 @@ class UserService {
         }
       }
 
-      // Validate role if provided
-      if (roleId) {
-        const role = await Role.findById(roleId);
-        if (!role) {
-          throw new Error('Invalid role ID');
-        }
-      }
-
-      // Validate course if provided
-      if (courseId) {
-        const course = await Course.findById(courseId);
-        if (!course) {
-          throw new Error('Invalid course ID');
-        }
-      }
-
-      // Validate department if provided
-      if (departmentId) {
-        const department = await Department.findById(departmentId);
-        if (!department) {
-          throw new Error('Invalid department ID');
-        }
-      }
-
       // Update user
       const updatedUser = await User.findByIdAndUpdate(
         userId,
         {
           ...(name && { name }),
           ...(email && { email }),
-          ...(roleId && { role: roleId }),
-          ...(courseId && { course: courseId }),
-          ...(departmentId && { department: departmentId })
+          ...(address && { address }),
+          ...(contact && { contact }),
+          ...(birthday && { birthday }),
+          ...(gender && { gender }),
+          ...(province && { province }),
+          ...(city && { city }),
+          ...(barangay && { barangay }),
+          ...(street && { street }),
+          ...(postalCode && { postalCode })
         },
         { new: true }
       )
@@ -263,7 +249,11 @@ class UserService {
   // Update user by ID Number
   static async updateUserByIdNumber(idNumber, updateData) {
     try {
-      const { name, email, roleId, courseId, departmentId } = updateData;
+      const { 
+        name, email,
+        address, contact, birthday, gender,
+        province, city, barangay, street, postalCode
+      } = updateData;
 
       const filter = { idNumber };
       SoftDeleteUtils.addSoftDeleteFilter(filter);
@@ -281,39 +271,21 @@ class UserService {
         }
       }
 
-      // Validate role if provided
-      if (roleId) {
-        const role = await Role.findById(roleId);
-        if (!role) {
-          throw new Error('Invalid role ID');
-        }
-      }
-
-      // Validate course if provided
-      if (courseId) {
-        const course = await Course.findById(courseId);
-        if (!course) {
-          throw new Error('Invalid course ID');
-        }
-      }
-
-      // Validate department if provided
-      if (departmentId) {
-        const department = await Department.findById(departmentId);
-        if (!department) {
-          throw new Error('Invalid department ID');
-        }
-      }
-
       // Update user
       const updatedUser = await User.findOneAndUpdate(
         filter,
         {
           ...(name && { name }),
           ...(email && { email }),
-          ...(roleId && { role: roleId }),
-          ...(courseId && { course: courseId }),
-          ...(departmentId && { department: departmentId })
+          ...(address && { address }),
+          ...(contact && { contact }),
+          ...(birthday && { birthday }),
+          ...(gender && { gender }),
+          ...(province && { province }),
+          ...(city && { city }),
+          ...(barangay && { barangay }),
+          ...(street && { street }),
+          ...(postalCode && { postalCode })
         },
         { new: true }
       )

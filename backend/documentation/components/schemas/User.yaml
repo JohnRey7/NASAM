@@ -1,0 +1,38 @@
+type: object
+properties:
+  id:
+    type: string
+    description: The auto-generated id of the user
+  name:
+    type: string
+  idNumber:
+    type: string
+  email:
+    type: string
+    format: email
+  course:
+    type: string
+    description: ID of the course
+  role:
+    type: string
+    description: ID of the role
+  department:
+    type: string
+    description: ID of the department
+  disabled:
+    type: boolean
+  verified:
+    type: boolean
+  is_deleted:
+    type: boolean
+  gender:
+    type: string
+    enum: [Male, Female]
+example:
+  id: 60d0fe4f5311236168a109ca
+  name: John Doe
+  idNumber: "123456"
+  email: john@example.com
+  role: 60d0fe4f5311236168a109cb
+  disabled: false
+  verified: true

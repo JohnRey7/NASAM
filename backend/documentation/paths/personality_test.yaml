@@ -1,0 +1,329 @@
+status:
+  get:
+    tags:
+      - Personality Test
+    summary: Get personality test status
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Status retrieved successfully
+
+start:
+  post:
+    tags:
+      - Personality Test
+    summary: Start personality test
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '201':
+        description: Test started successfully
+      '403':
+        description: Test already taken
+
+answer:
+  post:
+    tags:
+      - Personality Test
+    summary: Submit answers for personality test
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              answers:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    questionId:
+                      type: string
+                    answer:
+                      type: string
+    responses:
+      '201':
+        description: Answers submitted successfully
+      '400':
+        description: Bad request
+
+stop:
+  get:
+    tags:
+      - Personality Test
+    summary: Stop personality test
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Test stopped successfully
+
+me:
+  get:
+    tags:
+      - Personality Test
+    summary: Get my personality test
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Test retrieved successfully
+      '404':
+        description: Test not found
+
+all:
+  get:
+    tags:
+      - Personality Test
+    summary: Get all personality tests (Admin)
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Tests retrieved successfully
+
+by-user:
+  get:
+    tags:
+      - Personality Test
+    summary: Get personality test by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Test retrieved successfully
+      '404':
+        description: Test not found
+  delete:
+    tags:
+      - Personality Test
+    summary: Delete personality test by User ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Test deleted successfully
+
+by-test-id:
+  patch:
+    tags:
+      - Personality Test
+    summary: Update personality test by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: testId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Test updated successfully
+
+template:
+  post:
+    tags:
+      - Personality Test
+    summary: Create personality test template
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - questions
+            properties:
+              name:
+                type: string
+              questions:
+                type: array
+                items:
+                  type: object
+    responses:
+      '201':
+        description: Template created successfully
+  get:
+    tags:
+      - Personality Test
+    summary: Get all templates
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    responses:
+      '200':
+        description: Templates retrieved successfully
+
+template-by-id:
+  get:
+    tags:
+      - Personality Test
+    summary: Get template by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Template retrieved successfully
+  patch:
+    tags:
+      - Personality Test
+    summary: Update template by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      '200':
+        description: Template updated successfully
+  delete:
+    tags:
+      - Personality Test
+    summary: Delete template by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Template deleted successfully
+
+soft-delete:
+  delete:
+    tags:
+      - Personality Test
+    summary: Soft delete personality test by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Test soft deleted successfully
+
+restore:
+  put:
+    tags:
+      - Personality Test
+    summary: Restore soft deleted personality test by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Test restored successfully
+
+permanent-delete:
+  delete:
+    tags:
+      - Personality Test
+    summary: Permanently delete personality test by ID
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Test permanently deleted successfully
+
+deleted:
+  get:
+    tags:
+      - Personality Test
+    summary: Get soft deleted personality tests
+    security:
+      - bearerAuth: []
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Soft deleted tests retrieved successfully

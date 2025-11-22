@@ -1,0 +1,19 @@
+type: object
+properties:
+  _id:
+    type: string
+  userId:
+    type: string
+    description: User ID who performed the action
+  action:
+    type: string
+    description: Action performed (e.g., "applicationForm.update")
+  module:
+    type: string
+    description: Module where the action occurred (e.g., "Application Module")
+  timestamp:
+    type: string
+    format: date-time
+  archived:
+    type: boolean
+    default: false

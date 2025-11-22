@@ -1,0 +1,342 @@
+period-current:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get current evaluation period
+    responses:
+      '200':
+        description: Current evaluation period retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                period:
+                  type: object
+                  properties:
+                    semester:
+                      type: string
+                    schoolYear:
+                      type: string
+                    startDate:
+                      type: string
+                      format: date-time
+                    endDate:
+                      type: string
+                      format: date-time
+                    isActive:
+                      type: boolean
+      '500':
+        description: Server error
+
+period-open:
+  post:
+    tags:
+      - Scholar Evaluations
+    summary: Open a new evaluation period (Admin only)
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - semester
+              - schoolYear
+              - startDate
+              - endDate
+            properties:
+              semester:
+                type: string
+                enum: ['1st', '2nd', 'Summer']
+              schoolYear:
+                type: string
+              startDate:
+                type: string
+                format: date-time
+              endDate:
+                type: string
+                format: date-time
+    responses:
+      '201':
+        description: Evaluation period opened successfully
+      '400':
+        description: Active period already exists
+      '500':
+        description: Server error
+
+evaluation:
+  post:
+    tags:
+      - Scholar Evaluations
+    summary: Create a new evaluation
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - scholarId
+              - ratings
+              - comments
+            properties:
+              scholarId:
+                type: string
+              ratings:
+                type: object
+                properties:
+                  attendance:
+                    type: number
+                  punctuality:
+                    type: number
+                  initiative:
+                    type: number
+                  cooperation:
+                    type: number
+                  communication:
+                    type: number
+              comments:
+                type: string
+    responses:
+      '201':
+        description: Evaluation created successfully
+      '400':
+        description: No active evaluation period or already evaluated
+      '404':
+        description: Scholar not found
+      '500':
+        description: Server error
+
+my-evaluations:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get evaluations for the current user (Scholar)
+    responses:
+      '200':
+        description: My evaluations retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                evaluations:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/ScholarEvaluation.yaml'
+      '500':
+        description: Server error
+
+all-evaluations:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get all evaluations (Admin only)
+    parameters:
+      - in: query
+        name: semester
+        schema:
+          type: string
+      - in: query
+        name: schoolYear
+        schema:
+          type: string
+      - in: query
+        name: department
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluations retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                evaluations:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/ScholarEvaluation.yaml'
+                count:
+                  type: integer
+      '500':
+        description: Server error
+
+statistics:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get evaluation statistics (Admin only)
+    parameters:
+      - in: query
+        name: semester
+        schema:
+          type: string
+      - in: query
+        name: schoolYear
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Statistics retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statistics:
+                  type: object
+                  properties:
+                    total:
+                      type: integer
+                    byInterpretation:
+                      type: object
+                    byDepartment:
+                      type: object
+                    averageRating:
+                      type: number
+      '500':
+        description: Server error
+
+evaluation-by-id:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get evaluation by ID
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluation retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                evaluation:
+                  $ref: '../components/schemas/ScholarEvaluation.yaml'
+      '404':
+        description: Evaluation not found
+      '500':
+        description: Server error
+  put:
+    tags:
+      - Scholar Evaluations
+    summary: Update an evaluation
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ratings:
+                type: object
+              comments:
+                type: string
+    responses:
+      '200':
+        description: Evaluation updated successfully
+      '403':
+        description: Not authorized to update this evaluation
+      '404':
+        description: Evaluation not found
+      '500':
+        description: Server error
+  delete:
+    tags:
+      - Scholar Evaluations
+    summary: Delete an evaluation (Admin only)
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Evaluation deleted successfully
+      '404':
+        description: Evaluation not found
+      '500':
+        description: Server error
+
+period-all:
+  get:
+    tags:
+      - Scholar Evaluations
+    summary: Get all evaluation periods (Admin only)
+    responses:
+      '200':
+        description: Evaluation periods retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                periods:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      semester:
+                        type: string
+                      schoolYear:
+                        type: string
+                      isOpen:
+                        type: boolean
+                      ratingPeriod:
+                        type: string
+                      openedBy:
+                        type: object
+                      closedBy:
+                        type: object
+      '500':
+        description: Server error
+
+period-close:
+  post:
+    tags:
+      - Scholar Evaluations
+    summary: Close evaluation period (Admin only)
+    responses:
+      '200':
+        description: Evaluation period closed successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                message:
+                  type: string
+                period:
+                  type: object
+      '404':
+        description: No open evaluation period found
+      '500':
+        description: Server error

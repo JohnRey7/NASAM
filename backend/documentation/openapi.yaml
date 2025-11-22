@@ -1,0 +1,364 @@
+openapi: 3.0.0
+info:
+  title: NASAM API
+  description: API documentation for the NASAM (Non-Academic Scholar Award Management) System
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local Development Server
+  - url: http://95.216.139.119:3001
+    description: Production Server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths:
+  # Auth
+  /api/auth/login:
+    $ref: './paths/auth.yaml#/login'
+  /api/auth/register:
+    $ref: './paths/auth.yaml#/register'
+  /api/auth/logout:
+    $ref: './paths/auth.yaml#/logout'
+  /api/auth/forgot-password:
+    $ref: './paths/auth.yaml#/forgot-password'
+  /api/auth/forgot-password/change-password:
+    $ref: './paths/auth.yaml#/forgot-password-change'
+  /api/auth/change-password:
+    $ref: './paths/auth.yaml#/change-password'
+  /api/auth/me:
+    $ref: './paths/auth.yaml#/me'
+  /api/auth/email/verify:
+    $ref: './paths/auth.yaml#/verify-email'
+  /api/auth/email/resend:
+    $ref: './paths/auth.yaml#/resend-email'
+  /api/auth/email:
+    $ref: './paths/auth.yaml#/update-email'
+
+  # Users
+  /api/user:
+    $ref: './paths/users.yaml#/create-user'
+  /api/users:
+    $ref: './paths/users.yaml#/get-users'
+  /api/users/{id}:
+    $ref: './paths/users.yaml#/user-by-id'
+  /api/users/profile:
+    $ref: './paths/users.yaml#/profile'
+  /api/users/idnumber/{idNumber}:
+    $ref: './paths/users.yaml#/user-by-idnumber'
+  /api/users/disabled:
+    $ref: './paths/users.yaml#/disabled-users'
+  /api/users/deleted:
+    $ref: './paths/users.yaml#/deleted-users'
+  /api/users/{id}/disable:
+    $ref: './paths/users.yaml#/disable-user'
+  /api/users/{id}/enable:
+    $ref: './paths/users.yaml#/enable-user'
+  /api/users/idnumber/{idNumber}/disable:
+    $ref: './paths/users.yaml#/disable-user-by-idnumber'
+  /api/users/idnumber/{idNumber}/enable:
+    $ref: './paths/users.yaml#/enable-user-by-idnumber'
+  /api/users/{id}/soft:
+    $ref: './paths/users.yaml#/soft-delete-user'
+  /api/users/{id}/restore:
+    $ref: './paths/users.yaml#/restore-user'
+  /api/users/{id}/permanent:
+    $ref: './paths/users.yaml#/permanent-delete-user'
+
+  # Roles
+  /api/roles:
+    $ref: './paths/roles.yaml#/roles'
+  /api/roles/{id}:
+    $ref: './paths/roles.yaml#/role-by-id'
+  /api/roles/{id}/soft:
+    $ref: './paths/roles.yaml#/soft-delete-role'
+  /api/roles/{id}/restore:
+    $ref: './paths/roles.yaml#/restore-role'
+  /api/roles/{id}/permanent:
+    $ref: './paths/roles.yaml#/permanent-delete-role'
+  /api/roles/deleted:
+    $ref: './paths/roles.yaml#/deleted-roles'
+
+  # Applications
+  /api/application:
+    $ref: './paths/applications.yaml#/application'
+  /api/application/all:
+    $ref: './paths/applications.yaml#/all-applications'
+  /api/application/{id}:
+    $ref: './paths/applications.yaml#/application-by-id'
+  /api/application/user/{userId}:
+    $ref: './paths/applications.yaml#/application-by-user-id'
+  /api/application/{id}/pdf:
+    $ref: './paths/applications.yaml#/application-pdf'
+  /api/application/pdf:
+    $ref: './paths/applications.yaml#/my-application-pdf'
+  /api/application/status:
+    $ref: './paths/applications.yaml#/application-status'
+  /api/application/approvals:
+    $ref: './paths/applications.yaml#/application-approvals'
+  /api/application/{id}/soft:
+    $ref: './paths/applications.yaml#/soft-delete-application'
+  /api/application/{id}/restore:
+    $ref: './paths/applications.yaml#/restore-application'
+  /api/application/{id}/permanent:
+    $ref: './paths/applications.yaml#/permanent-delete-application'
+  /api/applications/deleted:
+    $ref: './paths/applications.yaml#/deleted-applications'
+  /api/application/history:
+    $ref: './paths/applications.yaml#/my-application-history'
+  /api/application/history/user/{userId}:
+    $ref: './paths/applications.yaml#/application-history-by-user'
+  /api/application/history/{id}:
+    $ref: './paths/applications.yaml#/application-history-by-id'
+
+  # Documents
+  /api/documents:
+    $ref: './paths/documents.yaml#/documents'
+  /api/documents/{id}/soft:
+    $ref: './paths/documents.yaml#/soft-delete-document'
+  /api/documents/{id}/restore:
+    $ref: './paths/documents.yaml#/restore-document'
+  /api/documents/{id}/permanent:
+    $ref: './paths/documents.yaml#/permanent-delete-document'
+  /api/documents/deleted:
+    $ref: './paths/documents.yaml#/deleted-documents'
+
+  # Document Uploads
+  /api/document-uploads:
+    $ref: './paths/document_uploads.yaml#/document-uploads'
+  /api/document-uploads/all:
+    $ref: './paths/document_uploads.yaml#/all-document-uploads'
+  /api/document-uploads/user/{userId}:
+    $ref: './paths/document_uploads.yaml#/document-uploads-by-user'
+  /api/document-uploads/{userId}:
+    $ref: './paths/document_uploads.yaml#/document-upload-by-user-id'
+  /api/document-uploads/end-term-grade:
+    $ref: './paths/document_uploads.yaml#/end-term-grade'
+  /api/document-uploads/{userId}/end-term-grade/{gradeId}:
+    $ref: './paths/document_uploads.yaml#/update-end-term-grade'
+  /api/document-uploads/{userId}/soft:
+    $ref: './paths/document_uploads.yaml#/soft-delete-document-upload'
+  /api/document-uploads/{userId}/restore:
+    $ref: './paths/document_uploads.yaml#/restore-document-upload'
+  /api/document-uploads/{userId}/permanent:
+    $ref: './paths/document_uploads.yaml#/permanent-delete-document-upload'
+  /api/document-uploads/deleted:
+    $ref: './paths/document_uploads.yaml#/deleted-document-uploads'
+
+  # Personality Test
+  /api/personality-test/status:
+    $ref: './paths/personality_test.yaml#/status'
+  /api/personality-test/start:
+    $ref: './paths/personality_test.yaml#/start'
+  /api/personality-test/answer:
+    $ref: './paths/personality_test.yaml#/answer'
+  /api/personality-test/stop:
+    $ref: './paths/personality_test.yaml#/stop'
+  /api/personality-test/me:
+    $ref: './paths/personality_test.yaml#/me'
+  /api/personality-test/all:
+    $ref: './paths/personality_test.yaml#/all'
+  /api/personality-test/user/{userId}:
+    $ref: './paths/personality_test.yaml#/by-user'
+  /api/personality-test/test/{testId}:
+    $ref: './paths/personality_test.yaml#/by-test-id'
+  /api/personality-test/template:
+    $ref: './paths/personality_test.yaml#/template'
+  /api/personality-test/template/{id}:
+    $ref: './paths/personality_test.yaml#/template-by-id'
+  /api/personality-test/{id}/soft:
+    $ref: './paths/personality_test.yaml#/soft-delete'
+  /api/personality-test/{id}/restore:
+    $ref: './paths/personality_test.yaml#/restore'
+  /api/personality-test/{id}/permanent:
+    $ref: './paths/personality_test.yaml#/permanent-delete'
+  /api/personality-test/deleted:
+    $ref: './paths/personality_test.yaml#/deleted'
+
+  # Interviews
+  /api/interview:
+    $ref: './paths/interviews.yaml#/interview'
+  /api/interview/all:
+    $ref: './paths/interviews.yaml#/all-interviews'
+  /api/interview/{id}:
+    $ref: './paths/interviews.yaml#/interview-by-id'
+  /api/interview/user/{userId}:
+    $ref: './paths/interviews.yaml#/interview-by-user'
+  /api/interview/{id}/soft:
+    $ref: './paths/interviews.yaml#/soft-delete'
+  /api/interview/{id}/restore:
+    $ref: './paths/interviews.yaml#/restore'
+  /api/interview/{id}/permanent:
+    $ref: './paths/interviews.yaml#/permanent-delete'
+  /api/interviews/deleted:
+    $ref: './paths/interviews.yaml#/deleted'
+  /api/review/{interviewId}:
+    $ref: './paths/interviews.yaml#/review-by-interview'
+  /api/review:
+    $ref: './paths/interviews.yaml#/review-list'
+  /api/admin/interview/schedule:
+    $ref: './paths/interviews.yaml#/admin-schedule'
+  /api/department-head/interview/schedule:
+    $ref: './paths/interviews.yaml#/dept-head-schedule'
+  /api/department-head/interview/{interviewId}/reschedule:
+    $ref: './paths/interviews.yaml#/dept-head-reschedule'
+
+  # Evaluations
+  /api/evaluations:
+    $ref: './paths/evaluations.yaml#/evaluations'
+  /api/evaluations/{id}:
+    $ref: './paths/evaluations.yaml#/evaluation-by-id'
+  /api/evaluations/{id}/soft:
+    $ref: './paths/evaluations.yaml#/soft-delete'
+  /api/evaluations/{id}/restore:
+    $ref: './paths/evaluations.yaml#/restore'
+  /api/evaluations/{id}/permanent:
+    $ref: './paths/evaluations.yaml#/permanent-delete'
+  /api/evaluations/deleted:
+    $ref: './paths/evaluations.yaml#/deleted'
+  /api/evaluations/{id}/timekeeping:
+    $ref: './paths/evaluations.yaml#/timekeeping'
+
+  # Departments
+  /api/departments:
+    $ref: './paths/departments.yaml#/departments'
+  /api/departments/{departmentCode}:
+    $ref: './paths/departments.yaml#/department-by-code'
+  /api/departments/{departmentCode}/soft:
+    $ref: './paths/departments.yaml#/soft-delete'
+  /api/departments/{departmentCode}/restore:
+    $ref: './paths/departments.yaml#/restore'
+  /api/departments/{departmentCode}/permanent:
+    $ref: './paths/departments.yaml#/permanent-delete'
+  /api/departments/deleted:
+    $ref: './paths/departments.yaml#/deleted'
+  /api/departments/{departmentCode}/head/id:
+    $ref: './paths/departments.yaml#/set-head-id'
+  /api/departments/{departmentCode}/head/idnumber:
+    $ref: './paths/departments.yaml#/set-head-idnumber'
+  /api/admin/assign-applicant-to-department:
+    $ref: './paths/departments.yaml#/assign-applicant'
+
+  # Files
+  /api/files/{fileName}:
+    $ref: './paths/files.yaml#/files'
+
+  # Activity
+  /api/activity/history:
+    $ref: './paths/activity.yaml#/my-history'
+  /api/activity/history/user/{userId}:
+    $ref: './paths/activity.yaml#/user-history'
+
+  # Notifications
+  /api/notifications:
+    $ref: './paths/notifications.yaml#/notifications'
+  /api/notifications/{notificationId}:
+    $ref: './paths/notifications.yaml#/notification-by-id'
+  /api/notifications/{notificationId}/read:
+    $ref: './paths/notifications.yaml#/mark-read'
+  /api/notifications/mark-all-read:
+    $ref: './paths/notifications.yaml#/mark-all-read'
+  /api/notifications/{notificationId}/soft:
+    $ref: './paths/notifications.yaml#/soft-delete'
+  /api/notifications/{notificationId}/restore:
+    $ref: './paths/notifications.yaml#/restore'
+  /api/notifications/{notificationId}/permanent:
+    $ref: './paths/notifications.yaml#/permanent-delete'
+  /api/notifications/deleted:
+    $ref: './paths/notifications.yaml#/deleted'
+
+  # OAS
+  /api/oas/applications:
+    $ref: './paths/oas.yaml#/applications'
+  /api/oas/application/{applicationId}/documents:
+    $ref: './paths/oas.yaml#/application-documents'
+  /api/oas/application/{applicationId}/status:
+    $ref: './paths/oas.yaml#/application-status'
+  /api/oas/application-by-id/{applicationId}/pdf:
+    $ref: './paths/oas.yaml#/application-pdf'
+  /api/oas/application/{applicationId}:
+    $ref: './paths/oas.yaml#/application-delete'
+  /api/oas/application/{applicationId}/form-only:
+    $ref: './paths/oas.yaml#/application-form-only'
+  /api/oas/application/{applicationId}/documents-only:
+    $ref: './paths/oas.yaml#/application-documents-only'
+  /api/oas/application/{applicationId}/soft:
+    $ref: './paths/oas.yaml#/soft-delete'
+  /api/oas/application/{applicationId}/restore:
+    $ref: './paths/oas.yaml#/restore'
+  /api/oas/application/{applicationId}/permanent:
+    $ref: './paths/oas.yaml#/permanent-delete'
+  /api/oas/applications/deleted:
+    $ref: './paths/oas.yaml#/deleted'
+  /api/oas/application/{applicationId}/verify:
+    $ref: './paths/oas.yaml#/verify'
+  /api/oas/application/{applicationId}/verify-documents:
+    $ref: './paths/oas.yaml#/verify-documents'
+  /api/oas/dashboard-stats:
+    $ref: './paths/oas.yaml#/dashboard-stats'
+  /api/oas/application-counts:
+    $ref: './paths/oas.yaml#/application-counts'
+  /api/oas/analytics:
+    $ref: './paths/oas.yaml#/analytics'
+
+  # Scholar Evaluation
+  /api/evaluation-period/current:
+    $ref: './paths/scholar_evaluations.yaml#/period-current'
+  /api/evaluation-period/all:
+    $ref: './paths/scholar_evaluations.yaml#/period-all'
+  /api/evaluation-period/open:
+    $ref: './paths/scholar_evaluations.yaml#/period-open'
+  /api/evaluation-period/close:
+    $ref: './paths/scholar_evaluations.yaml#/period-close'
+  /api/scholar-evaluation:
+    $ref: './paths/scholar_evaluations.yaml#/evaluation'
+  /api/scholar-evaluation/my:
+    $ref: './paths/scholar_evaluations.yaml#/my-evaluations'
+  /api/scholar-evaluation/{id}:
+    $ref: './paths/scholar_evaluations.yaml#/evaluation-by-id'
+  /api/scholar-evaluation/all/list:
+    $ref: './paths/scholar_evaluations.yaml#/all-evaluations'
+  /api/scholar-evaluation/statistics/summary:
+    $ref: './paths/scholar_evaluations.yaml#/statistics'
+
+  # Audit Logs
+  /api/audit-logs:
+    $ref: './paths/audit_logs.yaml#/logs'
+  /api/audit-logs/export/pdf:
+    $ref: './paths/audit_logs.yaml#/export-pdf'
+  /api/audit-logs/export/excel:
+    $ref: './paths/audit_logs.yaml#/export-excel'
+  /api/audit-logs/{id}/archive:
+    $ref: './paths/audit_logs.yaml#/archive'
+
+  # Messages
+  /api/messages/conversation/start:
+    $ref: './paths/messages.yaml#/start-conversation'
+  /api/messages/send:
+    $ref: './paths/messages.yaml#/send-message'
+  /api/messages/conversations:
+    $ref: './paths/messages.yaml#/conversations'
+  /api/messages/conversation/{conversationId}:
+    $ref: './paths/messages.yaml#/conversation-messages'
+  /api/messages/conversation/application/{applicationId}:
+    $ref: './paths/messages.yaml#/conversation-by-application'
+  /api/messages/conversation/{conversationId}/read:
+    $ref: './paths/messages.yaml#/mark-read'
+  /api/messages/conversation/{conversationId}/archive:
+    $ref: './paths/messages.yaml#/archive'
+  /api/messages/unread-count:
+    $ref: './paths/messages.yaml#/unread-count'
+  /api/messages/search:
+    $ref: './paths/messages.yaml#/search'
+  /api/messages/{messageId}:
+    $ref: './paths/messages.yaml#/delete-message'

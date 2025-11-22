@@ -1,0 +1,132 @@
+type: object
+properties:
+  _id:
+    type: string
+  scholar:
+    type: string
+    description: User ID of the scholar
+  scholarName:
+    type: string
+  studentId:
+    type: string
+  course:
+    type: string
+  department:
+    type: string
+  ratingPeriod:
+    type: string
+  semester:
+    type: string
+    enum: ['First Semester', 'Second Semester', 'Summer']
+  schoolYear:
+    type: string
+  evaluatedBy:
+    type: string
+    description: User ID of the evaluator
+  evaluatorName:
+    type: string
+  evaluatorPosition:
+    type: string
+  attendanceAndPunctuality:
+    type: object
+    properties:
+      regularityOfAttendance:
+        type: number
+        minimum: 1
+        maximum: 5
+      promptnessInReporting:
+        type: number
+        minimum: 1
+        maximum: 5
+  qualityOfWorkOutput:
+    type: object
+    properties:
+      accuracyAndThoroughness:
+        type: number
+        minimum: 1
+        maximum: 5
+      organizationAndPresentation:
+        type: number
+        minimum: 1
+        maximum: 5
+      effectiveness:
+        type: number
+        minimum: 1
+        maximum: 5
+  quantityOfWorkOutput:
+    type: object
+    properties:
+      accomplishesMoreWork:
+        type: number
+        minimum: 1
+        maximum: 5
+      readinessInAccomplishing:
+        type: number
+        minimum: 1
+        maximum: 5
+  personalQualities:
+    type: object
+    properties:
+      responsibilityAndUrgency:
+        type: number
+        minimum: 1
+        maximum: 5
+      dependabilityAndReliability:
+        type: number
+        minimum: 1
+        maximum: 5
+      industryAndResourcefulness:
+        type: number
+        minimum: 1
+        maximum: 5
+      fairnessAndInitiative:
+        type: number
+        minimum: 1
+        maximum: 5
+      sociabilityAndDisposition:
+        type: number
+        minimum: 1
+        maximum: 5
+  overallRating:
+    type: number
+  interpretation:
+    type: string
+    enum: ['Very Good', 'Good', 'Average', 'Poor', 'Very Poor']
+  timekeepingRecord:
+    type: object
+    properties:
+      excusedAbsences:
+        type: number
+      unexcusedAbsences:
+        type: number
+      lateMoreThan10mins:
+        type: number
+      lateLessThan1hr:
+        type: number
+      failureToPunch:
+        type: number
+      underTime:
+        type: number
+  supervisorRemarks:
+    type: string
+  nasRemarks:
+    type: string
+  acknowledgedByScholar:
+    type: boolean
+  acknowledgmentDate:
+    type: string
+    format: date-time
+  status:
+    type: string
+    enum: ['draft', 'submitted', 'acknowledged']
+  is_deleted:
+    type: boolean
+  deleted_at:
+    type: string
+    format: date-time
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time
