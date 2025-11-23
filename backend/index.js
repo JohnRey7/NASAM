@@ -323,6 +323,9 @@ app.post('/api/departments/:departmentCode/head/idnumber', authenticate, checkPe
 // Assign applicant to department
 app.post('/api/admin/assign-applicant-to-department', authenticate, checkPermission('department.update'), DepartmentController.assignApplicantToDepartment);
 
+// Get applicants for department head
+app.get('/api/department-head/applicants', authenticate, checkPermission('application.readAll'), DepartmentController.getApplicantsForDepartmentHead);
+
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {
   await fileUtils.downloadFile(req.params.fileName, req, res);

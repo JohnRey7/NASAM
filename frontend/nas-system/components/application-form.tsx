@@ -134,6 +134,39 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
   const totalSteps = 4
 
+  // Validation functions
+  const validateNameField = (value: string): boolean => {
+    // Only allow letters, spaces, hyphens, and apostrophes
+    const namePattern = /^[a-zA-Z\s'-]*$/;
+    return namePattern.test(value);
+  };
+
+  const sanitizeNameInput = (value: string): string => {
+    // Remove any characters that aren't letters, spaces, hyphens, or apostrophes
+    return value.replace(/[^a-zA-Z\s'-]/g, '');
+  };
+
+  const validateAddressField = (value: string): boolean => {
+    // Allow letters, numbers, spaces, and common address punctuation
+    const addressPattern = /^[a-zA-Z0-9\s,.\-#/()]*$/;
+    return addressPattern.test(value);
+  };
+
+  const sanitizeAddressInput = (value: string): string => {
+    // Remove special characters except common address punctuation
+    return value.replace(/[^a-zA-Z0-9\s,.\-#/()]/g, '');
+  };
+
+  const handleNameChange = (field: string, value: string) => {
+    const sanitized = sanitizeNameInput(value);
+    setFormData({ ...formData, [field]: sanitized });
+  };
+
+  const handleAddressChange = (field: string, value: string) => {
+    const sanitized = sanitizeAddressInput(value);
+    setFormData({ ...formData, [field]: sanitized });
+  };
+
   useEffect(() => {
     if (initialData) {
       setFormData({ ...defaultFormData, ...initialData });
@@ -715,7 +748,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
     // Validate each college level
     for (const [index, level] of collegeLevels.entries()) {
-      if (!level.yearLevel || !level.firstSemesterAverageFinalGrade || !level.secondSemesterAverageFinalGrade) {
+      if (!level.yearLevel || !level.firstSemesterAverageFinalGrade) {
         toast({
           title: "Required Field Missing",
           description: `Please fill in all required fields for year ${index + 1}`,
@@ -877,7 +910,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="first-name"
                     value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    onChange={(e) => handleNameChange('firstName', e.target.value)}
                     placeholder="Enter your first name"
                     disabled={isReadOnly}
                     required
@@ -888,7 +921,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="middle-name"
                     value={formData.middleName}
-                    onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
+                    onChange={(e) => handleNameChange('middleName', e.target.value)}
                     placeholder="Enter your middle name"
                     disabled={isReadOnly}
                   />
@@ -898,7 +931,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="last-name"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    onChange={(e) => handleNameChange('lastName', e.target.value)}
                     placeholder="Enter your last name"
                     disabled={isReadOnly}
                     required
@@ -909,13 +942,13 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="suffix"
                     value={formData.suffix}
-                    onChange={(e) => setFormData({ ...formData, suffix: e.target.value })}
-                    placeholder="e.g., Jr., III"
+                    onChange={(e) => handleNameChange('suffix', e.target.value)}
+                    placeholder="Sr."
                     disabled={isReadOnly}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="program-study">Program of Study</Label>
+                  <Label htmlFor="program-study">Program of Study and Year</Label>
                   <Input
                     id="program-study"
                     value={formData.programOfStudyAndYear}
@@ -1787,7 +1820,9 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor={`second-sem-grade-${index}`}>Second Semester Average Final Grade</Label>
+                        <Label htmlFor={`second-sem-grade-${index}`}>
+                          Second Semester Average Final Grade <span className="text-gray-500 text-sm font-normal">(Optional)</span>
+                        </Label>
                         <Input
                           id={`second-sem-grade-${index}`}
                           type="number"
@@ -1796,7 +1831,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                           step="0.01"
                           value={level.secondSemesterAverageFinalGrade}
                           onChange={(e) => updateCollegeLevel(index, "secondSemesterAverageFinalGrade", Number(e.target.value))}
-                          placeholder="Enter grade"
+                          placeholder="Enter grade (optional)"
                           disabled={isReadOnly}
                         />
                       </div>

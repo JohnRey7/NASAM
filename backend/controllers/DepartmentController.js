@@ -215,6 +215,27 @@ async function assignApplicantToDepartment(req, res) {
   }
 }
 
+// Get applicants assigned to department head's department
+async function getApplicantsForDepartmentHead(req, res) {
+  try {
+    const userId = req.user.id; // From authenticate middleware
+    console.log('🔍 Getting applicants for department head:', userId);
+    
+    const result = await DepartmentService.getApplicantsForDepartmentHead(userId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in getApplicantsForDepartmentHead:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    if (error.message.includes('not assigned')) {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   createDepartment,
   getAllDepartments,
@@ -227,5 +248,6 @@ module.exports = {
   getSoftDeletedDepartments,
   setDepartmentHeadById,
   setDepartmentHeadByIdNumber,
-  assignApplicantToDepartment
+  assignApplicantToDepartment,
+  getApplicantsForDepartmentHead
 };

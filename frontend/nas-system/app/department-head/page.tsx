@@ -17,6 +17,7 @@ import { scholarEvaluationService } from "@/services/scholarEvaluationService";
 import { ScholarEvaluationForm } from "@/components/scholar-evaluation-form";
 import { MessageButton } from "@/components/message-button";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 
 interface InterviewData {
   _id: string;
@@ -28,6 +29,7 @@ interface InterviewData {
 }
 
 export default function DepartmentHeadDashboardPage() {
+  const { user } = useAuth();
   const [interviews, setInterviews] = useState<InterviewData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,6 +49,7 @@ export default function DepartmentHeadDashboardPage() {
   const [showEvaluationForm, setShowEvaluationForm] = useState(false);
   const [selectedScholar, setSelectedScholar] = useState<any>(null);
   const [scholars, setScholars] = useState<any[]>([]);
+  const [userDepartment, setUserDepartment] = useState<any>(null);
 
   // Function to fetch application details
   const fetchApplicationDetails = async (applicantId: string) => {
@@ -286,6 +289,31 @@ export default function DepartmentHeadDashboardPage() {
     }
   };
 
+  // Fetch user's department information if not available
+  useEffect(() => {
+    const fetchUserDepartment = async () => {
+      if (!user?.department) {
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/auth/me`, {
+            credentials: 'include'
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.user?.department) {
+              setUserDepartment(data.user.department);
+              console.log('📍 Fetched department:', data.user.department);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user department:', error);
+        }
+      } else {
+        setUserDepartment(user.department);
+      }
+    };
+    fetchUserDepartment();
+  }, [user]);
+
   // Fetch evaluation period status
   useEffect(() => {
     const loadEvaluationPeriod = async () => {
@@ -396,7 +424,14 @@ export default function DepartmentHeadDashboardPage() {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold text-[#800000] tracking-tight">Department Head Dashboard</h1>
-              <p className="text-gray-600 mt-2 text-lg">Review and evaluate applications assigned to your department.</p>
+              {userDepartment && (
+                <div className="mt-2 inline-flex items-center gap-2 bg-[#800000] text-white px-4 py-2 rounded-lg shadow-md">
+                  <Users className="h-5 w-5" />
+                  <span className="font-semibold text-lg">{userDepartment.name}</span>
+                  <span className="text-sm opacity-90">({userDepartment.departmentCode})</span>
+                </div>
+              )}
+              <p className="text-gray-600 mt-3 text-lg">Review and evaluate applications assigned to your department.</p>
             </div>
             {evaluationPeriod?.isOpen && (
               <Button

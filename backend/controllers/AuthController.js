@@ -79,7 +79,14 @@ const AuthController = {
       });
     } catch (error) {
       console.error('Error in registerDepartmentHead:', error);
-      if (error.message.includes('required') || error.message.includes('already exists') || error.message.includes('Invalid') || error.message.includes('not found')) {
+      if (error.message.includes('required') || 
+          error.message.includes('already exists') || 
+          error.message.includes('Invalid') || 
+          error.message.includes('not found') ||
+          error.message.includes('valid name') ||
+          error.message.includes('valid email') ||
+          error.message.includes('Password must') ||
+          error.message.includes('format')) {
         return res.status(400).json({ message: error.message });
       }
       return res.status(500).json({ message: 'Server error' });

@@ -64,7 +64,11 @@ export default function OASDashboardPage() {
         ]);
         const applicantArray = Array.isArray(users) ? users : users?.users || users?.data || [];
         setApplicants(applicantArray);
-        setDepartments(depts || []);
+        
+        const departmentsArray = Array.isArray(depts) ? depts : depts?.data || [];
+        setDepartments(departmentsArray);
+        console.log('📋 Loaded departments:', departmentsArray);
+        console.log('📋 Department codes:', departmentsArray.map((d: any) => d.departmentCode));
         
         // Filter for "Ready for Interview" students (document_verification status)
         const applicationsArray = Array.isArray(applications) ? applications : applications?.applications || [];
@@ -262,6 +266,8 @@ export default function OASDashboardPage() {
                 console.log('Assign button clicked!');
                 console.log('Selected applicant:', selectedApplicant);
                 console.log('Selected department:', selectedDepartment);
+                console.log('Available departments:', departments);
+                console.log('Available department codes:', departments.map((d: any) => d.departmentCode));
                 
                 if (!selectedApplicant || !selectedDepartment) {
                   toast({ title: "Error", description: "Please select both a student and department." });
@@ -278,7 +284,7 @@ export default function OASDashboardPage() {
                     throw new Error("Student not found in ready for interview list");
                   }
                   
-                  console.log('Calling assignApplicantToDepartment with:', student._id, selectedDepartment);
+                  console.log('🎯 Calling assignApplicantToDepartment with userId:', student._id, 'departmentCode:', selectedDepartment);
                   const result = await oasDashboardService.assignApplicantToDepartment(student._id, selectedDepartment);
                   console.log('Assignment result:', result);
                   

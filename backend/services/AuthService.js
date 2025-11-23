@@ -66,7 +66,7 @@ class AuthService {
       throw new Error('ID number and password are required');
     }
 
-    const user = await User.findOne({ idNumber }).populate('role');
+    const user = await User.findOne({ idNumber }).populate('role').populate('department');
     if (!user || user.is_deleted) {
       throw new Error('Invalid credentials');
     }
@@ -96,11 +96,18 @@ class AuthService {
       maxAge,
       user: { 
         id: user._id, 
-        idNumber: user.idNumber, 
+        idNumber: user.idNumber,
+        name: user.name,
+        email: user.email,
         role: { 
           id: user.role._id, 
           name: user.role.name 
-        }
+        },
+        department: user.department ? {
+          _id: user.department._id,
+          departmentCode: user.department.departmentCode,
+          name: user.department.name
+        } : undefined
       }
     };
   }
@@ -111,6 +118,33 @@ class AuthService {
     
     if (!name || !idNumber || !password || !courseId) {
       throw new Error('Name, ID number, password, and course ID are required');
+    }
+
+    // Validate Full Name (letters, spaces, hyphens, apostrophes only)
+    const namePattern = /^[a-zA-Z\s'-]+$/;
+    if (!namePattern.test(name) || name.trim().length === 0) {
+      throw new Error('Please enter a valid name. Only letters, spaces, hyphens, and apostrophes are allowed.');
+    }
+
+    // Validate ID Number format (CIT Format: DD-DDDD-DDD)
+    const idNumberPattern = /^\d{2}-\d{4}-\d{3}$/;
+    if (!idNumberPattern.test(idNumber)) {
+      throw new Error('Invalid ID number format. Please use the format: DD-DDDD-DDD (e.g., 22-6729-813)');
+    }
+
+    // Validate Password (min 8 chars + complexity)
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters long');
+    }
+
+    let complexityCount = 0;
+    if (/[A-Z]/.test(password)) complexityCount++; // Uppercase
+    if (/[a-z]/.test(password)) complexityCount++; // Lowercase
+    if (/[0-9]/.test(password)) complexityCount++; // Digit
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) complexityCount++; // Special char
+
+    if (complexityCount < 3) {
+      throw new Error('Password must include at least 3 of: uppercase letter, lowercase letter, number, special character (!@#$%^&*)');
     }
 
     if (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ idNumber }))) {
@@ -173,68 +207,105 @@ class AuthService {
 
   // Register new department head
   static async registerDepartmentHead(userData) {
-    const { name, idNumber, email, password, departmentCode } = userData;
-    
-    if (!name || !idNumber || !password || !departmentCode) {
-      throw new Error('Name, ID number, password, and department code are required');
-    }
-
-    // Check if user already exists
-    if (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ idNumber }))) {
-      throw new Error('ID number already exists');
-    }
-    
-    if (email && (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ email })))) {
-      throw new Error('Email already exists');
-    }
-
-    // Verify department exists
-    const Department = require('../models/Department');
-    const department = await Department.findOne({ departmentCode });
-    if (!department) {
-      throw new Error('Department not found');
-    }
-
-    // Get department_head role
-    const role = await Role.findOne({ name: "department_head" });
-    if (!role) {
-      throw new Error('Department head role not found');
-    }
-
-    // Hash password and create user
-    const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
-    const user = new User({ 
-      name, 
-      idNumber, 
-      email, 
-      password: hashedPassword, 
-      role: role._id,
-      department: department._id
-    });
-
-    // Send verification email if email provided
-    let verificationCode = null;
-    if (email) {
-      verificationCode = AuthService.updateVerificationDetails(user);
-      await sendVerificationEmail(user.email, verificationCode);
-    }
-
-    await user.save();
-
-    return {
-      message: email ? 'Department head registered successfully. Please verify email.' : 'Department head registered successfully',
-      user: { 
-        id: user._id, 
-        idNumber: user.idNumber,
-        name: user.name,
-        email: user.email,
-        department: departmentCode,
-        role: { 
-          id: role._id, 
-          name: role.name 
-        }
+    try {
+      const { name, idNumber, email, password, departmentCode } = userData;
+      
+      console.log('Registering department head with data:', { name, idNumber, email, departmentCode });
+      
+      if (!name || !idNumber || !password || !departmentCode) {
+        throw new Error('Name, ID number, password, and department code are required');
       }
-    };
+
+      // Validate Full Name (letters, spaces, hyphens, apostrophes only)
+      const namePattern = /^[a-zA-Z\s'-]+$/;
+      if (!namePattern.test(name) || name.trim().length === 0) {
+        console.error('Name validation failed for:', JSON.stringify(name));
+        console.error('Name length:', name.length, 'Trimmed length:', name.trim().length);
+        console.error('Name characters:', name.split('').map(c => `${c} (${c.charCodeAt(0)})`).join(', '));
+        throw new Error('Please enter a valid name. Only letters, spaces, hyphens, and apostrophes are allowed.');
+      }
+
+      // Validate ID Number format (CIT Format: DD-DDDD-DDD)
+      const idNumberPattern = /^\d{2}-\d{4}-\d{3}$/;
+      if (!idNumberPattern.test(idNumber)) {
+        throw new Error('Invalid ID number format. Please use the format: DD-DDDD-DDD (e.g., 22-6729-813)');
+      }
+
+      // Validate Password (min 8 chars + complexity)
+      if (password.length < 8) {
+        throw new Error('Password must be at least 8 characters long');
+      }
+
+      let complexityCount = 0;
+      if (/[A-Z]/.test(password)) complexityCount++; // Uppercase
+      if (/[a-z]/.test(password)) complexityCount++; // Lowercase
+      if (/[0-9]/.test(password)) complexityCount++; // Digit
+      if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) complexityCount++; // Special char
+
+      if (complexityCount < 3) {
+        throw new Error('Password must include at least 3 of: uppercase letter, lowercase letter, number, special character (!@#$%^&*)');
+      }
+
+      // Check if user already exists
+      if (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ idNumber }))) {
+        throw new Error('ID number already exists');
+      }
+      
+      if (email && (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ email })))) {
+        throw new Error('Email already exists');
+      }
+
+      // Verify department exists
+      const Department = require('../models/Department');
+      const department = await Department.findOne({ departmentCode });
+      console.log('Department lookup result:', department);
+      if (!department) {
+        throw new Error(`Department not found with code: ${departmentCode}`);
+      }
+
+      // Get department_head role
+      const role = await Role.findOne({ name: "department_head" });
+      console.log('Role lookup result:', role);
+      if (!role) {
+        throw new Error('Department head role not found in database. Please ensure the role exists.');
+      }
+
+      // Hash password and create user
+      const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
+      const user = new User({ 
+        name, 
+        idNumber, 
+        email, 
+        password: hashedPassword, 
+        role: role._id,
+        department: department._id,
+        isEmailVerified: true  // Auto-verify department heads created by admin
+      });
+
+      // No email verification needed for admin-created department heads
+      // They can log in immediately after creation
+
+      await user.save();
+      console.log('Department head user created successfully:', user._id);
+
+      return {
+        message: 'Department head registered successfully. Account is ready to use.',
+        user: { 
+          id: user._id, 
+          idNumber: user.idNumber,
+          name: user.name,
+          email: user.email,
+          department: departmentCode,
+          role: { 
+            id: role._id, 
+            name: role.name 
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Error in registerDepartmentHead service:', error);
+      throw error;
+    }
   }
 
   // Logout user

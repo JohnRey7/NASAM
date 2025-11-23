@@ -484,6 +484,7 @@ export function ApplicationReview() {
   const [counts, setCounts] = useState<any | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [applicationToEdit, setApplicationToEdit] = useState<any>(null)
+  const [personalityTestReviewed, setPersonalityTestReviewed] = useState(false)
 
   const fetchApplications = () => {
     console.log('🚀 Starting to fetch applications...');
@@ -1148,7 +1149,10 @@ export function ApplicationReview() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => setSelectedApplication(application)}
+                              onClick={() => {
+                                setSelectedApplication(application);
+                                setPersonalityTestReviewed(false);
+                              }}
                               title="View Application"
                             >
                               <Eye className="h-4 w-4" />
@@ -1384,15 +1388,24 @@ export function ApplicationReview() {
                                       {/* Action Button */}
                                       <div className="mt-6">
                                         <Button 
-                                          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
+                                          className={personalityTestReviewed ? "bg-gray-400 cursor-not-allowed px-6 py-2" : "bg-green-600 hover:bg-green-700 text-white px-6 py-2"}
+                                          disabled={personalityTestReviewed}
                                           onClick={() => {
+                                            setPersonalityTestReviewed(true);
                                             toast({
-                                              title: "Personality test Mark as reviewed",
+                                              title: "✅ Marked as Reviewed",
                                               description: `Personality assessment for ${selectedApplication?.firstName} ${selectedApplication?.lastName} has been reviewed by staff.`,
                                             });
                                           }}
                                         >
-                                          Mark as Reviewed
+                                          {personalityTestReviewed ? (
+                                            <>
+                                              <CheckCircle className="mr-2 h-4 w-4" />
+                                              Reviewed
+                                            </>
+                                          ) : (
+                                            "Mark as Reviewed"
+                                          )}
                                         </Button>
                                       </div>
                                     </div>

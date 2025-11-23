@@ -391,19 +391,29 @@ class DepartmentService {
     try {
       const ApplicationForm = require('../models/ApplicationForm');
       
+      console.log('📋 Assigning applicant:', { userId, departmentCode });
+      
       // Validate inputs
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         throw new Error('Invalid user ID');
       }
 
       // Check if department exists
+      const upperDeptCode = departmentCode.toUpperCase();
+      console.log('🔍 Looking for department with code:', upperDeptCode);
+      
       const department = await Department.findOne({ 
-        departmentCode: departmentCode.toUpperCase(), 
+        departmentCode: upperDeptCode, 
         is_deleted: false 
       });
       
+      console.log('📍 Department found:', department ? `${department.name} (${department.departmentCode})` : 'NOT FOUND');
+      
       if (!department) {
-        throw new Error('Department not found');
+        // List all available departments for debugging
+        const allDepts = await Department.find({ is_deleted: false }).select('departmentCode name');
+        console.log('📋 Available departments:', allDepts.map(d => `${d.departmentCode} - ${d.name}`));
+        throw new Error(`Department '${upperDeptCode}' not found. Available departments: ${allDepts.map(d => d.departmentCode).join(', ')}`);
       }
 
       // Find the application by user ID
@@ -428,6 +438,62 @@ class DepartmentService {
       };
     } catch (error) {
       console.error('Error assigning applicant to department:', error);
+      throw error;
+    }
+  }
+
+  static async getApplicantsForDepartmentHead(userId) {
+    try {
+      const ApplicationForm = require('../models/ApplicationForm');
+      
+      // Find the department head user
+      const departmentHead = await User.findById(userId)
+        .populate('department')
+        .select('department');
+      
+      if (!departmentHead) {
+        throw new Error('Department head not found');
+      }
+
+      if (!departmentHead.department) {
+        throw new Error('Department head is not assigned to any department');
+      }
+
+      const departmentCode = departmentHead.department.departmentCode;
+      console.log(`🔍 Finding applicants for department: ${departmentCode}`);
+
+      // Find all applications assigned to this department
+      const applications = await ApplicationForm.find({
+        assignedDepartment: departmentCode,
+        is_deleted: false
+      })
+      .populate('user', 'name idNumber email')
+      .sort({ createdAt: -1 });
+
+      console.log(`📋 Found ${applications.length} applicants for department ${departmentCode}`);
+
+      // Transform the data to match frontend expectations
+      const applicants = applications.map(app => ({
+        _id: app.user?._id || app._id,
+        id: app.user?._id || app._id,
+        userId: app.user?._id,
+        applicationId: app._id,
+        name: `${app.firstName || ''} ${app.lastName || ''}`.trim() || app.user?.name || 'Unknown',
+        firstName: app.firstName,
+        lastName: app.lastName,
+        idNumber: app.user?.idNumber || app.idNumber,
+        email: app.user?.email || app.email,
+        programOfStudyAndYear: app.programOfStudyAndYear || 'Not specified',
+        course: app.programOfStudyAndYear || 'Not specified',
+        status: app.status || 'pending',
+        createdAt: app.createdAt,
+        // Include all other application fields
+        ...app.toObject()
+      }));
+
+      return applicants;
+    } catch (error) {
+      console.error('Error getting applicants for department head:', error);
       throw error;
     }
   }

@@ -12,6 +12,11 @@ interface User {
   email: string
   role: UserRole
   profileImage?: string
+  department?: {
+    _id: string
+    departmentCode: string
+    name: string
+  }
 }
 
 interface AuthContextType {
@@ -98,6 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 ...data.user,
                 name: displayName,
                 role: data.user?.role?.name || parsedUser.role,
+                department: data.user?.department ? {
+                  _id: data.user.department._id || data.user.department,
+                  departmentCode: data.user.department.departmentCode || "",
+                  name: data.user.department.name || ""
+                } : parsedUser.department
               }
               
               setUser(updatedUser)
@@ -173,6 +183,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: displayName,
         email: data.user.email || "",
         role: data.user.role?.name || "applicant", // Default to applicant if role name is missing
+        department: data.user.department ? {
+          _id: data.user.department._id || data.user.department,
+          departmentCode: data.user.department.departmentCode || "",
+          name: data.user.department.name || ""
+        } : undefined
       }
       
       setUser(loggedInUser)

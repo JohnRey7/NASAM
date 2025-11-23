@@ -35,9 +35,31 @@ export default function RegisterDepartmentHeadForm() {
     setLoading(true);
     setSuccess("");
     setError("");
+    
+    // Frontend validation
+    const namePattern = /^[a-zA-Z\s'-]+$/;
+    if (!namePattern.test(form.name.trim()) || form.name.trim().length === 0) {
+      setError("Please enter a valid name. Only letters, spaces, hyphens, and apostrophes are allowed.");
+      setLoading(false);
+      return;
+    }
+    
+    const idNumberPattern = /^\d{2}-\d{4}-\d{3}$/;
+    if (!idNumberPattern.test(form.idNumber)) {
+      setError("Invalid ID number format. Please use: DD-DDDD-DDD (e.g., 22-6729-813)");
+      setLoading(false);
+      return;
+    }
+    
+    if (form.password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      setLoading(false);
+      return;
+    }
+    
     try {
       await departmentHeadService.registerDepartmentHead(form);
-      setSuccess("Department Head registered successfully!");
+      setSuccess("Department Head registered successfully! Account is ready to use - no email verification needed.");
       setForm({ name: "", email: "", idNumber: "", password: "", departmentCode: "" });
     } catch (err: any) {
       setError(err?.response?.data?.message || "Registration failed.");
@@ -60,8 +82,10 @@ export default function RegisterDepartmentHeadForm() {
           onChange={handleChange}
           className="w-full border rounded px-3 py-2"
           required
-          placeholder="Enter full name"
+          placeholder="e.g., John Doe"
+          title="Only letters, spaces, hyphens, and apostrophes allowed"
         />
+        <p className="text-xs text-gray-500 mt-1">Only letters, spaces, hyphens, and apostrophes allowed</p>
       </div>
       <div>
         <label className="block mb-1 font-medium">Email</label>
@@ -72,7 +96,7 @@ export default function RegisterDepartmentHeadForm() {
           onChange={handleChange}
           className="w-full border rounded px-3 py-2"
           required
-          placeholder="Enter email address"
+          placeholder="e.g., john.doe@cit.edu"
         />
       </div>
       <div>
@@ -84,8 +108,11 @@ export default function RegisterDepartmentHeadForm() {
           onChange={handleChange}
           className="w-full border rounded px-3 py-2"
           required
-          placeholder="Enter ID number"
+          placeholder="e.g., 22-6729-813"
+          pattern="\d{2}-\d{4}-\d{3}"
+          title="Format: DD-DDDD-DDD"
         />
+        <p className="text-xs text-gray-500 mt-1">Format: DD-DDDD-DDD (e.g., 22-6729-813)</p>
       </div>
       <div>
         <label className="block mb-1 font-medium">Password</label>
@@ -96,8 +123,10 @@ export default function RegisterDepartmentHeadForm() {
           onChange={handleChange}
           className="w-full border rounded px-3 py-2"
           required
-          placeholder="Enter password"
+          placeholder="Min 8 characters"
+          minLength={8}
         />
+        <p className="text-xs text-gray-500 mt-1">Min 8 characters with uppercase, lowercase, number, and special character</p>
       </div>
       <div>
         <label className="block mb-1 font-medium">Department</label>
