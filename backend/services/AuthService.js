@@ -571,14 +571,9 @@ class AuthService {
 
     console.log('👤 getCurrentUser - Raw user data from DB:', {
       address: user.address,
-      contact: user.contact,
+      phoneNumber: user.phoneNumber,
       birthday: user.birthday,
-      gender: user.gender,
-      province: user.province,
-      city: user.city,
-      barangay: user.barangay,
-      street: user.street,
-      postalCode: user.postalCode
+      gender: user.gender
     });
     
     const response = {
@@ -591,15 +586,9 @@ class AuthService {
         department: user.department,
         // Personal information fields
         address: user.address,
-        contact: user.contact,
+        phoneNumber: user.phoneNumber,
         birthday: user.birthday,
         gender: user.gender,
-        // Location fields
-        province: user.province,
-        city: user.city,
-        barangay: user.barangay,
-        street: user.street,
-        postalCode: user.postalCode,
         role: {
           id: user.role._id,
           name: user.role.name,
@@ -613,11 +602,9 @@ class AuthService {
 
     console.log('👤 getCurrentUser - Returning data:', {
       address: response.user.address,
-      contact: response.user.contact,
+      phoneNumber: response.user.phoneNumber,
       birthday: response.user.birthday,
-      gender: response.user.gender,
-      province: response.user.province,
-      city: response.user.city
+      gender: response.user.gender
     });
 
     return response;

@@ -444,24 +444,19 @@ const UserController = {
   async updateProfile(req, res) {
     try {
       const userId = req.user.id;
-      const { name, email, address, contact, birthday, gender, idNumber, province, city, barangay, street, postalCode } = req.body;
+      const { name, email, address, phoneNumber, birthday, gender, idNumber } = req.body;
 
       console.log('📝 Profile update request for user:', userId);
-      console.log('📝 Received data:', { name, email, address, contact, birthday, gender, province, city, barangay, street, postalCode });
+      console.log('📝 Received data:', { name, email, address, phoneNumber, birthday, gender });
 
       const updateData = {};
       if (name !== undefined) updateData.name = name;
       if (email !== undefined) updateData.email = email;
       if (address !== undefined) updateData.address = address;
-      if (contact !== undefined) updateData.contact = contact;
+      if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
       if (birthday !== undefined) updateData.birthday = birthday;
       if (gender !== undefined) updateData.gender = gender;
       if (idNumber !== undefined) updateData.idNumber = idNumber;
-      if (province !== undefined) updateData.province = province;
-      if (city !== undefined) updateData.city = city;
-      if (barangay !== undefined) updateData.barangay = barangay;
-      if (street !== undefined) updateData.street = street;
-      if (postalCode !== undefined) updateData.postalCode = postalCode;
 
       console.log('📝 Fields to update:', updateData);
 

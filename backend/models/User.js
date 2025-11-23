@@ -28,14 +28,8 @@ const userSchema = new mongoose.Schema({
   },
   // Personal information fields
   address: { type: String },
-  contact: { type: String },
-  birthday: { type: Date },
-  // Location fields
-  province: { type: String },
-  city: { type: String },
-  barangay: { type: String },
-  street: { type: String },
-  postalCode: { type: String },
+  phoneNumber: { type: String },
+  birthday: { type: Date }
 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -197,8 +197,7 @@ class UserService {
     try {
       const { 
         name, email,
-        address, contact, birthday, gender,
-        province, city, barangay, street, postalCode
+        address, phoneNumber, birthday, gender
       } = updateData;
 
       const filter = { _id: userId };
@@ -217,6 +216,11 @@ class UserService {
         }
       }
 
+      // Validate gender if provided
+      if (gender && !['Male', 'Female'].includes(gender)) {
+        throw new Error('Gender must be either Male or Female');
+      }
+
       // Update user
       const updatedUser = await User.findByIdAndUpdate(
         userId,
@@ -224,14 +228,9 @@ class UserService {
           ...(name && { name }),
           ...(email && { email }),
           ...(address && { address }),
-          ...(contact && { contact }),
+          ...(phoneNumber && { phoneNumber }),
           ...(birthday && { birthday }),
-          ...(gender && { gender }),
-          ...(province && { province }),
-          ...(city && { city }),
-          ...(barangay && { barangay }),
-          ...(street && { street }),
-          ...(postalCode && { postalCode })
+          ...(gender && { gender })
         },
         { new: true }
       )
@@ -251,8 +250,7 @@ class UserService {
     try {
       const { 
         name, email,
-        address, contact, birthday, gender,
-        province, city, barangay, street, postalCode
+        address, phoneNumber, birthday, gender
       } = updateData;
 
       const filter = { idNumber };
@@ -271,6 +269,11 @@ class UserService {
         }
       }
 
+      // Validate gender if provided
+      if (gender && !['Male', 'Female'].includes(gender)) {
+        throw new Error('Gender must be either Male or Female');
+      }
+
       // Update user
       const updatedUser = await User.findOneAndUpdate(
         filter,
@@ -278,14 +281,9 @@ class UserService {
           ...(name && { name }),
           ...(email && { email }),
           ...(address && { address }),
-          ...(contact && { contact }),
+          ...(phoneNumber && { phoneNumber }),
           ...(birthday && { birthday }),
-          ...(gender && { gender }),
-          ...(province && { province }),
-          ...(city && { city }),
-          ...(barangay && { barangay }),
-          ...(street && { street }),
-          ...(postalCode && { postalCode })
+          ...(gender && { gender })
         },
         { new: true }
       )
