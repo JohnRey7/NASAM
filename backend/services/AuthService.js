@@ -120,10 +120,26 @@ class AuthService {
       throw new Error('Name, ID number, password, and course ID are required');
     }
 
-    // Validate Full Name (letters, spaces, hyphens, apostrophes only)
-    const namePattern = /^[a-zA-Z\s'-]+$/;
-    if (!namePattern.test(name) || name.trim().length === 0) {
-      throw new Error('Please enter a valid name. Only letters, spaces, hyphens, and apostrophes are allowed.');
+    // Validate Full Name (letters, spaces, hyphens, apostrophes, periods, and Filipino characters)
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2 || trimmedName.length > 100) {
+      throw new Error('Name must be between 2 and 100 characters long');
+    }
+    const namePattern = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s.''-]+$/;
+    if (!namePattern.test(trimmedName)) {
+      throw new Error('Please enter a valid name. Only letters, spaces, periods, hyphens, and apostrophes are allowed. Special symbols ($, *, &, etc.) are not permitted.');
+    }
+
+    // Validate Email if provided
+    if (email) {
+      const trimmedEmail = email.trim();
+      const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailPattern.test(trimmedEmail)) {
+        throw new Error('Please enter a valid email address');
+      }
+      if (trimmedEmail.length > 100) {
+        throw new Error('Email address must not exceed 100 characters');
+      }
     }
 
     // Validate ID Number format (CIT Format: DD-DDDD-DDD)
@@ -134,17 +150,21 @@ class AuthService {
 
     // Validate Password (min 8 chars + complexity)
     if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters long');
+      throw new Error('Password must be at least 8 characters long and include at least 3 of: uppercase letter, lowercase letter, number, special character (!@#$%^&*)');
+    }
+
+    if (password.length > 128) {
+      throw new Error('Password must not exceed 128 characters');
     }
 
     let complexityCount = 0;
     if (/[A-Z]/.test(password)) complexityCount++; // Uppercase
     if (/[a-z]/.test(password)) complexityCount++; // Lowercase
     if (/[0-9]/.test(password)) complexityCount++; // Digit
-    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) complexityCount++; // Special char
+    if (/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/'`~]/.test(password)) complexityCount++; // Special char
 
     if (complexityCount < 3) {
-      throw new Error('Password must include at least 3 of: uppercase letter, lowercase letter, number, special character (!@#$%^&*)');
+      throw new Error('Password must include at least 3 of the following: uppercase letter (A-Z), lowercase letter (a-z), number (0-9), special character (!@#$%^&*)');
     }
 
     if (await User.findOne(SoftDeleteUtils.addSoftDeleteFilter({ idNumber }))) {
@@ -155,7 +175,7 @@ class AuthService {
       throw new Error('Email already exists');
     }
 
-    console.log('Registration attempt:', { name, idNumber, email, courseId });
+    console.log('Registration attempt:', { name: trimmedName, idNumber, email: email?.trim(), courseId });
     
     // Find the course by ID
     const course = await Course.findOne({ courseId });
@@ -171,9 +191,9 @@ class AuthService {
 
     const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
     const user = new User({ 
-      name, 
+      name: trimmedName, 
       idNumber, 
-      email, 
+      email: email ? email.trim() : null, 
       password: hashedPassword, 
       course: course._id,
       role: role._id 
@@ -216,13 +236,28 @@ class AuthService {
         throw new Error('Name, ID number, password, and department code are required');
       }
 
-      // Validate Full Name (letters, spaces, hyphens, apostrophes only)
-      const namePattern = /^[a-zA-Z\s'-]+$/;
-      if (!namePattern.test(name) || name.trim().length === 0) {
+      // Validate Full Name (letters, spaces, hyphens, apostrophes, periods, and Filipino characters)
+      const trimmedName = name.trim();
+      if (trimmedName.length < 2 || trimmedName.length > 100) {
+        throw new Error('Name must be between 2 and 100 characters long');
+      }
+      const namePattern = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s.''-]+$/;
+      if (!namePattern.test(trimmedName)) {
         console.error('Name validation failed for:', JSON.stringify(name));
-        console.error('Name length:', name.length, 'Trimmed length:', name.trim().length);
-        console.error('Name characters:', name.split('').map(c => `${c} (${c.charCodeAt(0)})`).join(', '));
-        throw new Error('Please enter a valid name. Only letters, spaces, hyphens, and apostrophes are allowed.');
+        console.error('Name length:', name.length, 'Trimmed length:', trimmedName.length);
+        throw new Error('Please enter a valid name. Only letters, spaces, periods, hyphens, and apostrophes are allowed. Special symbols ($, *, &, etc.) are not permitted.');
+      }
+
+      // Validate Email if provided
+      if (email) {
+        const trimmedEmail = email.trim();
+        const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailPattern.test(trimmedEmail)) {
+          throw new Error('Please enter a valid email address');
+        }
+        if (trimmedEmail.length > 100) {
+          throw new Error('Email address must not exceed 100 characters');
+        }
       }
 
       // Validate ID Number format (CIT Format: DD-DDDD-DDD)
@@ -233,17 +268,21 @@ class AuthService {
 
       // Validate Password (min 8 chars + complexity)
       if (password.length < 8) {
-        throw new Error('Password must be at least 8 characters long');
+        throw new Error('Password must be at least 8 characters long and include at least 3 of: uppercase letter, lowercase letter, number, special character (!@#$%^&*)');
+      }
+
+      if (password.length > 128) {
+        throw new Error('Password must not exceed 128 characters');
       }
 
       let complexityCount = 0;
       if (/[A-Z]/.test(password)) complexityCount++; // Uppercase
       if (/[a-z]/.test(password)) complexityCount++; // Lowercase
       if (/[0-9]/.test(password)) complexityCount++; // Digit
-      if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) complexityCount++; // Special char
+      if (/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/'`~]/.test(password)) complexityCount++; // Special char
 
       if (complexityCount < 3) {
-        throw new Error('Password must include at least 3 of: uppercase letter, lowercase letter, number, special character (!@#$%^&*)');
+        throw new Error('Password must include at least 3 of the following: uppercase letter (A-Z), lowercase letter (a-z), number (0-9), special character (!@#$%^&*)');
       }
 
       // Check if user already exists
@@ -273,9 +312,9 @@ class AuthService {
       // Hash password and create user
       const hashedPassword = await argon2.hash(password, { type: argon2.argon2id });
       const user = new User({ 
-        name, 
+        name: trimmedName, 
         idNumber, 
-        email, 
+        email: email ? email.trim() : null, 
         password: hashedPassword, 
         role: role._id,
         department: department._id,
