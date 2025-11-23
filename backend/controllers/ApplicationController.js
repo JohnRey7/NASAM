@@ -967,8 +967,9 @@ const ApplicationController = {
   // Soft delete an application
   async softDeleteApplication(req, res) {
     try {
-      const { id } = req.params;
-      const result = await ApplicationService.softDeleteApplication(id);
+      // Support both :id and :applicationId parameters
+      const applicationId = req.params.applicationId || req.params.id;
+      const result = await ApplicationService.softDeleteApplication(applicationId);
       
       res.json(result);
     } catch (error) {
@@ -983,8 +984,9 @@ const ApplicationController = {
   // Restore a soft-deleted application
   async restoreApplication(req, res) {
     try {
-      const { id } = req.params;
-      const result = await ApplicationService.restoreApplication(id);
+      // Support both :id and :applicationId parameters
+      const applicationId = req.params.applicationId || req.params.id;
+      const result = await ApplicationService.restoreApplication(applicationId);
       
       res.json(result);
     } catch (error) {
@@ -999,8 +1001,9 @@ const ApplicationController = {
   // Permanently delete an application
   async permanentDeleteApplication(req, res) {
     try {
-      const { id } = req.params;
-      const result = await ApplicationService.permanentDeleteApplication(id);
+      // Support both :id and :applicationId parameters
+      const applicationId = req.params.applicationId || req.params.id;
+      const result = await ApplicationService.permanentDeleteApplication(applicationId);
       
       res.json(result);
     } catch (error) {
@@ -1021,6 +1024,53 @@ const ApplicationController = {
     } catch (error) {
       console.error('Error in getSoftDeletedApplications:', error);
       res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Soft delete only application form (keep documents)
+  async softDeleteApplicationFormOnly(req, res) {
+    try {
+      const { applicationId } = req.params;
+      console.log('🗑️ Soft delete APPLICATION FORM ONLY for:', applicationId);
+
+      const result = await ApplicationService.softDeleteApplicationFormOnly(applicationId);
+      console.log('✅ Application form soft deleted - Documents preserved');
+
+      res.json({
+        success: true,
+        message: result.message,
+        deletedData: result.deletedData
+      });
+
+    } catch (error) {
+      console.error('❌ Error soft deleting application form:', error);
+      if (error.message.includes('Invalid') || error.message.includes('not found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: 'Failed to soft delete application form', error: error.message });
+    }
+  },
+
+  // Soft delete only documents (keep application form)
+  async softDeleteDocumentsOnly(req, res) {
+    try {
+      const { applicationId } = req.params;
+      console.log('🗑️ Soft delete DOCUMENTS ONLY for:', applicationId);
+
+      const result = await ApplicationService.softDeleteDocumentsOnly(applicationId);
+      console.log('✅ Documents soft deleted - Application form preserved');
+
+      res.json({
+        success: true,
+        message: result.message
+      });
+
+    } catch (error) {
+      console.error('❌ Error soft deleting documents:', error);
+      if (error.message.includes('Invalid') || error.message.includes('not found') || error.message.includes('No documents found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: error.message });
     }
   }
 };

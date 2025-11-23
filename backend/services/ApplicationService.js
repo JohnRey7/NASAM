@@ -1618,6 +1618,69 @@ class ApplicationService {
       throw error;
     }
   }
+
+  // Soft delete application form only (keep documents)
+  static async softDeleteApplicationFormOnly(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findOne({ _id: applicationId, is_deleted: false }).populate('user', 'name email');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Use soft delete to mark as deleted without removing from database
+    await ApplicationForm.findByIdAndUpdate(applicationId, { is_deleted: true });
+
+    return {
+      message: `Application form for ${application.firstName} ${application.lastName} has been soft deleted. Documents are preserved for reuse.`,
+      deletedData: {
+        applicationId: application._id,
+        studentName: `${application.firstName} ${application.lastName}`,
+        documentsPreserved: true,
+        canRestore: true
+      }
+    };
+  }
+
+  // Soft delete documents only (keep application form)
+  static async softDeleteDocumentsOnly(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findOne({ _id: applicationId, is_deleted: false }).populate('user', 'name email');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    try {
+      const DocumentUpload = require('../models/DocumentUpload');
+      
+      // Soft delete documents instead of permanent delete
+      const docResult = await DocumentUpload.updateOne(
+        { user: application.user._id },
+        { is_deleted: true }
+      );
+      
+      if (docResult.matchedCount === 0) {
+        throw new Error('No documents found to delete');
+      }
+
+      return {
+        message: `Documents for ${application.firstName} ${application.lastName} have been soft deleted. Application form is preserved.`,
+        deletedData: {
+          applicationId: application._id,
+          studentName: `${application.firstName} ${application.lastName}`,
+          formPreserved: true,
+          canRestore: true
+        }
+      };
+    } catch (docError) {
+      throw new Error(`Failed to soft delete documents: ${docError.message}`);
+    }
+  }
 }
 
 module.exports = ApplicationService;

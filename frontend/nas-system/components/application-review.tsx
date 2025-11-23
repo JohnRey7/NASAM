@@ -221,11 +221,12 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
 
   const handleDeleteDocuments = async (applicationId: string) => {
     const isConfirmed = window.confirm(
-      `🟠 DELETE DOCUMENTS ONLY\n\n` +
+      `🟠 SOFT DELETE DOCUMENTS ONLY\n\n` +
       `This will:\n` +
       `• ✅ Keep the application form intact\n` +
-      `• ❌ Delete all uploaded documents\n` +
-      `• 📄 Student must re-upload new documents\n\n` +
+      `• ❌ Mark all uploaded documents as deleted (soft delete)\n` +
+      `• ✅ CAN BE RESTORED if needed\n` +
+      `• 📄 Student can re-upload new documents\n\n` +
       `Perfect for: Bad documents, wrong files, corrupted uploads\n\n` +
       `Proceed?`
     );
@@ -247,8 +248,8 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
       }
 
       toast({
-        title: "Documents Deleted",
-        description: "All documents have been deleted. Application form preserved. Student must re-upload documents.",
+        title: "Documents Soft Deleted",
+        description: "All documents have been soft deleted. Application form preserved. Documents can be restored if needed.",
         duration: 5000
       });
 
@@ -788,13 +789,14 @@ export function ApplicationReview() {
   const handleDeleteApplication = async (application: any) => {
     // Confirmation dialog
     const isConfirmed = window.confirm(
-      `⚠️ DELETE APPLICATION\n\n` +
+      `⚠️ SOFT DELETE APPLICATION\n\n` +
       `Student: ${application.firstName} ${application.lastName}\n` +
       `Email: ${application.emailAddress}\n` +
       `Submission Date: ${new Date(application.submissionDate || application.createdAt).toLocaleDateString()}\n\n` +
       `This action will:\n` +
-      `• Delete the entire application permanently\n` +
-      `• Remove all associated documents\n` +
+      `• Mark the entire application as deleted (soft delete)\n` +
+      `• Hide from active applications list\n` +
+      `• CAN BE RESTORED if needed\n` +
       `• Allow the student to submit a fresh application\n\n` +
       `Are you sure you want to proceed?`
     );
@@ -814,8 +816,18 @@ export function ApplicationReview() {
         }
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json();
+        const text = await response.text();
+        console.error('Error response text:', text);
+        let errorData;
+        try {
+          errorData = JSON.parse(text);
+        } catch {
+          throw new Error(`HTTP ${response.status}: ${text || 'Unknown error'}`);
+        }
         throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
@@ -827,8 +839,8 @@ export function ApplicationReview() {
       setApplications(prev => prev.filter(app => app._id !== application._id));
 
       toast({
-        title: "Application Deleted",
-        description: `${application.firstName} ${application.lastName}'s application has been deleted successfully. They can now submit a new application.`,
+        title: "Application Soft Deleted",
+        description: `${application.firstName} ${application.lastName}'s application has been soft deleted. It can be restored from the deleted applications section if needed.`,
         duration: 5000
       });
 
@@ -855,12 +867,13 @@ export function ApplicationReview() {
   // Delete Application Form Only
   const handleDeleteApplicationForm = async (application: any) => {
     const isConfirmed = window.confirm(
-      `🟡 DELETE APPLICATION FORM ONLY\n\n` +
+      `🟡 SOFT DELETE APPLICATION FORM ONLY\n\n` +
       `Student: ${application.firstName} ${application.lastName}\n` +
       `Email: ${application.emailAddress}\n\n` +
       `This will:\n` +
-      `• ❌ Delete the application form (answers, personal info)\n` +
+      `• ❌ Mark application form as deleted (soft delete)\n` +
       `• ✅ Keep all uploaded documents intact\n` +
+      `• ✅ CAN BE RESTORED if needed\n` +
       `• ✅ Student can resubmit form using existing documents\n\n` +
       `Perfect for: Wrong answers, form errors\n\n` +
       `Proceed?`
@@ -886,8 +899,8 @@ export function ApplicationReview() {
       setApplications(prev => prev.filter(app => app._id !== application._id));
 
       toast({
-        title: "Application Form Deleted",
-        description: `${application.firstName} ${application.lastName}'s form deleted. Documents preserved for reuse.`,
+        title: "Application Form Soft Deleted",
+        description: `${application.firstName} ${application.lastName}'s form soft deleted. Documents preserved and can be restored if needed.`,
         duration: 5000
       });
 
@@ -912,13 +925,14 @@ export function ApplicationReview() {
   // Delete Documents Only
   const handleDeleteDocuments = async (application: any) => {
     const isConfirmed = window.confirm(
-      `🟠 DELETE DOCUMENTS ONLY\n\n` +
+      `🟠 SOFT DELETE DOCUMENTS ONLY\n\n` +
       `Student: ${application.firstName} ${application.lastName}\n` +
       `Email: ${application.emailAddress}\n\n` +
       `This will:\n` +
       `• ✅ Keep the application form intact\n` +
-      `• ❌ Delete all uploaded documents\n` +
-      `• 📄 Student must re-upload new documents\n\n` +
+      `• ❌ Mark all uploaded documents as deleted (soft delete)\n` +
+      `• ✅ CAN BE RESTORED if needed\n` +
+      `• 📄 Student can re-upload new documents\n\n` +
       `Perfect for: Bad documents, wrong files, corrupted uploads\n\n` +
       `Proceed?`
     );
@@ -940,8 +954,8 @@ export function ApplicationReview() {
       }
 
       toast({
-        title: "Documents Deleted",
-        description: `${application.firstName} ${application.lastName}'s documents deleted. Application form preserved.`,
+        title: "Documents Soft Deleted",
+        description: `${application.firstName} ${application.lastName}'s documents soft deleted. Application form preserved and documents can be restored if needed.`,
         duration: 5000
       });
 

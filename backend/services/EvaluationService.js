@@ -124,30 +124,35 @@ class EvaluationService {
     }
   }
 
-  static async getEvaluationById(id) {
+  static async getEvaluationById(idNumber) {
     try {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error('Invalid evaluation ID');
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with the provided ID number');
       }
 
-      const evaluation = await Evaluation.findById(id)
-        .populate('evaluateeUser', 'name email');
+      // Find evaluation by user ObjectId
+      const evaluation = await Evaluation.findOne({ evaluateeUser: user._id, is_deleted: false })
+        .populate('evaluateeUser', 'name email idNumber');
       
       if (!evaluation) {
-        throw new Error('Evaluation not found');
+        throw new Error('Evaluation not found for this user');
       }
 
       return evaluation;
     } catch (error) {
-      console.error('Error getting evaluation by ID:', error);
+      console.error('Error getting evaluation by ID number:', error);
       throw error;
     }
   }
 
-  static async updateEvaluation(id, updateData) {
+  static async updateEvaluation(idNumber, updateData) {
     try {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error('Invalid evaluation ID');
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with the provided ID number');
       }
 
       // Validate request body
@@ -165,10 +170,10 @@ class EvaluationService {
         overallRating
       } = updateData;
 
-      // Find evaluation
-      const evaluation = await Evaluation.findById(id);
+      // Find evaluation by user ObjectId
+      const evaluation = await Evaluation.findOne({ evaluateeUser: user._id, is_deleted: false });
       if (!evaluation) {
-        throw new Error('Evaluation not found');
+        throw new Error('Evaluation not found for this user');
       }
 
       // Update fields (exclude evaluateeUser and timeKeepingRecord)
@@ -186,7 +191,7 @@ class EvaluationService {
 
       // Populate and return
       const populatedEvaluation = await Evaluation.findById(evaluation._id)
-        .populate('evaluateeUser', 'name email');
+        .populate('evaluateeUser', 'name email idNumber');
       
       return populatedEvaluation;
     } catch (error) {
@@ -195,15 +200,18 @@ class EvaluationService {
     }
   }
 
-  static async deleteEvaluation(id) {
+  static async deleteEvaluation(idNumber) {
     try {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error('Invalid evaluation ID');
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with the provided ID number');
       }
 
-      const evaluation = await Evaluation.findByIdAndDelete(id);
+      // Find and delete evaluation by user ObjectId
+      const evaluation = await Evaluation.findOneAndDelete({ evaluateeUser: user._id, is_deleted: false });
       if (!evaluation) {
-        throw new Error('Evaluation not found');
+        throw new Error('Evaluation not found for this user');
       }
 
       return { message: 'Evaluation deleted successfully' };
@@ -213,10 +221,12 @@ class EvaluationService {
     }
   }
 
-  static async updateTimeKeepingRecord(id, timeKeepingRecord) {
+  static async updateTimeKeepingRecord(idNumber, timeKeepingRecord) {
     try {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error('Invalid evaluation ID');
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with the provided ID number');
       }
 
       // Validate request body
@@ -234,10 +244,10 @@ class EvaluationService {
         }
       }
 
-      // Find evaluation
-      const evaluation = await Evaluation.findById(id);
+      // Find evaluation by user ObjectId
+      const evaluation = await Evaluation.findOne({ evaluateeUser: user._id, is_deleted: false });
       if (!evaluation) {
-        throw new Error('Evaluation not found');
+        throw new Error('Evaluation not found for this user');
       }
 
       // Update timeKeepingRecord
@@ -246,7 +256,7 @@ class EvaluationService {
 
       // Populate and return
       const populatedEvaluation = await Evaluation.findById(evaluation._id)
-        .populate('evaluateeUser', 'name email');
+        .populate('evaluateeUser', 'name email idNumber');
       
       return populatedEvaluation;
     } catch (error) {
@@ -255,15 +265,18 @@ class EvaluationService {
     }
   }
 
-  static async getTimeKeepingRecord(id) {
+  static async getTimeKeepingRecord(idNumber) {
     try {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error('Invalid evaluation ID');
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with the provided ID number');
       }
 
-      const evaluation = await Evaluation.findById(id).select('timeKeepingRecord');
+      // Find evaluation by user ObjectId
+      const evaluation = await Evaluation.findOne({ evaluateeUser: user._id, is_deleted: false }).select('timeKeepingRecord');
       if (!evaluation) {
-        throw new Error('Evaluation not found');
+        throw new Error('Evaluation not found for this user');
       }
 
       return { timeKeepingRecord: evaluation.timeKeepingRecord };
@@ -274,9 +287,21 @@ class EvaluationService {
   }
 
   // Soft Delete Methods
-  static async softDeleteEvaluation(evaluationId) {
+  static async softDeleteEvaluation(idNumber) {
     try {
-      const result = await SoftDeleteUtils.softDeleteById(Evaluation, evaluationId);
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with the provided ID number');
+      }
+
+      // Find evaluation by user ObjectId
+      const evaluation = await Evaluation.findOne({ evaluateeUser: user._id, is_deleted: false });
+      if (!evaluation) {
+        throw new Error('Evaluation not found for this user');
+      }
+
+      const result = await SoftDeleteUtils.softDeleteById(Evaluation, evaluation._id);
       return { message: 'Evaluation soft deleted successfully', data: result };
     } catch (error) {
       console.error('Error soft deleting evaluation:', error);
@@ -284,9 +309,21 @@ class EvaluationService {
     }
   }
 
-  static async restoreEvaluation(evaluationId) {
+  static async restoreEvaluation(idNumber) {
     try {
-      const result = await SoftDeleteUtils.restoreById(Evaluation, evaluationId);
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with the provided ID number');
+      }
+
+      // Find soft-deleted evaluation by user ObjectId
+      const evaluation = await Evaluation.findOne({ evaluateeUser: user._id, is_deleted: true });
+      if (!evaluation) {
+        throw new Error('Soft-deleted evaluation not found for this user');
+      }
+
+      const result = await SoftDeleteUtils.restoreById(Evaluation, evaluation._id);
       return { message: 'Evaluation restored successfully', data: result };
     } catch (error) {
       console.error('Error restoring evaluation:', error);
@@ -294,9 +331,21 @@ class EvaluationService {
     }
   }
 
-  static async permanentDeleteEvaluation(evaluationId) {
+  static async permanentDeleteEvaluation(idNumber) {
     try {
-      const result = await SoftDeleteUtils.permanentDeleteById(Evaluation, evaluationId);
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with the provided ID number');
+      }
+
+      // Find soft-deleted evaluation by user ObjectId
+      const evaluation = await Evaluation.findOne({ evaluateeUser: user._id, is_deleted: true });
+      if (!evaluation) {
+        throw new Error('Soft-deleted evaluation not found for this user');
+      }
+
+      const result = await SoftDeleteUtils.permanentDeleteById(Evaluation, evaluation._id);
       return { message: 'Evaluation permanently deleted', data: result };
     } catch (error) {
       console.error('Error permanently deleting evaluation:', error);

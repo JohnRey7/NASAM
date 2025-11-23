@@ -291,17 +291,17 @@ app.get('/api/review', authenticate, checkPermission('interview.readOwn'), Inter
 // Evaluation Routes
 app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
 app.get('/api/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluations);
-app.get('/api/evaluations/:id', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationById);
-app.patch('/api/evaluations/:id', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluation);
-app.delete('/api/evaluations/:id', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluation);
+app.get('/api/evaluations/:idNumber', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationById);
+app.patch('/api/evaluations/:idNumber', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluation);
+app.delete('/api/evaluations/:idNumber', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluation);
 
 // Soft delete routes for evaluations
-app.delete('/api/evaluations/:id/soft', authenticate, checkPermission('evaluation.delete'), EvaluationController.softDeleteEvaluation);
-app.put('/api/evaluations/:id/restore', authenticate, checkPermission('evaluation.delete'), EvaluationController.restoreEvaluation);
-app.delete('/api/evaluations/:id/permanent', authenticate, checkPermission('evaluation.delete'), EvaluationController.permanentDeleteEvaluation);
+app.delete('/api/evaluations/:idNumber/soft', authenticate, checkPermission('evaluation.delete'), EvaluationController.softDeleteEvaluation);
+app.put('/api/evaluations/:idNumber/restore', authenticate, checkPermission('evaluation.delete'), EvaluationController.restoreEvaluation);
+app.delete('/api/evaluations/:idNumber/permanent', authenticate, checkPermission('evaluation.delete'), EvaluationController.permanentDeleteEvaluation);
 app.get('/api/evaluations/deleted', authenticate, checkPermission('evaluation.read'), EvaluationController.getSoftDeletedEvaluations);
-app.patch('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeKeepingRecord);
-app.get('/api/evaluations/:id/timekeeping', authenticate, checkPermission('evaluation.read_timekeeping'), EvaluationController.getTimeKeepingRecord);
+app.patch('/api/evaluations/:idNumber/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeKeepingRecord);
+app.get('/api/evaluations/:idNumber/timekeeping', authenticate, checkPermission('evaluation.read_timekeeping'), EvaluationController.getTimeKeepingRecord);
 
 // Department Routes
 app.post('/api/departments', authenticate, checkPermission('department.create'), DepartmentController.createDepartment);
@@ -380,13 +380,13 @@ app.get('/api/oas/applications', authenticate, checkPermission('applicationForm.
 app.get('/api/oas/application/:applicationId/documents', authenticate, ApplicationController.getApplicationDocumentsByAppId);
 app.patch('/api/oas/application/:applicationId/status', authenticate, checkPermission('applicationForm.update'), ApplicationController.updateApplicationStatus);
 app.get('/api/oas/application-by-id/:applicationId/pdf', authenticate, ApplicationController.exportApplicationFormAsPDFByApplicationId);
-// Delete application route for OAS staff
-app.delete('/api/oas/application/:applicationId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationById);
-// Delete only application form (keep documents)
-app.delete('/api/oas/application/:applicationId/form-only', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteApplicationFormOnly);
+// Delete application route for OAS staff (SOFT DELETE - marks as deleted, allows restore)
+app.delete('/api/oas/application/:applicationId', authenticate, checkPermission('applicationForm.delete'), ApplicationController.softDeleteApplication);
+// Delete only application form (keep documents) - SOFT DELETE
+app.delete('/api/oas/application/:applicationId/form-only', authenticate, checkPermission('applicationForm.delete'), ApplicationController.softDeleteApplicationFormOnly);
 
-// Delete only documents (keep application form)
-app.delete('/api/oas/application/:applicationId/documents-only', authenticate, checkPermission('applicationForm.delete'), ApplicationController.deleteDocumentsOnly);
+// Delete only documents (keep application form) - SOFT DELETE
+app.delete('/api/oas/application/:applicationId/documents-only', authenticate, checkPermission('applicationForm.delete'), ApplicationController.softDeleteDocumentsOnly);
 
 // OAS Soft delete routes for applications
 app.delete('/api/oas/application/:applicationId/soft', authenticate, checkPermission('applicationForm.delete'), ApplicationController.softDeleteApplication);
