@@ -256,8 +256,22 @@ class ApplicationService {
           sanitizedData.education.collegeLevel = sanitizedData.education.collegeLevel.map((level, index) => {
             if (level.yearLevel !== undefined) level.yearLevel = this.sanitizeNumericField(level.yearLevel, `College Year ${index + 1}`, { integer: true, min: 1, max: 7 });
             if (level.firstSemesterAverageFinalGrade !== undefined) level.firstSemesterAverageFinalGrade = this.sanitizeNumericField(level.firstSemesterAverageFinalGrade, `Year ${index + 1} First Sem Grade`, { min: 1, max: 5 });
-            if (level.secondSemesterAverageFinalGrade !== undefined) level.secondSemesterAverageFinalGrade = this.sanitizeNumericField(level.secondSemesterAverageFinalGrade, `Year ${index + 1} Second Sem Grade`, { min: 1, max: 5 });
-            if (level.thirdSemesterAverageFinalGrade !== undefined) level.thirdSemesterAverageFinalGrade = this.sanitizeNumericField(level.thirdSemesterAverageFinalGrade, `Year ${index + 1} Third Sem Grade`, { min: 1, max: 5 });
+            
+            // Second semester is optional - only validate if value is provided (not empty/null/undefined/0)
+            if (level.secondSemesterAverageFinalGrade && level.secondSemesterAverageFinalGrade !== 0) {
+              level.secondSemesterAverageFinalGrade = this.sanitizeNumericField(level.secondSemesterAverageFinalGrade, `Year ${index + 1} Second Sem Grade`, { min: 1, max: 5 });
+            } else {
+              // Clear out invalid optional values
+              level.secondSemesterAverageFinalGrade = undefined;
+            }
+            
+            // Third semester is optional - only validate if value is provided (not empty/null/undefined/0)
+            if (level.thirdSemesterAverageFinalGrade && level.thirdSemesterAverageFinalGrade !== 0) {
+              level.thirdSemesterAverageFinalGrade = this.sanitizeNumericField(level.thirdSemesterAverageFinalGrade, `Year ${index + 1} Third Sem Grade`, { min: 1, max: 5 });
+            } else {
+              // Clear out invalid optional values
+              level.thirdSemesterAverageFinalGrade = undefined;
+            }
             return level;
           });
         }

@@ -149,7 +149,7 @@ const applicationFormSchema = new mongoose.Schema({
         }
       },
       firstSemesterAverageFinalGrade: { type: Number, required: true },
-      secondSemesterAverageFinalGrade: { type: Number, required: true },
+      secondSemesterAverageFinalGrade: { type: Number },
       thirdSemesterAverageFinalGrade: { type: Number }
     }],
     currentMembershipInOrganizations: [{
