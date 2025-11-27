@@ -279,7 +279,7 @@ class AuthService {
         password: hashedPassword, 
         role: role._id,
         department: department._id,
-        isEmailVerified: true  // Auto-verify department heads created by admin
+        verified: true  // Auto-verify department heads created by admin
       });
 
       // No email verification needed for admin-created department heads

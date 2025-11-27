@@ -427,8 +427,16 @@ class DepartmentService {
       }
 
       // Update the application with department assignment
+      console.log(`🔄 Before save - assignedDepartment: ${application.assignedDepartment}`);
       application.assignedDepartment = departmentCode.toUpperCase();
-      await application.save();
+      console.log(`🔄 After assignment - assignedDepartment: ${application.assignedDepartment}`);
+      
+      const savedApp = await application.save({ validateBeforeSave: false });
+      console.log(`💾 Saved application - assignedDepartment in DB: ${savedApp.assignedDepartment}`);
+      
+      // Verify the save worked
+      const verifyApp = await ApplicationForm.findById(application._id).select('assignedDepartment');
+      console.log(`✔️ Verification - assignedDepartment in DB: ${verifyApp.assignedDepartment}`);
 
       console.log(`✅ Assigned applicant ${userId} to department ${departmentCode}`);
 
@@ -462,6 +470,15 @@ class DepartmentService {
       const departmentCode = departmentHead.department.departmentCode;
       console.log(`🔍 Finding applicants for department: ${departmentCode}`);
 
+      // Debug: Check all applications with assignedDepartment field
+      const allAssigned = await ApplicationForm.find({ 
+        assignedDepartment: { $exists: true } 
+      }).select('assignedDepartment firstName lastName');
+      console.log(`📊 Total applications with assignedDepartment field: ${allAssigned.length}`);
+      allAssigned.forEach(app => {
+        console.log(`  - ${app.firstName} ${app.lastName}: assignedDepartment = "${app.assignedDepartment}" (type: ${typeof app.assignedDepartment})`);
+      });
+
       // Find all applications assigned to this department
       const applications = await ApplicationForm.find({
         assignedDepartment: departmentCode,
@@ -473,23 +490,29 @@ class DepartmentService {
       console.log(`📋 Found ${applications.length} applicants for department ${departmentCode}`);
 
       // Transform the data to match frontend expectations
-      const applicants = applications.map(app => ({
-        _id: app.user?._id || app._id,
-        id: app.user?._id || app._id,
-        userId: app.user?._id,
-        applicationId: app._id,
-        name: `${app.firstName || ''} ${app.lastName || ''}`.trim() || app.user?.name || 'Unknown',
-        firstName: app.firstName,
-        lastName: app.lastName,
-        idNumber: app.user?.idNumber || app.idNumber,
-        email: app.user?.email || app.email,
-        programOfStudyAndYear: app.programOfStudyAndYear || 'Not specified',
-        course: app.programOfStudyAndYear || 'Not specified',
-        status: app.status || 'pending',
-        createdAt: app.createdAt,
-        // Include all other application fields
-        ...app.toObject()
-      }));
+      const applicants = applications.map(app => {
+        try {
+          return {
+            _id: app.user?._id || app._id,
+            id: app.user?._id || app._id,
+            userId: app.user?._id,
+            applicationId: app._id,
+            name: `${app.firstName || ''} ${app.lastName || ''}`.trim() || app.user?.name || 'Unknown',
+            firstName: app.firstName,
+            lastName: app.lastName,
+            idNumber: app.user?.idNumber || app.idNumber,
+            email: app.user?.email || app.email,
+            programOfStudyAndYear: app.programOfStudyAndYear || 'Not specified',
+            course: app.programOfStudyAndYear || 'Not specified',
+            status: app.status || 'pending',
+            createdAt: app.createdAt,
+            assignedDepartment: app.assignedDepartment
+          };
+        } catch (err) {
+          console.error('Error transforming application:', app._id, err);
+          return null;
+        }
+      }).filter(app => app !== null);
 
       return applicants;
     } catch (error) {

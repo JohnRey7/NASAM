@@ -27,6 +27,16 @@ const checkPermission = (requiredPermission) => {
         return res.status(403).json({ message: 'Account is disabled' });
       }
 
+      // Check if role and permissions exist
+      if (!user.role || !user.role.permissions) {
+        console.error(' User role or permissions not found:', {
+          userId: user._id,
+          role: user.role,
+          hasPermissions: user.role?.permissions
+        });
+        return res.status(403).json({ message: 'User role or permissions not configured' });
+      }
+
       // Check if the user's role has the "administrator" permission
       const isAdministrator = user.role.permissions.some(
         (permission) => permission.name === 'administrator'

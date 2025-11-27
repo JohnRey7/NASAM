@@ -148,9 +148,9 @@ const applicationFormSchema = new mongoose.Schema({
           message: '{VALUE} is not an integer value'
         }
       },
-      firstSemesterAverageFinalGrade: { type: Number, required: true },
-      secondSemesterAverageFinalGrade: { type: Number, required: true },
-      thirdSemesterAverageFinalGrade: { type: Number }
+      firstSemesterAverageFinalGrade: { type: Number, required: false },
+      secondSemesterAverageFinalGrade: { type: Number, required: false },
+      thirdSemesterAverageFinalGrade: { type: Number, required: false }
     }],
     currentMembershipInOrganizations: [{
       nameOfOrganization: { type: String, required: true },
@@ -185,6 +185,7 @@ const applicationFormSchema = new mongoose.Schema({
     endorsedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
+  assignedDepartment: { type: String },
   is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
