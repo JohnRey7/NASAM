@@ -39,8 +39,8 @@ async function getAllEvaluations(req, res) {
 // Get an evaluation by ID
 async function getEvaluationById(req, res) {
   try {
-    const { id } = req.params;
-    const evaluation = await EvaluationService.getEvaluationById(id);
+    const { idNumber } = req.params;
+    const evaluation = await EvaluationService.getEvaluationById(idNumber);
     
     res.status(200).json(evaluation);
   } catch (error) {
@@ -58,8 +58,8 @@ async function getEvaluationById(req, res) {
 // Update an evaluation (exclude timeKeepingRecord)
 async function updateEvaluation(req, res) {
   try {
-    const { id } = req.params;
-    const evaluation = await EvaluationService.updateEvaluation(id, req.body);
+    const { idNumber } = req.params;
+    const evaluation = await EvaluationService.updateEvaluation(idNumber, req.body);
     
     res.status(200).json(evaluation);
   } catch (error) {
@@ -77,8 +77,8 @@ async function updateEvaluation(req, res) {
 // Delete an evaluation
 async function deleteEvaluation(req, res) {
   try {
-    const { id } = req.params;
-    const result = await EvaluationService.deleteEvaluation(id);
+    const { idNumber } = req.params;
+    const result = await EvaluationService.deleteEvaluation(idNumber);
     
     res.status(200).json(result);
   } catch (error) {
@@ -96,8 +96,8 @@ async function deleteEvaluation(req, res) {
 // Update timeKeepingRecord
 async function updateTimeKeepingRecord(req, res) {
   try {
-    const { id } = req.params;
-    const evaluation = await EvaluationService.updateTimeKeepingRecord(id, req.body);
+    const { idNumber } = req.params;
+    const evaluation = await EvaluationService.updateTimeKeepingRecord(idNumber, req.body);
     
     res.status(200).json(evaluation);
   } catch (error) {
@@ -115,8 +115,8 @@ async function updateTimeKeepingRecord(req, res) {
 // Get timeKeepingRecord
 async function getTimeKeepingRecord(req, res) {
   try {
-    const { id } = req.params;
-    const result = await EvaluationService.getTimeKeepingRecord(id);
+    const { idNumber } = req.params;
+    const result = await EvaluationService.getTimeKeepingRecord(idNumber);
     
     res.status(200).json(result);
   } catch (error) {
@@ -134,8 +134,8 @@ async function getTimeKeepingRecord(req, res) {
 // Soft delete an evaluation
 async function softDeleteEvaluation(req, res) {
   try {
-    const { id } = req.params;
-    const result = await EvaluationService.softDeleteEvaluation(id);
+    const { idNumber } = req.params;
+    const result = await EvaluationService.softDeleteEvaluation(idNumber);
     
     res.json(result);
   } catch (error) {
@@ -150,8 +150,8 @@ async function softDeleteEvaluation(req, res) {
 // Restore a soft-deleted evaluation
 async function restoreEvaluation(req, res) {
   try {
-    const { id } = req.params;
-    const result = await EvaluationService.restoreEvaluation(id);
+    const { idNumber } = req.params;
+    const result = await EvaluationService.restoreEvaluation(idNumber);
     
     res.json(result);
   } catch (error) {
@@ -166,8 +166,8 @@ async function restoreEvaluation(req, res) {
 // Permanently delete an evaluation
 async function permanentDeleteEvaluation(req, res) {
   try {
-    const { id } = req.params;
-    const result = await EvaluationService.permanentDeleteEvaluation(id);
+    const { idNumber } = req.params;
+    const result = await EvaluationService.permanentDeleteEvaluation(idNumber);
     
     res.json(result);
   } catch (error) {

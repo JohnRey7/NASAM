@@ -26,12 +26,293 @@ class ApplicationService {
     return historyEntry;
   }
 
-  // Helper function to sanitize data
+  // Helper function to validate and sanitize text fields (names, addresses, etc.)
+  static sanitizeTextField(value, fieldName, options = {}) {
+    if (value === null || value === undefined || value === '') {
+      return value;
+    }
+
+    const stringValue = String(value).trim();
+    
+    // Check for maximum length
+    if (options.maxLength && stringValue.length > options.maxLength) {
+      throw new Error(`${fieldName} exceeds maximum length of ${options.maxLength} characters`);
+    }
+
+    // For name fields - only letters, spaces, periods, hyphens, apostrophes, and Filipino characters
+    if (options.type === 'name') {
+      const nameRegex = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s.''-]+$/;
+      if (!nameRegex.test(stringValue)) {
+        throw new Error(`${fieldName} contains invalid characters. Only letters, spaces, periods, hyphens, and apostrophes are allowed`);
+      }
+    }
+
+    // For address fields - letters, numbers, spaces, and common punctuation
+    if (options.type === 'address') {
+      const addressRegex = /^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\s.,#()\-/']+$/;
+      if (!addressRegex.test(stringValue)) {
+        throw new Error(`${fieldName} contains invalid characters. Only letters, numbers, spaces, and basic punctuation are allowed`);
+      }
+    }
+
+    // For general text fields - letters, numbers, spaces, and extended punctuation
+    if (options.type === 'text') {
+      const textRegex = /^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\s.,;:()\-/'"&]+$/;
+      if (!textRegex.test(stringValue)) {
+        throw new Error(`${fieldName} contains invalid characters`);
+      }
+    }
+
+    // For email fields
+    if (options.type === 'email') {
+      const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(stringValue)) {
+        throw new Error(`${fieldName} must be a valid email address`);
+      }
+    }
+
+    // For phone numbers - only digits, spaces, hyphens, parentheses, and plus sign
+    if (options.type === 'phone') {
+      const phoneRegex = /^[\d\s\-()+ ]+$/;
+      if (!phoneRegex.test(stringValue)) {
+        throw new Error(`${fieldName} contains invalid characters. Only numbers and phone formatting characters are allowed`);
+      }
+      // Remove all non-digit characters and check length
+      const digitsOnly = stringValue.replace(/\D/g, '');
+      if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+        throw new Error(`${fieldName} must contain between 7 and 15 digits`);
+      }
+    }
+
+    return stringValue;
+  }
+
+  // Helper function to validate numeric fields
+  static sanitizeNumericField(value, fieldName, options = {}) {
+    if (value === null || value === undefined || value === '') {
+      return value;
+    }
+
+    const numValue = Number(value);
+    
+    if (isNaN(numValue)) {
+      throw new Error(`${fieldName} must be a valid number`);
+    }
+
+    if (options.integer && !Number.isInteger(numValue)) {
+      throw new Error(`${fieldName} must be a whole number`);
+    }
+
+    if (options.min !== undefined && numValue < options.min) {
+      throw new Error(`${fieldName} must be at least ${options.min}`);
+    }
+
+    if (options.max !== undefined && numValue > options.max) {
+      throw new Error(`${fieldName} must not exceed ${options.max}`);
+    }
+
+    return numValue;
+  }
+
+  // Helper function to sanitize and validate application data
   static sanitizeApplicationData(data) {
     const sanitizedData = { ...data };
+    
+    // Remove protected fields
     delete sanitizedData.status;
     delete sanitizedData.approvalsSummary;
-    return sanitizedData;
+
+    try {
+      // Sanitize basic fields
+      if (sanitizedData.emailAddress) {
+        sanitizedData.emailAddress = this.sanitizeTextField(sanitizedData.emailAddress, 'Email', { type: 'email', maxLength: 100 });
+      }
+      
+      if (sanitizedData.firstName) {
+        sanitizedData.firstName = this.sanitizeTextField(sanitizedData.firstName, 'First Name', { type: 'name', maxLength: 50 });
+      }
+      
+      if (sanitizedData.middleName) {
+        sanitizedData.middleName = this.sanitizeTextField(sanitizedData.middleName, 'Middle Name', { type: 'name', maxLength: 50 });
+      }
+      
+      if (sanitizedData.lastName) {
+        sanitizedData.lastName = this.sanitizeTextField(sanitizedData.lastName, 'Last Name', { type: 'name', maxLength: 50 });
+      }
+      
+      if (sanitizedData.suffix) {
+        sanitizedData.suffix = this.sanitizeTextField(sanitizedData.suffix, 'Suffix', { type: 'name', maxLength: 10 });
+      }
+
+      if (sanitizedData.programOfStudyAndYear) {
+        sanitizedData.programOfStudyAndYear = this.sanitizeTextField(sanitizedData.programOfStudyAndYear, 'Program of Study', { type: 'text', maxLength: 100 });
+      }
+
+      if (sanitizedData.existingScholarship) {
+        sanitizedData.existingScholarship = this.sanitizeTextField(sanitizedData.existingScholarship, 'Existing Scholarship', { type: 'text', maxLength: 100 });
+      }
+
+      if (sanitizedData.citizenship) {
+        sanitizedData.citizenship = this.sanitizeTextField(sanitizedData.citizenship, 'Citizenship', { type: 'name', maxLength: 50 });
+      }
+
+      if (sanitizedData.civilStatus) {
+        sanitizedData.civilStatus = this.sanitizeTextField(sanitizedData.civilStatus, 'Civil Status', { type: 'name', maxLength: 20 });
+      }
+
+      if (sanitizedData.currentResidenceAddress) {
+        sanitizedData.currentResidenceAddress = this.sanitizeTextField(sanitizedData.currentResidenceAddress, 'Current Residence Address', { type: 'address', maxLength: 200 });
+      }
+
+      if (sanitizedData.permanentResidentialAddress) {
+        sanitizedData.permanentResidentialAddress = this.sanitizeTextField(sanitizedData.permanentResidentialAddress, 'Permanent Address', { type: 'address', maxLength: 200 });
+      }
+
+      if (sanitizedData.contactNumber) {
+        sanitizedData.contactNumber = this.sanitizeTextField(sanitizedData.contactNumber, 'Contact Number', { type: 'phone' });
+      }
+
+      // Sanitize numeric fields
+      if (sanitizedData.remainingUnitsIncludingThisTerm !== undefined) {
+        sanitizedData.remainingUnitsIncludingThisTerm = this.sanitizeNumericField(sanitizedData.remainingUnitsIncludingThisTerm, 'Remaining Units', { integer: true, min: 0, max: 300 });
+      }
+
+      if (sanitizedData.remainingTermsToGraduate !== undefined) {
+        sanitizedData.remainingTermsToGraduate = this.sanitizeNumericField(sanitizedData.remainingTermsToGraduate, 'Remaining Terms', { integer: true, min: 0, max: 20 });
+      }
+
+      // Sanitize family background
+      if (sanitizedData.familyBackground) {
+        // Father's information
+        if (sanitizedData.familyBackground.father) {
+          const father = sanitizedData.familyBackground.father;
+          if (father.firstName) father.firstName = this.sanitizeTextField(father.firstName, "Father's First Name", { type: 'name', maxLength: 50 });
+          if (father.middleName) father.middleName = this.sanitizeTextField(father.middleName, "Father's Middle Name", { type: 'name', maxLength: 50 });
+          if (father.lastName) father.lastName = this.sanitizeTextField(father.lastName, "Father's Last Name", { type: 'name', maxLength: 50 });
+          if (father.suffix) father.suffix = this.sanitizeTextField(father.suffix, "Father's Suffix", { type: 'name', maxLength: 10 });
+          if (father.age !== undefined) father.age = this.sanitizeNumericField(father.age, "Father's Age", { integer: true, min: 18, max: 120 });
+          if (father.occupation) father.occupation = this.sanitizeTextField(father.occupation, "Father's Occupation", { type: 'text', maxLength: 100 });
+          if (father.grossAnnualIncome) father.grossAnnualIncome = this.sanitizeTextField(father.grossAnnualIncome, "Father's Income", { type: 'text', maxLength: 50 });
+          if (father.companyName) father.companyName = this.sanitizeTextField(father.companyName, "Father's Company Name", { type: 'text', maxLength: 100 });
+          if (father.companyAddress) father.companyAddress = this.sanitizeTextField(father.companyAddress, "Father's Company Address", { type: 'address', maxLength: 200 });
+          if (father.homeAddress) father.homeAddress = this.sanitizeTextField(father.homeAddress, "Father's Home Address", { type: 'address', maxLength: 200 });
+          if (father.contactNumber) father.contactNumber = this.sanitizeTextField(father.contactNumber, "Father's Contact Number", { type: 'phone' });
+        }
+
+        // Mother's information
+        if (sanitizedData.familyBackground.mother) {
+          const mother = sanitizedData.familyBackground.mother;
+          if (mother.firstName) mother.firstName = this.sanitizeTextField(mother.firstName, "Mother's First Name", { type: 'name', maxLength: 50 });
+          if (mother.middleName) mother.middleName = this.sanitizeTextField(mother.middleName, "Mother's Middle Name", { type: 'name', maxLength: 50 });
+          if (mother.lastName) mother.lastName = this.sanitizeTextField(mother.lastName, "Mother's Last Name", { type: 'name', maxLength: 50 });
+          if (mother.suffix) mother.suffix = this.sanitizeTextField(mother.suffix, "Mother's Suffix", { type: 'name', maxLength: 10 });
+          if (mother.age !== undefined) mother.age = this.sanitizeNumericField(mother.age, "Mother's Age", { integer: true, min: 18, max: 120 });
+          if (mother.occupation) mother.occupation = this.sanitizeTextField(mother.occupation, "Mother's Occupation", { type: 'text', maxLength: 100 });
+          if (mother.grossAnnualIncome) mother.grossAnnualIncome = this.sanitizeTextField(mother.grossAnnualIncome, "Mother's Income", { type: 'text', maxLength: 50 });
+          if (mother.companyName) mother.companyName = this.sanitizeTextField(mother.companyName, "Mother's Company Name", { type: 'text', maxLength: 100 });
+          if (mother.companyAddress) mother.companyAddress = this.sanitizeTextField(mother.companyAddress, "Mother's Company Address", { type: 'address', maxLength: 200 });
+          if (mother.homeAddress) mother.homeAddress = this.sanitizeTextField(mother.homeAddress, "Mother's Home Address", { type: 'address', maxLength: 200 });
+          if (mother.contactNumber) mother.contactNumber = this.sanitizeTextField(mother.contactNumber, "Mother's Contact Number", { type: 'phone' });
+        }
+
+        // Siblings
+        if (sanitizedData.familyBackground.siblings && Array.isArray(sanitizedData.familyBackground.siblings)) {
+          sanitizedData.familyBackground.siblings = sanitizedData.familyBackground.siblings.map((sibling, index) => {
+            if (sibling.name) sibling.name = this.sanitizeTextField(sibling.name, `Sibling ${index + 1} Name`, { type: 'name', maxLength: 100 });
+            if (sibling.age !== undefined) sibling.age = this.sanitizeNumericField(sibling.age, `Sibling ${index + 1} Age`, { integer: true, min: 0, max: 100 });
+            if (sibling.programCurrentlyTakingOrFinished) sibling.programCurrentlyTakingOrFinished = this.sanitizeTextField(sibling.programCurrentlyTakingOrFinished, `Sibling ${index + 1} Program`, { type: 'text', maxLength: 100 });
+            if (sibling.schoolOrOccupation) sibling.schoolOrOccupation = this.sanitizeTextField(sibling.schoolOrOccupation, `Sibling ${index + 1} School/Occupation`, { type: 'text', maxLength: 100 });
+            return sibling;
+          });
+        }
+      }
+
+      // Sanitize education
+      if (sanitizedData.education) {
+        // Elementary
+        if (sanitizedData.education.elementary) {
+          const elem = sanitizedData.education.elementary;
+          if (elem.nameAndAddressOfSchool) elem.nameAndAddressOfSchool = this.sanitizeTextField(elem.nameAndAddressOfSchool, 'Elementary School', { type: 'address', maxLength: 200 });
+          if (elem.honorOrAwardsReceived) elem.honorOrAwardsReceived = this.sanitizeTextField(elem.honorOrAwardsReceived, 'Elementary Honors', { type: 'text', maxLength: 300 });
+          if (elem.nameOfOrganizationAndPositionHeld) elem.nameOfOrganizationAndPositionHeld = this.sanitizeTextField(elem.nameOfOrganizationAndPositionHeld, 'Elementary Organizations', { type: 'text', maxLength: 300 });
+          if (elem.generalAverage !== undefined) elem.generalAverage = this.sanitizeNumericField(elem.generalAverage, 'Elementary General Average', { min: 65, max: 100 });
+          if (elem.rankAmongGraduates) elem.rankAmongGraduates = this.sanitizeTextField(elem.rankAmongGraduates, 'Elementary Rank', { type: 'text', maxLength: 50 });
+          if (elem.contestTrainingsConferencesParticipated) elem.contestTrainingsConferencesParticipated = this.sanitizeTextField(elem.contestTrainingsConferencesParticipated, 'Elementary Activities', { type: 'text', maxLength: 500 });
+        }
+
+        // Secondary
+        if (sanitizedData.education.secondary) {
+          const sec = sanitizedData.education.secondary;
+          if (sec.nameAndAddressOfSchool) sec.nameAndAddressOfSchool = this.sanitizeTextField(sec.nameAndAddressOfSchool, 'Secondary School', { type: 'address', maxLength: 200 });
+          if (sec.honorOrAwardsReceived) sec.honorOrAwardsReceived = this.sanitizeTextField(sec.honorOrAwardsReceived, 'Secondary Honors', { type: 'text', maxLength: 300 });
+          if (sec.nameOfOrganizationAndPositionHeld) sec.nameOfOrganizationAndPositionHeld = this.sanitizeTextField(sec.nameOfOrganizationAndPositionHeld, 'Secondary Organizations', { type: 'text', maxLength: 300 });
+          if (sec.generalAverage !== undefined) sec.generalAverage = this.sanitizeNumericField(sec.generalAverage, 'Secondary General Average', { min: 65, max: 100 });
+          if (sec.rankAmongGraduates) sec.rankAmongGraduates = this.sanitizeTextField(sec.rankAmongGraduates, 'Secondary Rank', { type: 'text', maxLength: 50 });
+          if (sec.contestTrainingsConferencesParticipated) sec.contestTrainingsConferencesParticipated = this.sanitizeTextField(sec.contestTrainingsConferencesParticipated, 'Secondary Activities', { type: 'text', maxLength: 500 });
+        }
+
+        // College level
+        if (sanitizedData.education.collegeLevel && Array.isArray(sanitizedData.education.collegeLevel)) {
+          sanitizedData.education.collegeLevel = sanitizedData.education.collegeLevel.map((level, index) => {
+            if (level.yearLevel !== undefined) level.yearLevel = this.sanitizeNumericField(level.yearLevel, `College Year ${index + 1}`, { integer: true, min: 1, max: 7 });
+            if (level.firstSemesterAverageFinalGrade !== undefined) level.firstSemesterAverageFinalGrade = this.sanitizeNumericField(level.firstSemesterAverageFinalGrade, `Year ${index + 1} First Sem Grade`, { min: 1, max: 5 });
+            
+            // Second semester is optional - only validate if value is provided (not empty/null/undefined/0)
+            if (level.secondSemesterAverageFinalGrade && level.secondSemesterAverageFinalGrade !== 0) {
+              level.secondSemesterAverageFinalGrade = this.sanitizeNumericField(level.secondSemesterAverageFinalGrade, `Year ${index + 1} Second Sem Grade`, { min: 1, max: 5 });
+            } else {
+              // Clear out invalid optional values
+              level.secondSemesterAverageFinalGrade = undefined;
+            }
+            
+            // Third semester is optional - only validate if value is provided (not empty/null/undefined/0)
+            if (level.thirdSemesterAverageFinalGrade && level.thirdSemesterAverageFinalGrade !== 0) {
+              level.thirdSemesterAverageFinalGrade = this.sanitizeNumericField(level.thirdSemesterAverageFinalGrade, `Year ${index + 1} Third Sem Grade`, { min: 1, max: 5 });
+            } else {
+              // Clear out invalid optional values
+              level.thirdSemesterAverageFinalGrade = undefined;
+            }
+            return level;
+          });
+        }
+
+        // Current memberships
+        if (sanitizedData.education.currentMembershipInOrganizations && Array.isArray(sanitizedData.education.currentMembershipInOrganizations)) {
+          sanitizedData.education.currentMembershipInOrganizations = sanitizedData.education.currentMembershipInOrganizations.map((org, index) => {
+            if (org.nameOfOrganization) org.nameOfOrganization = this.sanitizeTextField(org.nameOfOrganization, `Organization ${index + 1} Name`, { type: 'text', maxLength: 100 });
+            if (org.position) org.position = this.sanitizeTextField(org.position, `Organization ${index + 1} Position`, { type: 'text', maxLength: 100 });
+            return org;
+          });
+        }
+      }
+
+      // Sanitize references
+      if (sanitizedData.references && Array.isArray(sanitizedData.references)) {
+        sanitizedData.references = sanitizedData.references.map((ref, index) => {
+          if (ref.name) ref.name = this.sanitizeTextField(ref.name, `Reference ${index + 1} Name`, { type: 'name', maxLength: 100 });
+          if (ref.relationshipToTheApplicant) ref.relationshipToTheApplicant = this.sanitizeTextField(ref.relationshipToTheApplicant, `Reference ${index + 1} Relationship`, { type: 'text', maxLength: 100 });
+          if (ref.contactNumber) ref.contactNumber = this.sanitizeTextField(ref.contactNumber, `Reference ${index + 1} Contact`, { type: 'phone' });
+          return ref;
+        });
+      }
+
+      // Sanitize CIT-U residency fields
+      if (sanitizedData.citUResidency) {
+        if (sanitizedData.citUResidency.semesterCount !== undefined) {
+          sanitizedData.citUResidency.semesterCount = this.sanitizeNumericField(sanitizedData.citUResidency.semesterCount, 'Semester Count', { integer: true, min: 0, max: 20 });
+        }
+        if (sanitizedData.citUResidency.weightedAverageGrade !== undefined) {
+          sanitizedData.citUResidency.weightedAverageGrade = this.sanitizeNumericField(sanitizedData.citUResidency.weightedAverageGrade, 'Weighted Average Grade', { min: 1, max: 5 });
+        }
+        if (sanitizedData.citUResidency.minimumUnitsCompleted !== undefined) {
+          sanitizedData.citUResidency.minimumUnitsCompleted = this.sanitizeNumericField(sanitizedData.citUResidency.minimumUnitsCompleted, 'Minimum Units Completed', { integer: true, min: 0, max: 50 });
+        }
+      }
+
+      return sanitizedData;
+    } catch (error) {
+      throw new Error(`Input validation failed: ${error.message}`);
+    }
   }
 
   // Create a new application or update existing one
@@ -1349,6 +1630,69 @@ class ApplicationService {
     } catch (error) {
       console.error('Error getting soft deleted applications:', error);
       throw error;
+    }
+  }
+
+  // Soft delete application form only (keep documents)
+  static async softDeleteApplicationFormOnly(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findOne({ _id: applicationId, is_deleted: false }).populate('user', 'name email');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Use soft delete to mark as deleted without removing from database
+    await ApplicationForm.findByIdAndUpdate(applicationId, { is_deleted: true });
+
+    return {
+      message: `Application form for ${application.firstName} ${application.lastName} has been soft deleted. Documents are preserved for reuse.`,
+      deletedData: {
+        applicationId: application._id,
+        studentName: `${application.firstName} ${application.lastName}`,
+        documentsPreserved: true,
+        canRestore: true
+      }
+    };
+  }
+
+  // Soft delete documents only (keep application form)
+  static async softDeleteDocumentsOnly(applicationId) {
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      throw new Error('Invalid application ID format');
+    }
+
+    const application = await ApplicationForm.findOne({ _id: applicationId, is_deleted: false }).populate('user', 'name email');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    try {
+      const DocumentUpload = require('../models/DocumentUpload');
+      
+      // Soft delete documents instead of permanent delete
+      const docResult = await DocumentUpload.updateOne(
+        { user: application.user._id },
+        { is_deleted: true }
+      );
+      
+      if (docResult.matchedCount === 0) {
+        throw new Error('No documents found to delete');
+      }
+
+      return {
+        message: `Documents for ${application.firstName} ${application.lastName} have been soft deleted. Application form is preserved.`,
+        deletedData: {
+          applicationId: application._id,
+          studentName: `${application.firstName} ${application.lastName}`,
+          formPreserved: true,
+          canRestore: true
+        }
+      };
+    } catch (docError) {
+      throw new Error(`Failed to soft delete documents: ${docError.message}`);
     }
   }
 }

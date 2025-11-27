@@ -681,16 +681,16 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
     // Siblings are now optional - only validate if they exist
     // Validate each sibling's required fields (if any siblings are added)
-    for (const [index, sibling] of siblings.entries()) {
-      if (!sibling.name || !sibling.age) {
-        toast({
-          title: "Required Field Missing",
-          description: `Please fill in all required fields for sibling ${index + 1}`,
-          variant: "destructive"
-        });
-        return false;
-      }
-    }
+    // for (const [index, sibling] of siblings.entries()) {
+    //   if (!sibling.name || !sibling.age) {
+    //     toast({
+    //       title: "Required Field Missing",
+    //       description: `Please fill in all required fields for sibling ${index + 1}`,
+    //       variant: "destructive"
+    //     });
+    //     return false;
+    //   }
+    // }
 
     return true;
   };
