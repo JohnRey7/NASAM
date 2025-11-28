@@ -424,23 +424,101 @@ class ApplicationService {
 
   // Get all applications with pagination and filtering
   static async getAllApplications(queryParams) {
-    const { page = 1, limit = 10, firstName, emailAddress, status } = queryParams;
+    const { 
+      page = 1, 
+      limit = 25, 
+      firstName, 
+      emailAddress, 
+      status,
+      search,
+      startDate,
+      endDate,
+      sortOrder = 'asc' // 'asc' for oldest first (ascending), 'desc' for newest first (descending)
+    } = queryParams;
+    
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    const query = {};
+    const query = { is_deleted: false };
+    
+    // Legacy filters (kept for backward compatibility)
     if (firstName) query.firstName = { $regex: firstName, $options: 'i' };
     if (emailAddress) query.emailAddress = { $regex: emailAddress, $options: 'i' };
     if (status) query.status = status;
 
-    const applications = await ApplicationForm.find({ ...query, is_deleted: false })
+    // Date range filter (submission date / createdAt)
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Set end date to end of day
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = endOfDay;
+      }
+    }
+
+    // Search filter - searches by name, user idNumber, or application _id
+    if (search) {
+      const mongoose = require('mongoose');
+      const searchConditions = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { middleName: { $regex: search, $options: 'i' } },
+        { emailAddress: { $regex: search, $options: 'i' } }
+      ];
+
+      // Check if search is a valid ObjectId (application _id)
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        searchConditions.push({ _id: new mongoose.Types.ObjectId(search) });
+      }
+
+      query.$or = searchConditions;
+    }
+
+    // Sort direction: 1 for ascending (oldest first), -1 for descending (newest first)
+    const sortDirection = sortOrder === 'desc' ? -1 : 1;
+
+    // First get applications
+    let applications = await ApplicationForm.find(query)
       .skip(skip)
       .limit(parseInt(limit))
-      .sort({ createdAt: -1 })
-      .populate('user', 'name idNumber _id')
+      .sort({ createdAt: sortDirection })
+      .populate('user', 'name idNumber _id email')
       .populate('approvalsSummary.endorsedBy', 'name _id')
       .populate('approvalsSummary.approvedBy', 'name _id');
 
-    const totalDocs = await ApplicationForm.countDocuments({ ...query, is_deleted: false });
+    // If search includes idNumber, we need to also search in User collection
+    if (search) {
+      const User = require('../models/User');
+      const matchingUsers = await User.find({
+        idNumber: { $regex: search, $options: 'i' }
+      }).select('_id');
+
+      if (matchingUsers.length > 0) {
+        const userIds = matchingUsers.map(u => u._id);
+        
+        // Get applications for matching users that aren't already in results
+        const existingAppIds = applications.map(a => a._id.toString());
+        const additionalApps = await ApplicationForm.find({
+          user: { $in: userIds },
+          is_deleted: false,
+          _id: { $nin: existingAppIds }
+        })
+          .sort({ createdAt: sortDirection })
+          .populate('user', 'name idNumber _id email')
+          .populate('approvalsSummary.endorsedBy', 'name _id')
+          .populate('approvalsSummary.approvedBy', 'name _id');
+
+        // Merge and re-sort
+        applications = [...applications, ...additionalApps]
+          .sort((a, b) => sortDirection * (new Date(a.createdAt) - new Date(b.createdAt)))
+          .slice(0, parseInt(limit));
+      }
+    }
+
+    const totalDocs = await ApplicationForm.countDocuments(query);
 
     return {
       applications,
