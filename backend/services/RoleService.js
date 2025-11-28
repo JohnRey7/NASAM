@@ -76,7 +76,13 @@ class RoleService {
         'department.delete',
         'activity.readAll',
         'user.create',
-        'user.update'
+        'user.update',
+        'course.create',
+        'course.read',
+        'course.read.deleted',
+        'course.update',
+        'course.delete.soft',
+        'course.delete.hard'
       ];
 
       for (const perm of permissions) {

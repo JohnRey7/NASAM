@@ -26,6 +26,7 @@ const DepartmentController = require("./controllers/DepartmentController");
 const InterviewController = require("./controllers/InterviewController");
 const ScholarEvaluationController = require('./controllers/ScholarEvaluationController');
 const MessageController = require('./controllers/MessageController');
+const CourseController = require('./controllers/CourseController');
 
 const AuditLogController = require('./controllers/AuditLogController');
 
@@ -325,6 +326,19 @@ app.post('/api/admin/assign-applicant-to-department', authenticate, checkPermiss
 
 // Get applicants for department head
 app.get('/api/department-head/applicants', authenticate, checkPermission('application.readAll'), DepartmentController.getApplicantsForDepartmentHead);
+
+// Course Routes
+app.post('/api/course', authenticate, checkPermission('course.create'), CourseController.createCourse);
+app.get('/api/course/all', authenticate, checkPermission('course.read'), CourseController.getAllCourses);
+app.get('/api/course/all/deleted', authenticate, checkPermission('course.read.deleted'), CourseController.getDeletedCourses);
+app.put('/api/course/:courseId', authenticate, checkPermission('course.update'), CourseController.updateCourseByCourseId);
+app.put('/api/course/name/:name', authenticate, checkPermission('course.update'), CourseController.updateCourseByName);
+app.put('/api/course/:courseId/restore', authenticate, checkPermission('course.delete.soft'), CourseController.restoreByCourseId);
+app.put('/api/course/name/:name/restore', authenticate, checkPermission('course.delete.soft'), CourseController.restoreByName);
+app.delete('/api/course/:courseId/soft', authenticate, checkPermission('course.delete.soft'), CourseController.softDeleteByCourseId);
+app.delete('/api/course/name/:name/soft', authenticate, checkPermission('course.delete.soft'), CourseController.softDeleteByName);
+app.delete('/api/course/:courseId/permanent', authenticate, checkPermission('course.delete.hard'), CourseController.permanentDeleteByCourseId);
+app.delete('/api/course/name/:name/permanent', authenticate, checkPermission('course.delete.hard'), CourseController.permanentDeleteByName);
 
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {
