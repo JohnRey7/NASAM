@@ -10,6 +10,15 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Allow cross-origin requests from your VPS IP
+  allowedDevOrigins: [
+    'http://95.216.139.119',
+    'http://95.216.139.119:3000',
+    'http://95.216.139.119:3001',
+    'http://localhost',
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ],
   // Add this to hide development indicators
   // Adjust optimization settings with correct types
   experimental: {
