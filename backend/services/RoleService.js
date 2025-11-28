@@ -29,6 +29,7 @@ class RoleService {
         'role.delete',
         'applicationForm.create',
         'application.export',
+        'application.export.csv',
         'applicationForm.readOwn',
         'applicationForm.read',
         'applicationForm.update',

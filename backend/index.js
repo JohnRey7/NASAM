@@ -394,6 +394,9 @@ app.put('/api/oas/application/:applicationId/restore', authenticate, checkPermis
 app.delete('/api/oas/application/:applicationId/permanent', authenticate, checkPermission('applicationForm.delete'), ApplicationController.permanentDeleteApplication);
 app.get('/api/oas/applications/deleted', authenticate, checkPermission('applicationForm.read'), ApplicationController.getSoftDeletedApplications);
 
+// Export all applications to CSV
+app.get('/api/oas/application/export/all', authenticate, checkPermission('application.export.csv'), ApplicationController.exportAllApplicationsToCSV);
+
 // Application verification routes
 app.patch('/api/oas/application/:applicationId/verify', authenticate, ApplicationController.verifyApplicationForm);
 app.patch('/api/oas/application/:applicationId/verify-documents', authenticate, ApplicationController.verifyApplicationDocuments);

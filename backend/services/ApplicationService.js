@@ -1695,6 +1695,238 @@ class ApplicationService {
       throw new Error(`Failed to soft delete documents: ${docError.message}`);
     }
   }
+
+  // Export all application forms to CSV
+  static async exportAllApplicationsToCSV() {
+    try {
+      // Get all non-deleted applications with user data
+      const applications = await ApplicationForm.find({ is_deleted: false })
+        .populate('user', 'name email idNumber')
+        .populate('verifiedBy', 'name')
+        .populate('documentsVerifiedBy', 'name')
+        .populate('approvalsSummary.endorsedBy', 'name')
+        .populate('approvalsSummary.approvedBy', 'name')
+        .lean();
+
+      if (!applications || applications.length === 0) {
+        throw new Error('No applications found to export');
+      }
+
+      // Define CSV headers
+      const headers = [
+        'ID Number',
+        'Email',
+        'First Name',
+        'Middle Name',
+        'Last Name',
+        'Suffix',
+        'Gender',
+        'Program of Study and Year',
+        'Year Level',
+        'SHS Graduate CIT',
+        'CIT-U Senior High Graduate',
+        'Existing Scholarship',
+        'Remaining Units',
+        'Remaining Terms to Graduate',
+        'Citizenship',
+        'Civil Status',
+        'Annual Family Income',
+        'Current Residence Address',
+        'Residing At',
+        'Permanent Residential Address',
+        'Contact Number',
+        'Father First Name',
+        'Father Middle Name',
+        'Father Last Name',
+        'Father Suffix',
+        'Father Age',
+        'Father Occupation',
+        'Father Gross Annual Income',
+        'Father Company Name',
+        'Father Company Address',
+        'Father Home Address',
+        'Father Contact Number',
+        'Mother First Name',
+        'Mother Middle Name',
+        'Mother Last Name',
+        'Mother Suffix',
+        'Mother Age',
+        'Mother Occupation',
+        'Mother Gross Annual Income',
+        'Mother Company Name',
+        'Mother Company Address',
+        'Mother Home Address',
+        'Mother Contact Number',
+        'Siblings',
+        'Elementary School',
+        'Elementary Honors/Awards',
+        'Elementary Organizations',
+        'Elementary General Average',
+        'Elementary Rank',
+        'Elementary Contests/Trainings',
+        'Secondary School',
+        'Secondary Honors/Awards',
+        'Secondary Organizations',
+        'Secondary General Average',
+        'Secondary Rank',
+        'Secondary Contests/Trainings',
+        'College Grades',
+        'Current Memberships',
+        'References',
+        'Status',
+        'Verified At',
+        'Verified By',
+        'Documents Verified At',
+        'Documents Verified By',
+        'Endorsed By',
+        'Approved By',
+        'Created At',
+        'Updated At'
+      ];
+
+      // Helper function to escape CSV values
+      const escapeCSV = (value) => {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        if (str.includes(',') || str.includes('\n') || str.includes('"') || str.includes('\r')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      // Format siblings array
+      const formatSiblings = (siblings) => {
+        if (!siblings || siblings.length === 0) return '';
+        return siblings.map(s => 
+          `${s.name || 'N/A'} (Age: ${s.age || 'N/A'}, ${s.programCurrentlyTakingOrFinished || 'N/A'}, ${s.schoolOrOccupation || 'N/A'})`
+        ).join('; ');
+      };
+
+      // Format college grades
+      const formatCollegeGrades = (collegeLevel) => {
+        if (!collegeLevel || collegeLevel.length === 0) return '';
+        return collegeLevel.map(level => 
+          `Year ${level.yearLevel || 'N/A'}: 1st=${level.firstSemesterAverageFinalGrade || 'N/A'}, 2nd=${level.secondSemesterAverageFinalGrade || 'N/A'}, 3rd=${level.thirdSemesterAverageFinalGrade || 'N/A'}`
+        ).join('; ');
+      };
+
+      // Format current memberships
+      const formatMemberships = (memberships) => {
+        if (!memberships || memberships.length === 0) return '';
+        return memberships.map(m => 
+          `${m.nameOfOrganization || 'N/A'} (${m.position || 'N/A'})`
+        ).join('; ');
+      };
+
+      // Format references
+      const formatReferences = (references) => {
+        if (!references || references.length === 0) return '';
+        return references.map(r => 
+          `${r.name || 'N/A'} (${r.relationshipToTheApplicant || 'N/A'}, ${r.contactNumber || 'N/A'})`
+        ).join('; ');
+      };
+
+      // Format date
+      const formatDate = (date) => {
+        if (!date) return '';
+        return new Date(date).toISOString().split('T')[0];
+      };
+
+      // Build CSV rows
+      const rows = applications.map(app => {
+        const father = app.familyBackground?.father || {};
+        const mother = app.familyBackground?.mother || {};
+        const elementary = app.education?.elementary || {};
+        const secondary = app.education?.secondary || {};
+
+        return [
+          app.user?.idNumber || '',
+          app.emailAddress || app.user?.email || '',
+          app.firstName || '',
+          app.middleName || '',
+          app.lastName || '',
+          app.suffix || '',
+          app.gender || '',
+          app.programOfStudyAndYear || '',
+          app.yearLevel || '',
+          app.shsgraduateCIT ? 'Yes' : 'No',
+          app.isCitUSeniorHighGraduate ? 'Yes' : 'No',
+          app.existingScholarship || '',
+          app.remainingUnitsIncludingThisTerm || '',
+          app.remainingTermsToGraduate || '',
+          app.citizenship || '',
+          app.civilStatus || '',
+          app.annualFamilyIncome || '',
+          app.currentResidenceAddress || '',
+          app.residingAt || '',
+          app.permanentResidentialAddress || '',
+          app.contactNumber || '',
+          father.firstName || '',
+          father.middleName || '',
+          father.lastName || '',
+          father.suffix || '',
+          father.age || '',
+          father.occupation || '',
+          father.grossAnnualIncome || '',
+          father.companyName || '',
+          father.companyAddress || '',
+          father.homeAddress || '',
+          father.contactNumber || '',
+          mother.firstName || '',
+          mother.middleName || '',
+          mother.lastName || '',
+          mother.suffix || '',
+          mother.age || '',
+          mother.occupation || '',
+          mother.grossAnnualIncome || '',
+          mother.companyName || '',
+          mother.companyAddress || '',
+          mother.homeAddress || '',
+          mother.contactNumber || '',
+          formatSiblings(app.familyBackground?.siblings),
+          elementary.nameAndAddressOfSchool || '',
+          elementary.honorOrAwardsReceived || '',
+          elementary.nameOfOrganizationAndPositionHeld || '',
+          elementary.generalAverage || '',
+          elementary.rankAmongGraduates || '',
+          elementary.contestTrainingsConferencesParticipated || '',
+          secondary.nameAndAddressOfSchool || '',
+          secondary.honorOrAwardsReceived || '',
+          secondary.nameOfOrganizationAndPositionHeld || '',
+          secondary.generalAverage || '',
+          secondary.rankAmongGraduates || '',
+          secondary.contestTrainingsConferencesParticipated || '',
+          formatCollegeGrades(app.education?.collegeLevel),
+          formatMemberships(app.education?.currentMembershipInOrganizations),
+          formatReferences(app.references),
+          app.status || '',
+          formatDate(app.verifiedAt),
+          app.verifiedBy?.name || '',
+          formatDate(app.documentsVerifiedAt),
+          app.documentsVerifiedBy?.name || '',
+          app.approvalsSummary?.endorsedBy?.name || '',
+          app.approvalsSummary?.approvedBy?.name || '',
+          formatDate(app.createdAt),
+          formatDate(app.updatedAt)
+        ].map(escapeCSV);
+      });
+
+      // Combine headers and rows
+      const csvContent = [
+        headers.map(escapeCSV).join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      return {
+        csv: csvContent,
+        filename: `applications_export_${new Date().toISOString().split('T')[0]}.csv`,
+        count: applications.length
+      };
+    } catch (error) {
+      console.error('Error exporting applications to CSV:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = ApplicationService;

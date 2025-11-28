@@ -1072,6 +1072,31 @@ const ApplicationController = {
       }
       res.status(500).json({ success: false, message: error.message });
     }
+  },
+
+  // Export all applications to CSV
+  async exportAllApplicationsToCSV(req, res) {
+    try {
+      console.log('📊 Exporting all applications to CSV');
+
+      const result = await ApplicationService.exportAllApplicationsToCSV();
+
+      console.log(`✅ Successfully exported ${result.count} applications to CSV`);
+
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+      res.setHeader('Content-Length', Buffer.byteLength(result.csv, 'utf8'));
+
+      res.send(result.csv);
+
+    } catch (error) {
+      console.error('❌ Error exporting applications to CSV:', error);
+      if (error.message.includes('No applications found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: 'Failed to export applications to CSV', error: error.message });
+    }
   }
 };
 
