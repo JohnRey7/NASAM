@@ -5,7 +5,7 @@ const UserController = {
   // Create a new user (admin only)
   async createUser(req, res) {
     try {
-      const { name, idNumber, email, password, roleId, courseId, departmentId } = req.body;
+      const { name, idNumber, email, password, roleId, courseId, departmentCode } = req.body;
 
       // Validate required fields
       if (!name || !idNumber || !password || !roleId) {
@@ -24,7 +24,7 @@ const UserController = {
         password: hashedPassword,
         roleId,
         courseId,
-        departmentId
+        departmentCode
       };
 
       const user = await UserService.createUser(userData);

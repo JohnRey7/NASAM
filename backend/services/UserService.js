@@ -8,7 +8,7 @@ class UserService {
   // Create a new user (admin only)
   static async createUser(userData) {
     try {
-      const { name, idNumber, email, password, roleId, courseId, departmentId } = userData;
+      const { name, idNumber, email, password, roleId, courseId, departmentCode } = userData;
 
       // Validate required fields
       if (!name || !idNumber || !password || !roleId) {
@@ -41,12 +41,14 @@ class UserService {
         }
       }
 
-      // Validate department if provided
-      if (departmentId) {
-        const department = await Department.findById(departmentId);
+      // Validate department if provided (lookup by departmentCode)
+      let departmentId = null;
+      if (departmentCode) {
+        const department = await Department.findOne({ departmentCode });
         if (!department) {
-          throw new Error('Invalid department ID');
+          throw new Error('Invalid department code');
         }
+        departmentId = department._id;
       }
 
       const user = new User({
