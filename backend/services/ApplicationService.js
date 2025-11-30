@@ -1582,6 +1582,39 @@ class ApplicationService {
     };
   }
 
+  // Export application as PDF by user ID number (idNumber)
+  static async exportApplicationAsPDFByIdNumber(idNumber) {
+    console.log('🔍 PDF request - Received ID Number:', idNumber);
+
+    // Find user by idNumber
+    const user = await User.findOne({ idNumber: idNumber });
+    if (!user) {
+      throw new Error('User not found with the provided ID number');
+    }
+    
+    console.log('✅ User found:', user.name, user.email);
+
+    const application = await ApplicationForm.findOne({ user: user._id })
+      .populate('user', 'name email')
+      .lean();
+      
+    if (!application) {
+      throw new Error('No application found for this user');
+    }
+
+    console.log('✅ Application found, generating PDF...');
+    
+    const templatePath = path.join(__dirname, '../pdf-templates/application-form.html');
+    const pdfBuffer = await ApplicationService.generateApplicationPDF(application, templatePath);
+
+    console.log('✅ PDF generated, size:', pdfBuffer.length, 'bytes');
+
+    return {
+      pdfBuffer,
+      filename: `application-form-${application._id}.pdf`
+    };
+  }
+
   // Export user's own application as PDF
   static async exportMyApplicationAsPDF(userId) {
     const application = await ApplicationForm.findOne({ user: userId })

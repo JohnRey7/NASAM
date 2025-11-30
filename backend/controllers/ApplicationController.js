@@ -373,6 +373,29 @@ const ApplicationController = {
     }
   },
 
+  // GET: Export application form as PDF by user ID number (idNumber)
+  async exportApplicationFormAsPDFByIdNumber(req, res) {
+    try {
+      const { idNumber } = req.params;
+      const result = await ApplicationService.exportApplicationAsPDFByIdNumber(idNumber);
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename=${result.filename}`,
+        'Content-Length': result.pdfBuffer.length
+      });
+      
+      res.send(result.pdfBuffer);
+      
+    } catch (error) {
+      console.error('❌ PDF generation error:', error);
+      if (error.message.includes('Invalid') || error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: `Failed to generate PDF: ${error.message}` });
+    }
+  },
+
   // GET: Export authenticated user's application form as PDF
   async exportMyApplicationFormAsPDF(req, res) {
     try {

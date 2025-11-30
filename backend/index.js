@@ -181,7 +181,7 @@ app.get('/api/roles/deleted', authenticate, checkPermission('role.read'), RoleCo
 
 // Application routes
 app.post('/api/application', authenticate, checkPermission('applicationForm.create'), ApplicationController.createApplicationForm);
-app.get('/api/application/:id/pdf', authenticate, checkPermission('application.export'), ApplicationController.exportApplicationFormAsPDFByUserId);
+app.get('/api/application/:idNumber/pdf', authenticate, checkPermission('application.export'), ApplicationController.exportApplicationFormAsPDFByIdNumber);
 app.get('/api/application/pdf', authenticate, ApplicationController.exportMyApplicationFormAsPDF);
 app.get('/api/application', authenticate, checkPermission('applicationForm.readOwn'), ApplicationController.readMyApplicationForm);
 app.get('/api/application/all', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAllApplicationForms);
