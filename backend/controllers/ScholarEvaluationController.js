@@ -241,7 +241,7 @@ const ScholarEvaluationController = {
     }
   },
   
-  // Update evaluation
+  // Update evaluation (OAS Staff/Admin only - Department heads cannot update after submission)
   async updateEvaluation(req, res) {
     try {
       const { id } = req.params;
@@ -259,11 +259,13 @@ const ScholarEvaluationController = {
         });
       }
       
-      // Check if user is the evaluator
-      if (evaluation.evaluatedBy.toString() !== req.user.id) {
+      // Only OAS staff and admins can update evaluations
+      // Department heads cannot update after submission - their evaluations are read-only
+      const userRole = req.user.role;
+      if (userRole === 'department_head') {
         return res.status(403).json({
           success: false,
-          message: 'You can only update your own evaluations'
+          message: 'Department heads cannot update evaluations after submission. Please contact OAS staff for any changes.'
         });
       }
       
@@ -334,6 +336,30 @@ const ScholarEvaluationController = {
       });
     } catch (error) {
       console.error('Error getting evaluation:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  },
+  
+  // Get evaluations for a specific scholar (by scholar ID)
+  async getEvaluationsForScholar(req, res) {
+    try {
+      const { scholarId } = req.params;
+      
+      const evaluations = await ScholarEvaluation.find({
+        scholar: scholarId,
+        is_deleted: false
+      })
+        .populate('scholar', 'name email idNumber')
+        .populate('evaluatedBy', 'name email')
+        .sort({ createdAt: -1 });
+      
+      res.json({
+        success: true,
+        evaluations,
+        count: evaluations.length
+      });
+    } catch (error) {
+      console.error('Error getting evaluations for scholar:', error);
       res.status(500).json({ success: false, message: 'Server error' });
     }
   },
@@ -411,10 +437,19 @@ const ScholarEvaluationController = {
     }
   },
   
-  // Delete evaluation (soft delete)
+  // Delete evaluation (soft delete) - OAS Staff/Admin only
   async deleteEvaluation(req, res) {
     try {
       const { id } = req.params;
+      
+      // Only OAS staff and admins can delete evaluations
+      const userRole = req.user.role;
+      if (userRole === 'department_head') {
+        return res.status(403).json({
+          success: false,
+          message: 'Department heads cannot delete evaluations. Please contact OAS staff.'
+        });
+      }
       
       const evaluation = await ScholarEvaluation.findById(id);
       

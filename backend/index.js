@@ -454,13 +454,14 @@ app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate
 
 // Evaluation Period Management (Admin only)
 app.get('/api/evaluation-period/current', authenticate, ScholarEvaluationController.getCurrentPeriod);
-app.get('/api/evaluation-period/all', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getAllPeriods);
+app.get('/api/evaluation-period/all', authenticate, checkPermission('evaluation.read.all'), ScholarEvaluationController.getAllPeriods);
 app.post('/api/evaluation-period/open', authenticate, checkPermission('evaluation.manage'), ScholarEvaluationController.openEvaluationPeriod);
 app.post('/api/evaluation-period/close', authenticate, checkPermission('evaluation.manage'), ScholarEvaluationController.closeEvaluationPeriod);
 
 // Scholar Evaluations (Department Head)
 app.post('/api/scholar-evaluation', authenticate, checkPermission('evaluation.create'), ScholarEvaluationController.createEvaluation);
 app.get('/api/scholar-evaluation/my', authenticate, checkPermission('evaluation.create'), ScholarEvaluationController.getMyEvaluations);
+app.get('/api/scholar-evaluation/scholar/:scholarId', authenticate, ScholarEvaluationController.getEvaluationsForScholar);
 app.get('/api/scholar-evaluation/:id', authenticate, ScholarEvaluationController.getEvaluationById);
 app.patch('/api/scholar-evaluation/:id', authenticate, checkPermission('evaluation.create'), ScholarEvaluationController.updateEvaluation);
 app.delete('/api/scholar-evaluation/:id', authenticate, checkPermission('evaluation.delete'), ScholarEvaluationController.deleteEvaluation);

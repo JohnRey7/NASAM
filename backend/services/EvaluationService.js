@@ -5,6 +5,34 @@ const Interview = require('../models/Interview');
 const ApplicationForm = require('../models/ApplicationForm');
 const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 
+// Helper function to convert Decimal128 values to regular numbers
+const convertDecimal128ToNumber = (obj) => {
+  if (obj === null || obj === undefined) return obj;
+  
+  // If it's a Decimal128, convert to number
+  if (obj._bsontype === 'Decimal128' || (obj.$numberDecimal !== undefined)) {
+    return parseFloat(obj.toString());
+  }
+  
+  // If it's an array, convert each element
+  if (Array.isArray(obj)) {
+    return obj.map(item => convertDecimal128ToNumber(item));
+  }
+  
+  // If it's an object, recursively convert each property
+  if (typeof obj === 'object') {
+    const result = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        result[key] = convertDecimal128ToNumber(obj[key]);
+      }
+    }
+    return result;
+  }
+  
+  return obj;
+};
+
 class EvaluationService {
   // Helper to get current school year in short format (e.g., '2526' for 2025-2026)
   static getCurrentSchoolYear() {
@@ -205,9 +233,11 @@ class EvaluationService {
         is_deleted: false 
       })
         .populate('evaluateeUser', 'name email idNumber')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
       
-      return evaluations;
+      // Convert Decimal128 values to regular numbers
+      return evaluations.map(e => convertDecimal128ToNumber(e));
     } catch (error) {
       console.error('Error getting evaluations by ID number:', error);
       throw error;
@@ -222,9 +252,11 @@ class EvaluationService {
         is_deleted: false 
       })
         .populate('evaluateeUser', 'name email idNumber')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
       
-      return evaluations;
+      // Convert Decimal128 values to regular numbers
+      return evaluations.map(e => convertDecimal128ToNumber(e));
     } catch (error) {
       console.error('Error getting evaluations by user ID:', error);
       throw error;
@@ -239,9 +271,11 @@ class EvaluationService {
         is_deleted: false 
       })
         .populate('evaluateeUser', 'name email idNumber')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
       
-      return evaluation;
+      // Convert Decimal128 values to regular numbers
+      return evaluation ? convertDecimal128ToNumber(evaluation) : null;
     } catch (error) {
       console.error('Error getting last evaluation by user ID:', error);
       throw error;
@@ -258,13 +292,16 @@ class EvaluationService {
       const evaluation = await Evaluation.findOne({ 
         _id: evaluationId, 
         is_deleted: false 
-      }).populate('evaluateeUser', 'name email idNumber');
+      })
+        .populate('evaluateeUser', 'name email idNumber')
+        .lean();
       
       if (!evaluation) {
         throw new Error('Evaluation not found');
       }
 
-      return evaluation;
+      // Convert Decimal128 values to regular numbers
+      return convertDecimal128ToNumber(evaluation);
     } catch (error) {
       console.error('Error getting evaluation by ID:', error);
       throw error;

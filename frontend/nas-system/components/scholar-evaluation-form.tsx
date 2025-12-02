@@ -10,6 +10,9 @@ import { useToast } from "@/components/ui/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { scholarEvaluationService, ScholarEvaluationData } from "@/services/scholarEvaluationService"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Star } from "lucide-react"
+import axios from "axios"
 
 interface ScholarEvaluationFormProps {
   scholar: any
@@ -17,12 +20,20 @@ interface ScholarEvaluationFormProps {
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
   existingEvaluation?: any
+  readOnly?: boolean  // When true, form is view-only (for department heads after submission)
+  hideTimekeeping?: boolean  // Hide timekeeping section for department heads
+  useDepartmentHeadEndpoint?: boolean  // Use /api/evaluations/:idNumber endpoint for department heads
 }
 
-export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, existingEvaluation }: ScholarEvaluationFormProps) {
+export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, existingEvaluation, readOnly = false, hideTimekeeping = false, useDepartmentHeadEndpoint = false }: ScholarEvaluationFormProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [evaluatorPosition, setEvaluatorPosition] = useState(existingEvaluation?.evaluatorPosition || '')
+  
+  // School year and semester for department head submissions
+  const currentYear = new Date().getFullYear()
+  const [schoolYear, setSchoolYear] = useState(existingEvaluation?.schoolYear || `${currentYear}-${currentYear + 1}`)
+  const [semester, setSemester] = useState(existingEvaluation?.semester || '')
   
   const [attendance, setAttendance] = useState({
     regularityOfAttendance: existingEvaluation?.attendanceAndPunctuality?.regularityOfAttendance || 3,
@@ -71,11 +82,9 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
     const personalScore = personalAvg * 0.25
     const overall = attendanceScore + qualityScore + quantityScore + personalScore
     let interpretation = ''
-    if (overall >= 4.5) interpretation = 'Very Good'
-    else if (overall >= 3.5) interpretation = 'Good'
-    else if (overall >= 2.5) interpretation = 'Average'
-    else if (overall >= 1.5) interpretation = 'Poor'
-    else interpretation = 'Very Poor'
+    if (overall > 3.5) interpretation = 'Good'
+    else if (overall >= 3.0) interpretation = 'Average'
+    else interpretation = 'Fail'
     return { rating: overall.toFixed(2), interpretation }
   }
 
@@ -84,29 +93,89 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
       toast({ title: "Missing Information", description: "Please enter your position title", variant: "destructive" })
       return
     }
+    
+    // Validate semester for department head submissions
+    if (useDepartmentHeadEndpoint && !semester) {
+      toast({ title: "Missing Information", description: "Please select a semester", variant: "destructive" })
+      return
+    }
+    
     try {
       setLoading(true)
-      const evaluationData: ScholarEvaluationData = {
-        scholar: scholar.userId || scholar._id,
-        scholarName: `${scholar.firstName} ${scholar.lastName}`,
-        studentId: scholar.idNumber || 'N/A',
-        course: scholar.programOfStudyAndYear || scholar.course || 'N/A',
-        department: scholar.department || 'N/A',
-        evaluatorPosition,
-        attendanceAndPunctuality: attendance,
-        qualityOfWorkOutput: quality,
-        quantityOfWorkOutput: quantity,
-        personalQualities: personal,
-        timekeepingRecord: timekeeping,
-        supervisorRemarks,
-        nasRemarks
-      }
-      if (existingEvaluation) {
-        await scholarEvaluationService.updateEvaluation(existingEvaluation._id, evaluationData)
-        toast({ title: "Evaluation Updated", description: `Successfully updated evaluation for ${scholar.firstName} ${scholar.lastName}`, duration: 3000 })
-      } else {
-        await scholarEvaluationService.createEvaluation(evaluationData)
+      
+      if (useDepartmentHeadEndpoint) {
+        // Use /api/evaluations/:idNumber endpoint for department heads
+        const idNumber = scholar.idNumber || scholar.studentId
+        if (!idNumber || idNumber === 'N/A') {
+          toast({ title: "Error", description: "Scholar ID number is required", variant: "destructive" })
+          return
+        }
+        
+        // Convert school year to short format (e.g., "2025-2026" -> "2526")
+        const yearParts = schoolYear.split('-')
+        const shortSchoolYear = yearParts.length === 2 
+          ? `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}`
+          : schoolYear
+        
+        const evaluationPayload = {
+          idNumber,
+          semester,
+          schoolYear: shortSchoolYear,
+          attendanceAndPunctuality: {
+            regularAttendance: attendance.regularityOfAttendance,
+            promptnessInReportingForDuty: attendance.promptnessInReporting
+          },
+          qualityOfWorkOutput: {
+            accuracyAndThoroughnessOfWork: quality.accuracyAndThoroughness,
+            organizationAndOrPresentationNeatnessOfWork: quality.organizationAndPresentation,
+            effectiveness: quality.effectiveness
+          },
+          quantityOfWorkOutput: {
+            accomplishesMoreWorkOnTheGivenTime: quantity.accomplishesMoreWork,
+            timelinessInAccomplishingTaskDuties: quantity.readinessInAccomplishing
+          },
+          attitudeAndWorkBehavior: {
+            senseOfResponsibilityAndUrgency: personal.responsibilityAndUrgency,
+            dependabilityAndReliability: personal.dependabilityAndReliability,
+            industryAndResourcefulness: personal.industryAndResourcefulness,
+            alertnessAndInitiative: personal.fairnessAndInitiative,
+            sociabilityAndPleasantDisposition: personal.sociabilityAndDisposition
+          },
+          remarksAndRecommendationByImmediateSupervisor: supervisorRemarks,
+          remarksCommentsByTheNAS: nasRemarks,
+          overallRating: parseFloat(calculateOverallRating().rating)
+        }
+        
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
+        await axios.post(`${API_URL}/evaluations/${idNumber}`, evaluationPayload, {
+          withCredentials: true
+        })
+        
         toast({ title: "Evaluation Submitted", description: `Successfully submitted evaluation for ${scholar.firstName} ${scholar.lastName}`, duration: 3000 })
+      } else {
+        // Use original scholar-evaluation endpoint for OAS staff
+        const evaluationData: ScholarEvaluationData = {
+          scholar: scholar.userId || scholar._id,
+          scholarName: `${scholar.firstName} ${scholar.lastName}`,
+          studentId: scholar.idNumber || 'N/A',
+          course: scholar.programOfStudyAndYear || scholar.course || 'N/A',
+          department: scholar.department || 'N/A',
+          evaluatorPosition,
+          attendanceAndPunctuality: attendance,
+          qualityOfWorkOutput: quality,
+          quantityOfWorkOutput: quantity,
+          personalQualities: personal,
+          timekeepingRecord: timekeeping,
+          supervisorRemarks,
+          nasRemarks
+        }
+        if (existingEvaluation) {
+          await scholarEvaluationService.updateEvaluation(existingEvaluation._id, evaluationData)
+          toast({ title: "Evaluation Updated", description: `Successfully updated evaluation for ${scholar.firstName} ${scholar.lastName}`, duration: 3000 })
+        } else {
+          await scholarEvaluationService.createEvaluation(evaluationData)
+          toast({ title: "Evaluation Submitted", description: `Successfully submitted evaluation for ${scholar.firstName} ${scholar.lastName}`, duration: 3000 })
+        }
       }
       onSuccess()
       onOpenChange(false)
@@ -118,21 +187,50 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
     }
   }
 
-  const RatingInput = ({ label, value, onChange }: { label: string, value: number, onChange: (val: number) => void }) => (
-    <div className="space-y-2">
-      <Label className="text-sm">{label}</Label>
-      <div className="flex gap-2 items-center">
-        {[1, 2, 3, 4, 5].map((rating) => (
-          <button key={rating} type="button" onClick={() => onChange(rating)} className={`w-10 h-10 rounded-md border-2 font-semibold transition-all ${value === rating ? 'bg-[#800000] text-white border-[#800000]' : 'bg-white text-gray-700 border-gray-300 hover:border-[#800000]'}`}>
-            {rating}
-          </button>
-        ))}
-        <span className="text-sm text-gray-500 ml-2">
-          {value === 5 ? 'Very Good' : value === 4 ? 'Good' : value === 3 ? 'Average' : value === 2 ? 'Poor' : 'Very Poor'}
-        </span>
+  const RatingInput = ({ label, value, onChange, disabled = false }: { label: string, value: number, onChange: (val: number) => void, disabled?: boolean }) => {
+    const [hoverValue, setHoverValue] = useState<number | null>(null)
+    
+    const getRatingText = (rating: number) => {
+      switch (rating) {
+        case 5: return 'Very Good'
+        case 4: return 'Good'
+        case 3: return 'Average'
+        case 2: return 'Poor'
+        case 1: return 'Very Poor'
+        default: return ''
+      }
+    }
+    
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm">{label}</Label>
+        <div className="flex gap-1 items-center">
+          {[1, 2, 3, 4, 5].map((rating) => (
+            <button 
+              key={rating} 
+              type="button" 
+              onClick={() => !disabled && onChange(rating)} 
+              onMouseEnter={() => !disabled && setHoverValue(rating)}
+              onMouseLeave={() => setHoverValue(null)}
+              disabled={disabled}
+              className={`p-1 transition-all ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:scale-110'}`}
+            >
+              <Star 
+                className={`w-8 h-8 transition-colors ${
+                  (hoverValue !== null ? rating <= hoverValue : rating <= value)
+                    ? 'fill-[#FFD700] text-[#FFD700]' 
+                    : 'fill-transparent text-gray-300'
+                }`}
+              />
+            </button>
+          ))}
+          <span className="text-sm text-gray-600 ml-3 font-medium min-w-[80px]">
+            {getRatingText(hoverValue !== null ? hoverValue : value)}
+          </span>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const overallPreview = calculateOverallRating()
 
@@ -140,11 +238,23 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[95vh]">
         <DialogHeader>
-          <DialogTitle className="text-xl">{existingEvaluation ? 'Edit' : 'Create'} Scholar Evaluation - {scholar?.firstName} {scholar?.lastName}</DialogTitle>
-          <DialogDescription>Non-Academic Scholar Evaluation Form</DialogDescription>
+          <DialogTitle className="text-xl">
+            {readOnly ? 'View' : existingEvaluation ? 'Edit' : 'Create'} Scholar Evaluation - {scholar?.firstName} {scholar?.lastName}
+          </DialogTitle>
+          <DialogDescription>
+            Non-Academic Scholar Evaluation Form
+            {readOnly && <span className="ml-2 text-amber-600 font-medium">(Read Only)</span>}
+          </DialogDescription>
         </DialogHeader>
         <ScrollArea className="h-[600px] pr-4">
           <div className="space-y-6">
+            {readOnly && (
+              <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-lg">
+                <p className="text-amber-800 font-medium">
+                  📋 This evaluation has been submitted and is now read-only. Only OAS Staff can make changes.
+                </p>
+              </div>
+            )}
             <div className="bg-gray-50 p-4 rounded-lg space-y-2">
               <div className="grid grid-cols-2 gap-4">
                 <div><Label className="text-xs text-gray-500">Scholar Name</Label><p className="font-medium">{scholar?.firstName} {scholar?.lastName}</p></div>
@@ -152,18 +262,58 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
                 <div><Label className="text-xs text-gray-500">Course</Label><p className="font-medium">{scholar?.programOfStudyAndYear || scholar?.course || 'N/A'}</p></div>
                 <div><Label className="text-xs text-gray-500">Department/Office</Label><p className="font-medium">{scholar?.department || 'N/A'}</p></div>
               </div>
-              <div><Label htmlFor="evaluatorPosition">Your Position Title *</Label><Input id="evaluatorPosition" value={evaluatorPosition} onChange={(e) => setEvaluatorPosition(e.target.value)} placeholder="e.g., Circulation in-charge" className="mt-1" /></div>
+              <div><Label htmlFor="evaluatorPosition">Your Position Title *</Label><Input id="evaluatorPosition" value={evaluatorPosition} onChange={(e) => setEvaluatorPosition(e.target.value)} placeholder="e.g., Circulation in-charge" className="mt-1" disabled={readOnly} /></div>
+              {useDepartmentHeadEndpoint && !readOnly && (
+                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t">
+                  <div>
+                    <Label>School Year *</Label>
+                    <Select value={schoolYear} onValueChange={setSchoolYear}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select school year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={`${currentYear}-${currentYear + 1}`}>{currentYear}-{currentYear + 1}</SelectItem>
+                        <SelectItem value={`${currentYear - 1}-${currentYear}`}>{currentYear - 1}-{currentYear}</SelectItem>
+                        <SelectItem value={`${currentYear + 1}-${currentYear + 2}`}>{currentYear + 1}-{currentYear + 2}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Semester *</Label>
+                    <Select value={semester} onValueChange={setSemester}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select semester" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="First Semester">First Semester</SelectItem>
+                        <SelectItem value="Second Semester">Second Semester</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg"><div className="flex justify-between items-center"><div><Label className="text-sm text-blue-700">Overall Rating Preview</Label><p className="text-3xl font-bold text-blue-900">{overallPreview.rating}</p></div><Badge className={`text-lg px-4 py-2 ${overallPreview.interpretation === 'Very Good' ? 'bg-green-500' : overallPreview.interpretation === 'Good' ? 'bg-blue-500' : overallPreview.interpretation === 'Average' ? 'bg-yellow-500' : overallPreview.interpretation === 'Poor' ? 'bg-orange-500' : 'bg-red-500'}`}>{overallPreview.interpretation}</Badge></div></div>
-            <div className="border-2 border-red-200 bg-red-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-red-900">A. ATTENDANCE AND PUNCTUALITY (20%)</h3><RatingInput label="Regularity of Attendance" value={attendance.regularityOfAttendance} onChange={(v) => setAttendance({...attendance, regularityOfAttendance: v})} /><RatingInput label="Promptness in Reporting for Duty" value={attendance.promptnessInReporting} onChange={(v) => setAttendance({...attendance, promptnessInReporting: v})} /></div>
-            <div className="border-2 border-orange-200 bg-orange-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-orange-900">B. QUALITY OF WORK OUTPUT (25%)</h3><RatingInput label="Accuracy and Thoroughness of Work" value={quality.accuracyAndThoroughness} onChange={(v) => setQuality({...quality, accuracyAndThoroughness: v})} /><RatingInput label="Organizes and/or Presentation/Evidence of Work" value={quality.organizationAndPresentation} onChange={(v) => setQuality({...quality, organizationAndPresentation: v})} /><RatingInput label="Effectiveness (Completion of Clients' Needs and Constraints)" value={quality.effectiveness} onChange={(v) => setQuality({...quality, effectiveness: v})} /></div>
-            <div className="border-2 border-yellow-200 bg-yellow-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-yellow-900">C. QUANTITY OF WORK OUTPUT (15%)</h3><RatingInput label="Accomplishes More Work on the Given Time" value={quantity.accomplishesMoreWork} onChange={(v) => setQuantity({...quantity, accomplishesMoreWork: v})} /><RatingInput label="Readiness in Accomplishing Tasks/Duties" value={quantity.readinessInAccomplishing} onChange={(v) => setQuantity({...quantity, readinessInAccomplishing: v})} /></div>
-            <div className="border-2 border-green-200 bg-green-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-green-900">D. PERSONAL QUALITIES (25%)</h3><RatingInput label="Sense of Responsibility and Urgency" value={personal.responsibilityAndUrgency} onChange={(v) => setPersonal({...personal, responsibilityAndUrgency: v})} /><RatingInput label="Dependability and Reliability" value={personal.dependabilityAndReliability} onChange={(v) => setPersonal({...personal, dependabilityAndReliability: v})} /><RatingInput label="Industry and Resourcefulness" value={personal.industryAndResourcefulness} onChange={(v) => setPersonal({...personal, industryAndResourcefulness: v})} /><RatingInput label="Fairness and Initiative" value={personal.fairnessAndInitiative} onChange={(v) => setPersonal({...personal, fairnessAndInitiative: v})} /><RatingInput label="Sociability and Pleasant Disposition" value={personal.sociabilityAndDisposition} onChange={(v) => setPersonal({...personal, sociabilityAndDisposition: v})} /></div>
-            <div className="border-2 border-purple-200 bg-purple-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-purple-900">TIMEKEEPING RECORD</h3><div className="grid grid-cols-3 gap-4"><div><Label>Excused Absences</Label><Input type="number" min="0" value={timekeeping.excusedAbsences} onChange={(e) => setTimekeeping({...timekeeping, excusedAbsences: parseInt(e.target.value) || 0})} /></div><div><Label>Unexcused Absences</Label><Input type="number" min="0" value={timekeeping.unexcusedAbsences} onChange={(e) => setTimekeeping({...timekeeping, unexcusedAbsences: parseInt(e.target.value) || 0})} /></div><div><Label>Late &gt;10mins</Label><Input type="number" min="0" value={timekeeping.lateMoreThan10mins} onChange={(e) => setTimekeeping({...timekeeping, lateMoreThan10mins: parseInt(e.target.value) || 0})} /></div><div><Label>Late &lt;1hr</Label><Input type="number" min="0" value={timekeeping.lateLessThan1hr} onChange={(e) => setTimekeeping({...timekeeping, lateLessThan1hr: parseInt(e.target.value) || 0})} /></div><div><Label>Failure to Punch</Label><Input type="number" min="0" value={timekeeping.failureToPunch} onChange={(e) => setTimekeeping({...timekeeping, failureToPunch: parseInt(e.target.value) || 0})} /></div><div><Label>Under Time</Label><Input type="number" min="0" value={timekeeping.underTime} onChange={(e) => setTimekeeping({...timekeeping, underTime: parseInt(e.target.value) || 0})} /></div></div></div>
-            <div className="space-y-4"><div><Label htmlFor="supervisorRemarks">Remarks and Recommendation by Immediate Supervisor</Label><Textarea id="supervisorRemarks" value={supervisorRemarks} onChange={(e) => setSupervisorRemarks(e.target.value)} rows={3} placeholder="Enter your remarks and recommendations..." className="mt-1" /></div><div><Label htmlFor="nasRemarks">Remarks / Comments by the NAS (Optional)</Label><Textarea id="nasRemarks" value={nasRemarks} onChange={(e) => setNasRemarks(e.target.value)} rows={2} placeholder="Optional comments..." className="mt-1" /></div></div>
+            <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg"><div className="flex justify-between items-center"><div><Label className="text-sm text-blue-700">Overall Rating Preview</Label><p className="text-3xl font-bold text-blue-900">{overallPreview.rating}</p></div><Badge className={`text-lg px-4 py-2 ${overallPreview.interpretation === 'Good' ? 'bg-green-500' : overallPreview.interpretation === 'Average' ? 'bg-yellow-500' : 'bg-red-500'}`}>{overallPreview.interpretation}</Badge></div></div>
+            <div className="border-2 border-red-200 bg-red-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-red-900">A. ATTENDANCE AND PUNCTUALITY (20%)</h3><RatingInput label="Regularity of Attendance" value={attendance.regularityOfAttendance} onChange={(v) => setAttendance({...attendance, regularityOfAttendance: v})} disabled={readOnly} /><RatingInput label="Promptness in Reporting for Duty" value={attendance.promptnessInReporting} onChange={(v) => setAttendance({...attendance, promptnessInReporting: v})} disabled={readOnly} /></div>
+            <div className="border-2 border-orange-200 bg-orange-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-orange-900">B. QUALITY OF WORK OUTPUT (25%)</h3><RatingInput label="Accuracy and Thoroughness of Work" value={quality.accuracyAndThoroughness} onChange={(v) => setQuality({...quality, accuracyAndThoroughness: v})} disabled={readOnly} /><RatingInput label="Organizes and/or Presentation/Evidence of Work" value={quality.organizationAndPresentation} onChange={(v) => setQuality({...quality, organizationAndPresentation: v})} disabled={readOnly} /><RatingInput label="Effectiveness (Completion of Clients' Needs and Constraints)" value={quality.effectiveness} onChange={(v) => setQuality({...quality, effectiveness: v})} disabled={readOnly} /></div>
+            <div className="border-2 border-yellow-200 bg-yellow-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-yellow-900">C. QUANTITY OF WORK OUTPUT (15%)</h3><RatingInput label="Accomplishes More Work on the Given Time" value={quantity.accomplishesMoreWork} onChange={(v) => setQuantity({...quantity, accomplishesMoreWork: v})} disabled={readOnly} /><RatingInput label="Readiness in Accomplishing Tasks/Duties" value={quantity.readinessInAccomplishing} onChange={(v) => setQuantity({...quantity, readinessInAccomplishing: v})} disabled={readOnly} /></div>
+            <div className="border-2 border-green-200 bg-green-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-green-900">D. PERSONAL QUALITIES (25%)</h3><RatingInput label="Sense of Responsibility and Urgency" value={personal.responsibilityAndUrgency} onChange={(v) => setPersonal({...personal, responsibilityAndUrgency: v})} disabled={readOnly} /><RatingInput label="Dependability and Reliability" value={personal.dependabilityAndReliability} onChange={(v) => setPersonal({...personal, dependabilityAndReliability: v})} disabled={readOnly} /><RatingInput label="Industry and Resourcefulness" value={personal.industryAndResourcefulness} onChange={(v) => setPersonal({...personal, industryAndResourcefulness: v})} disabled={readOnly} /><RatingInput label="Fairness and Initiative" value={personal.fairnessAndInitiative} onChange={(v) => setPersonal({...personal, fairnessAndInitiative: v})} disabled={readOnly} /><RatingInput label="Sociability and Pleasant Disposition" value={personal.sociabilityAndDisposition} onChange={(v) => setPersonal({...personal, sociabilityAndDisposition: v})} disabled={readOnly} /></div>
+            {!hideTimekeeping && (
+              <div className="border-2 border-purple-200 bg-purple-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-purple-900">TIMEKEEPING RECORD</h3><div className="grid grid-cols-3 gap-4"><div><Label>Excused Absences</Label><Input type="number" min="0" value={timekeeping.excusedAbsences} onChange={(e) => setTimekeeping({...timekeeping, excusedAbsences: parseInt(e.target.value) || 0})} disabled={readOnly} /></div><div><Label>Unexcused Absences</Label><Input type="number" min="0" value={timekeeping.unexcusedAbsences} onChange={(e) => setTimekeeping({...timekeeping, unexcusedAbsences: parseInt(e.target.value) || 0})} disabled={readOnly} /></div><div><Label>Late &gt;10mins</Label><Input type="number" min="0" value={timekeeping.lateMoreThan10mins} onChange={(e) => setTimekeeping({...timekeeping, lateMoreThan10mins: parseInt(e.target.value) || 0})} disabled={readOnly} /></div><div><Label>Late &lt;1hr</Label><Input type="number" min="0" value={timekeeping.lateLessThan1hr} onChange={(e) => setTimekeeping({...timekeeping, lateLessThan1hr: parseInt(e.target.value) || 0})} disabled={readOnly} /></div><div><Label>Failure to Punch</Label><Input type="number" min="0" value={timekeeping.failureToPunch} onChange={(e) => setTimekeeping({...timekeeping, failureToPunch: parseInt(e.target.value) || 0})} disabled={readOnly} /></div><div><Label>Under Time</Label><Input type="number" min="0" value={timekeeping.underTime} onChange={(e) => setTimekeeping({...timekeeping, underTime: parseInt(e.target.value) || 0})} disabled={readOnly} /></div></div></div>
+            )}
+            <div className="space-y-4"><div><Label htmlFor="supervisorRemarks">Remarks and Recommendation by Immediate Supervisor</Label><Textarea id="supervisorRemarks" value={supervisorRemarks} onChange={(e) => setSupervisorRemarks(e.target.value)} rows={3} placeholder="Enter your remarks and recommendations..." className="mt-1" disabled={readOnly} /></div><div><Label htmlFor="nasRemarks">Remarks / Comments by the NAS (Optional)</Label><Textarea id="nasRemarks" value={nasRemarks} onChange={(e) => setNasRemarks(e.target.value)} rows={2} placeholder="Optional comments..." className="mt-1" disabled={readOnly} /></div></div>
           </div>
         </ScrollArea>
-        <div className="flex justify-end gap-2 mt-4"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button><Button onClick={handleSubmit} disabled={loading} className="bg-[#800000] hover:bg-[#600000]">{loading ? 'Saving...' : existingEvaluation ? 'Update Evaluation' : 'Submit Evaluation'}</Button></div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            {readOnly ? 'Close' : 'Cancel'}
+          </Button>
+          {!readOnly && (
+            <Button onClick={handleSubmit} disabled={loading} className="bg-[#800000] hover:bg-[#600000]">
+              {loading ? 'Saving...' : existingEvaluation ? 'Update Evaluation' : 'Submit Evaluation'}
+            </Button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

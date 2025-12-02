@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, Users, CheckCircle, Eye, MessageSquare, Search, ClipboardCheck, Bell } from "lucide-react";
+import { Calendar, Clock, Users, CheckCircle, Eye, MessageSquare, Search, ClipboardCheck, Bell, Plus } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { departmentHeadService } from "@/services/departmentHeadService";
 import { scholarEvaluationService } from "@/services/scholarEvaluationService";
@@ -27,6 +27,17 @@ interface InterviewData {
   schedule: string;
   status: 'not yet scheduled' | 'pending' | 'complete';
 }
+
+// Helper function to safely extract numeric values from MongoDB $numberDecimal format
+const getNumericValue = (value: any): number => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseFloat(value) || 0;
+  if (typeof value === 'object' && value.$numberDecimal) {
+    return parseFloat(value.$numberDecimal) || 0;
+  }
+  return 0;
+};
 
 export default function DepartmentHeadDashboardPage() {
   const { user } = useAuth();
@@ -50,6 +61,10 @@ export default function DepartmentHeadDashboardPage() {
   const [selectedScholar, setSelectedScholar] = useState<any>(null);
   const [scholars, setScholars] = useState<any[]>([]);
   const [userDepartment, setUserDepartment] = useState<any>(null);
+  const [scholarEvaluations, setScholarEvaluations] = useState<any[]>([]);
+  const [selectedEvaluation, setSelectedEvaluation] = useState<any>(null);
+  const [isViewingEvaluation, setIsViewingEvaluation] = useState(false);
+  const [loadingEvaluations, setLoadingEvaluations] = useState(false);
 
   // Function to fetch application details
   const fetchApplicationDetails = async (applicantId: string) => {
@@ -64,6 +79,8 @@ export default function DepartmentHeadDashboardPage() {
         console.log('📋 Found applicant data:', applicant);
         console.log('🔍 All applicant keys:', Object.keys(applicant));
         
+        const idNumber = applicant.idNumber || applicant.user?.idNumber || applicant.studentId || 'N/A';
+        
         // Set the application details with real data from the backend
         setApplicationDetails({
           _id: applicant._id || applicant.id,
@@ -71,7 +88,7 @@ export default function DepartmentHeadDashboardPage() {
           applicationId: applicant.applicationId || applicant._id,
           firstName: applicant.firstName || applicant.name?.split(' ')[0] || '',
           lastName: applicant.lastName || applicant.name?.split(' ').slice(1).join(' ') || '',
-          idNumber: applicant.idNumber || applicant.user?.idNumber || applicant.studentId || 'N/A',
+          idNumber: idNumber,
           email: applicant.email || applicant.user?.email || applicant.emailAddress || 'N/A',
           contactNumber: applicant.contactNumber || applicant.phoneNumber || applicant.phone || applicant.mobileNumber || 'N/A',
           dateOfBirth: applicant.dateOfBirth || applicant.birthDate || applicant.dob || 'N/A',
@@ -86,6 +103,13 @@ export default function DepartmentHeadDashboardPage() {
           numberOfSiblings: applicant.numberOfSiblings || applicant.siblings || 'N/A',
           address: applicant.address || applicant.homeAddress || applicant.completeAddress || applicant.location || 'N/A'
         });
+        
+        // Also fetch evaluations for this scholar
+        if (idNumber && idNumber !== 'N/A') {
+          fetchScholarEvaluations(idNumber);
+        } else {
+          setScholarEvaluations([]);
+        }
       } else {
         console.warn('⚠️ Applicant not found in assigned applicants');
         // Fallback to interview data
@@ -120,6 +144,46 @@ export default function DepartmentHeadDashboardPage() {
         description: "Failed to load application details",
         variant: "destructive"
       });
+    }
+  };
+
+  // Function to fetch evaluations for a scholar using /api/evaluations/user/:idNumber
+  const fetchScholarEvaluations = async (idNumber: string) => {
+    try {
+      setLoadingEvaluations(true);
+      setSelectedEvaluation(null); // Reset selected evaluation
+      
+      if (!idNumber || idNumber === 'N/A') {
+        console.log('📋 No ID number available, skipping evaluation fetch');
+        setScholarEvaluations([]);
+        return;
+      }
+      
+      // Use the /api/evaluations/user/:idNumber endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/evaluations/user/${idNumber}`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // The response is an array of evaluations
+        const evaluations = Array.isArray(data) ? data : (data.evaluations || []);
+        setScholarEvaluations(evaluations);
+        console.log('📋 Fetched evaluations for scholar:', evaluations);
+        
+        // Auto-select the first evaluation if available
+        if (evaluations.length > 0) {
+          setSelectedEvaluation(evaluations[0]);
+        }
+      } else {
+        console.log('📋 No evaluations found or error:', response.status);
+        setScholarEvaluations([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching scholar evaluations:', error);
+      setScholarEvaluations([]);
+    } finally {
+      setLoadingEvaluations(false);
     }
   };
 
@@ -329,6 +393,13 @@ export default function DepartmentHeadDashboardPage() {
     };
     loadEvaluationPeriod();
   }, []);
+
+  // Fetch evaluations when applicationDetails changes and has an idNumber
+  useEffect(() => {
+    if (applicationDetails?.idNumber && applicationDetails.idNumber !== 'N/A') {
+      fetchScholarEvaluations(applicationDetails.idNumber);
+    }
+  }, [applicationDetails?.idNumber]);
 
   // Fetch real data from backend
   useEffect(() => {
@@ -594,7 +665,8 @@ export default function DepartmentHeadDashboardPage() {
                                     size="sm"
                                     onClick={() => {
                                       setSelectedApplication(interview);
-                                      // Fetch application details when eye is clicked
+                                      setSelectedEvaluation(null); // Reset selected evaluation
+                                      // Fetch application details and evaluations when eye is clicked
                                       fetchApplicationDetails(interview._id);
                                     }}
                                   >
@@ -816,30 +888,224 @@ export default function DepartmentHeadDashboardPage() {
                                     
                                     <TabsContent value="evaluation" className="space-y-4">
                                       <div className="space-y-4">
-                                        <h3 className="font-medium">Submit Evaluation</h3>
-                                        {/* Evaluation form content */}
-                                        <div className="space-y-4">
-                                          <div>
-                                            <Label>Overall Rating</Label>
-                                            <Select>
-                                              <SelectTrigger>
-                                                <SelectValue placeholder="Select rating" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="5">Excellent (5)</SelectItem>
-                                                <SelectItem value="4">Good (4)</SelectItem>
-                                                <SelectItem value="3">Average (3)</SelectItem>
-                                                <SelectItem value="2">Below Average (2)</SelectItem>
-                                                <SelectItem value="1">Poor (1)</SelectItem>
-                                              </SelectContent>
-                                            </Select>
-                                          </div>
-                                          <div>
-                                            <Label>Remarks</Label>
-                                            <Textarea placeholder="Enter your evaluation remarks..." />
-                                          </div>
-                                          <Button>Submit Evaluation</Button>
+                                        <div className="flex items-center justify-between">
+                                          <h3 className="font-semibold text-lg text-[#800000]">Scholar Evaluations</h3>
+                                          {evaluationPeriod?.isOpen && scholarEvaluations.length === 0 && applicationDetails?.idNumber && applicationDetails.idNumber !== 'N/A' && (
+                                            <Button 
+                                              onClick={() => {
+                                                // Set scholar data for evaluation form
+                                                setSelectedScholar({
+                                                  ...applicationDetails,
+                                                  userId: applicationDetails?.userId || selectedApplication?._id,
+                                                  _id: applicationDetails?.userId || selectedApplication?._id,
+                                                  department: userDepartment?.name || userDepartment?.departmentName || user?.department || 'N/A'
+                                                });
+                                                setSelectedEvaluation(null);
+                                                setIsViewingEvaluation(false);
+                                                setShowEvaluationForm(true);
+                                              }}
+                                              className="bg-[#800000] hover:bg-[#600000]"
+                                            >
+                                              <ClipboardCheck className="mr-2 h-4 w-4" />
+                                              Create Evaluation
+                                            </Button>
+                                          )}
                                         </div>
+
+                                        {loadingEvaluations ? (
+                                          <div className="flex items-center justify-center py-8">
+                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                                            <span className="ml-2 text-sm text-gray-600">Loading evaluations...</span>
+                                          </div>
+                                        ) : scholarEvaluations.length > 0 ? (
+                                          <div className="space-y-4">
+                                            {/* Evaluation Selector */}
+                                            <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
+                                              <span className="text-sm text-gray-600 mr-2 self-center">Select Evaluation:</span>
+                                              {scholarEvaluations.map((evaluation, index) => (
+                                                <Button
+                                                  key={evaluation._id}
+                                                  variant={selectedEvaluation?._id === evaluation._id ? "default" : "outline"}
+                                                  size="sm"
+                                                  onClick={() => setSelectedEvaluation(evaluation)}
+                                                  className={selectedEvaluation?._id === evaluation._id ? "bg-[#800000] hover:bg-[#600000]" : ""}
+                                                >
+                                                  {evaluation.semester === 'First Semester' ? '1st' : '2nd'} Sem ({evaluation.schoolYear || 'N/A'})
+                                                </Button>
+                                              ))}
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="border-green-500 text-green-600 hover:bg-green-50"
+                                                onClick={() => {
+                                                  setSelectedScholar({
+                                                    ...applicationDetails,
+                                                    userId: applicationDetails?.userId || selectedApplication?._id,
+                                                    _id: applicationDetails?.userId || selectedApplication?._id,
+                                                    department: userDepartment?.name || userDepartment?.departmentName || user?.department || 'N/A'
+                                                  });
+                                                  setSelectedEvaluation(null);
+                                                  setIsViewingEvaluation(false);
+                                                  setShowEvaluationForm(true);
+                                                }}
+                                              >
+                                                <Plus className="h-4 w-4 mr-1" />
+                                                New Evaluation
+                                              </Button>
+                                            </div>
+
+                                            {/* Selected Evaluation Details (Read-Only) */}
+                                            {selectedEvaluation && (
+                                              <div className="border-2 border-gray-200 rounded-lg p-4 space-y-4">
+                                                <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg">
+                                                  <p className="text-amber-800 text-sm font-medium">
+                                                    📋 This evaluation is read-only. Department heads cannot edit submitted evaluations.
+                                                  </p>
+                                                </div>
+
+                                                {/* Header */}
+                                                <div className="flex justify-between items-start">
+                                                  <div>
+                                                    <h4 className="font-semibold text-lg">{selectedEvaluation.semester} - S.Y. {selectedEvaluation.schoolYear}</h4>
+                                                    <p className="text-sm text-gray-500">
+                                                      Submitted: {new Date(selectedEvaluation.createdAt).toLocaleDateString()}
+                                                      {selectedEvaluation.updatedAt && selectedEvaluation.updatedAt !== selectedEvaluation.createdAt && 
+                                                        ` | Updated: ${new Date(selectedEvaluation.updatedAt).toLocaleDateString()}`
+                                                      }
+                                                    </p>
+                                                  </div>
+                                                  <Badge className={`text-lg px-4 py-2 ${
+                                                    getNumericValue(selectedEvaluation.overallRating) >= 3.0 ? 'bg-green-500' : 'bg-red-500'
+                                                  }`}>
+                                                    {getNumericValue(selectedEvaluation.overallRating).toFixed(2)}
+                                                  </Badge>
+                                                </div>
+
+                                                {/* Rating Categories */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                  {/* Attendance */}
+                                                  <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+                                                    <h5 className="font-medium text-red-900 mb-2">A. Attendance & Punctuality (20%)</h5>
+                                                    <div className="space-y-1 text-sm">
+                                                      <div className="flex justify-between">
+                                                        <span>Regularity of Attendance:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attendanceAndPunctuality?.regularAttendance)}/5</span>
+                                                      </div>
+                                                      <div className="flex justify-between">
+                                                        <span>Promptness in Reporting:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attendanceAndPunctuality?.promptnessInReportingForDuty)}/5</span>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Quality */}
+                                                  <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg">
+                                                    <h5 className="font-medium text-orange-900 mb-2">B. Quality of Work (25%)</h5>
+                                                    <div className="space-y-1 text-sm">
+                                                      <div className="flex justify-between">
+                                                        <span>Accuracy & Thoroughness:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.qualityOfWorkOutput?.accuracyAndThoroughnessOfWork)}/5</span>
+                                                      </div>
+                                                      <div className="flex justify-between">
+                                                        <span>Organization & Presentation:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.qualityOfWorkOutput?.organizationAndOrPresentationNeatnessOfWork)}/5</span>
+                                                      </div>
+                                                      <div className="flex justify-between">
+                                                        <span>Effectiveness:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.qualityOfWorkOutput?.effectiveness)}/5</span>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Quantity */}
+                                                  <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                                                    <h5 className="font-medium text-yellow-900 mb-2">C. Quantity of Work (15%)</h5>
+                                                    <div className="space-y-1 text-sm">
+                                                      <div className="flex justify-between">
+                                                        <span>Accomplishes More Work:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.quantityOfWorkOutput?.accomplishesMoreWorkOnTheGivenTime)}/5</span>
+                                                      </div>
+                                                      <div className="flex justify-between">
+                                                        <span>Timeliness in Accomplishing:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.quantityOfWorkOutput?.timelinessInAccomplishingTaskDuties)}/5</span>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Personal Qualities */}
+                                                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                                                    <h5 className="font-medium text-green-900 mb-2">D. Personal Qualities (25%)</h5>
+                                                    <div className="space-y-1 text-sm">
+                                                      <div className="flex justify-between">
+                                                        <span>Responsibility & Urgency:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.senseOfResponsibilityAndUrgency)}/5</span>
+                                                      </div>
+                                                      <div className="flex justify-between">
+                                                        <span>Dependability & Reliability:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.dependabilityAndReliability)}/5</span>
+                                                      </div>
+                                                      <div className="flex justify-between">
+                                                        <span>Industry & Resourcefulness:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.industryAndResourcefulness)}/5</span>
+                                                      </div>
+                                                      <div className="flex justify-between">
+                                                        <span>Alertness & Initiative:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.alertnessAndInitiative)}/5</span>
+                                                      </div>
+                                                      <div className="flex justify-between">
+                                                        <span>Sociability & Disposition:</span>
+                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.sociabilityAndPleasantDisposition)}/5</span>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                {/* Remarks */}
+                                                {(selectedEvaluation.remarksAndRecommendationByImmediateSupervisor || selectedEvaluation.remarksCommentsByTheNAS) && (
+                                                  <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg">
+                                                    <h5 className="font-medium text-gray-900 mb-2">Remarks</h5>
+                                                    {selectedEvaluation.remarksAndRecommendationByImmediateSupervisor && (
+                                                      <div className="mb-2">
+                                                        <p className="text-xs text-gray-500">Supervisor Remarks:</p>
+                                                        <p className="text-sm">{selectedEvaluation.remarksAndRecommendationByImmediateSupervisor}</p>
+                                                      </div>
+                                                    )}
+                                                    {selectedEvaluation.remarksCommentsByTheNAS && (
+                                                      <div>
+                                                        <p className="text-xs text-gray-500">NAS Comments:</p>
+                                                        <p className="text-sm">{selectedEvaluation.remarksCommentsByTheNAS}</p>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+
+                                            {!selectedEvaluation && (
+                                              <p className="text-sm text-gray-500 text-center py-4">
+                                                👆 Click on an evaluation above to view its details.
+                                              </p>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div className="text-center py-8 bg-gray-50 rounded-lg">
+                                            <ClipboardCheck className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                            <p className="text-gray-500 mb-2">No evaluations submitted yet</p>
+                                            {!applicationDetails?.idNumber || applicationDetails.idNumber === 'N/A' ? (
+                                              <p className="text-sm text-amber-600">
+                                                ⚠️ Scholar does not have an ID number assigned yet.
+                                              </p>
+                                            ) : evaluationPeriod?.isOpen ? (
+                                              <p className="text-sm text-green-600">
+                                                ✓ Evaluation period is open. You can create an evaluation.
+                                              </p>
+                                            ) : (
+                                              <p className="text-sm text-amber-600">
+                                                ⚠️ Evaluation period is currently closed.
+                                              </p>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     </TabsContent>
                                     
@@ -944,7 +1210,13 @@ export default function DepartmentHeadDashboardPage() {
           <ScholarEvaluationForm
             scholar={selectedScholar}
             open={showEvaluationForm}
-            onOpenChange={setShowEvaluationForm}
+            onOpenChange={(open) => {
+              setShowEvaluationForm(open);
+              if (!open) {
+                setSelectedEvaluation(null);
+                setIsViewingEvaluation(false);
+              }
+            }}
             onSuccess={() => {
               toast({
                 title: "Success",
@@ -952,7 +1224,17 @@ export default function DepartmentHeadDashboardPage() {
                 duration: 3000
               });
               setShowEvaluationForm(false);
+              setSelectedEvaluation(null);
+              setIsViewingEvaluation(false);
+              // Refresh evaluations list using idNumber
+              if (applicationDetails?.idNumber && applicationDetails.idNumber !== 'N/A') {
+                fetchScholarEvaluations(applicationDetails.idNumber);
+              }
             }}
+            existingEvaluation={selectedEvaluation}
+            readOnly={isViewingEvaluation}
+            hideTimekeeping={true}
+            useDepartmentHeadEndpoint={true}
           />
         )}
       </div>

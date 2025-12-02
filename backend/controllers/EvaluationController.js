@@ -76,10 +76,19 @@ async function getEvaluationById(req, res) {
   }
 }
 
-// Update an evaluation by evaluationId
+// Update an evaluation by evaluationId (OAS Staff/Admin only - Department heads cannot update)
 async function updateEvaluation(req, res) {
   try {
     const { evaluationId } = req.params;
+    
+    // Restrict department heads from updating evaluations
+    const userRole = req.user.role;
+    if (userRole === 'department_head') {
+      return res.status(403).json({ 
+        message: 'Department heads cannot update evaluations after submission. Please contact OAS staff for any changes.' 
+      });
+    }
+    
     const evaluation = await EvaluationService.updateEvaluation(evaluationId, req.body);
     
     res.status(200).json(evaluation);
@@ -95,10 +104,19 @@ async function updateEvaluation(req, res) {
   }
 }
 
-// Delete an evaluation by evaluationId
+// Delete an evaluation by evaluationId (OAS Staff/Admin only - Department heads cannot delete)
 async function deleteEvaluation(req, res) {
   try {
     const { evaluationId } = req.params;
+    
+    // Restrict department heads from deleting evaluations
+    const userRole = req.user.role;
+    if (userRole === 'department_head') {
+      return res.status(403).json({ 
+        message: 'Department heads cannot delete evaluations. Please contact OAS staff.' 
+      });
+    }
+    
     const result = await EvaluationService.deleteEvaluation(evaluationId);
     
     res.status(200).json(result);
@@ -114,10 +132,19 @@ async function deleteEvaluation(req, res) {
   }
 }
 
-// Update timeKeepingRecord by evaluationId
+// Update timeKeepingRecord by evaluationId (OAS Staff/Admin only - Department heads cannot update timekeeping)
 async function updateTimeKeepingRecord(req, res) {
   try {
     const { evaluationId } = req.params;
+    
+    // Restrict department heads from updating timekeeping
+    const userRole = req.user.role;
+    if (userRole === 'department_head') {
+      return res.status(403).json({ 
+        message: 'Department heads cannot update timekeeping records. Only OAS staff can manage timekeeping.' 
+      });
+    }
+    
     const evaluation = await EvaluationService.updateTimeKeepingRecord(evaluationId, req.body);
     
     res.status(200).json(evaluation);

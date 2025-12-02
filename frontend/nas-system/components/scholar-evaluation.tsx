@@ -746,7 +746,9 @@ export function ScholarEvaluation() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{scholar.name}</p>
                         <p className="text-xs text-gray-500 truncate">{scholar.course}</p>
-                        <p className="text-xs text-gray-400">ID: {scholar.idNumber}</p>
+                        {scholar.idNumber && (
+                          <p className="text-xs text-gray-400">ID: {scholar.idNumber}</p>
+                        )}
                         <div className="mt-1">
                           {getStatusBadge(scholar.status)}
                         </div>
@@ -775,7 +777,7 @@ export function ScholarEvaluation() {
                 <div>
                   <CardTitle className="text-[#800000]">{selectedScholar.name}</CardTitle>
                   <CardDescription>
-                    {selectedScholar.course} | ID: {selectedScholar.idNumber}
+                    {selectedScholar.course}{selectedScholar.idNumber && ` | ID: ${selectedScholar.idNumber}`}
                   </CardDescription>
                 </div>
                 <div className="text-right">

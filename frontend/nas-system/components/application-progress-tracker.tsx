@@ -14,93 +14,94 @@ interface EvaluationStatus {
 }
 
 export function ApplicationProgressTracker() {
-  const [applicationStatus, setApplicationStatus] = useState<string>("Pending")
+  const [applicationStatus, setApplicationStatus] = useState<string>("None")
+  const [hasApplication, setHasApplication] = useState(false)
   const [hasDocuments, setHasDocuments] = useState(false)
   const [hasPersonalityTest, setHasPersonalityTest] = useState(false)
   const [interviewData, setInterviewData] = useState<any>(null)
   const [evaluationStatus, setEvaluationStatus] = useState<EvaluationStatus | null>(null)
-  const [loading, setLoading] = useState(true)
 
   // Fetch application status and documents
   useEffect(() => {
     const fetchApplicationProgress = async () => {
       try {
-        setLoading(true)
         
-        // Check application status
+        // STEP 1: Check application status FIRST
         const appResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application`, {
           credentials: 'include'
         })
         
-        if (appResponse.ok) {
-          const appData = await appResponse.json()
-          
-          if (appData.application) {
-            const backendStatus = appData.application.status
-            console.log('🔍 DEBUG: Backend returned status:', backendStatus); // ✅ ADD THIS DEBUG
-            
-            // Set the exact status from backend - DON'T TRANSFORM IT
-            setApplicationStatus(backendStatus); // ✅ USE EXACT STATUS
-            console.log('🔍 DEBUG: Progress tracker status set to:', backendStatus); // ✅ ADD THIS DEBUG
-          }
-        } else {
+        if (!appResponse.ok || appResponse.status === 404) {
+          // No application exists - don't fetch other statuses
           setApplicationStatus("None")
+          setHasApplication(false)
+          setHasDocuments(false)
+          setHasPersonalityTest(false)
+          setInterviewData(null)
+          setEvaluationStatus(null)
+          return // Stop here - no need to fetch other statuses
         }
-
-        // Check documents (existing logic)
-        const docResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/documents`, {
-          credentials: 'include'
-        })
         
-        if (docResponse.ok) {
-          const docData = await docResponse.json()
+        const appData = await appResponse.json()
+        
+        if (!appData.application) {
+          // No application data - stop here
+          setApplicationStatus("None")
+          setHasApplication(false)
+          return
+        }
+        
+        // Application exists - set status and continue
+        const backendStatus = appData.application.status
+        console.log('🔍 DEBUG: Backend returned status:', backendStatus)
+        setApplicationStatus(backendStatus)
+        setHasApplication(true)
+
+        // STEP 2: Only fetch other statuses if application exists
+        // Check documents
+        try {
+          const docResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/documents`, {
+            credentials: 'include'
+          })
           
-          if (docData.document) {
-            const hasAnyDocuments = [
-              docData.document.studentPicture,
-              docData.document.nbiClearance?.length > 0,
-              docData.document.gradeReport?.length > 0,
-              docData.document.incomeTaxReturn?.length > 0,
-              docData.document.goodMoralCertificate?.length > 0,
-              docData.document.physicalCheckup?.length > 0,
-              docData.document.homeLocationSketch?.length > 0
-            ].some(Boolean)
+          if (docResponse.ok) {
+            const docData = await docResponse.json()
             
-            setHasDocuments(hasAnyDocuments)
+            if (docData.document) {
+              const hasAnyDocuments = [
+                docData.document.studentPicture,
+                docData.document.nbiClearance?.length > 0,
+                docData.document.gradeReport?.length > 0,
+                docData.document.incomeTaxReturn?.length > 0,
+                docData.document.goodMoralCertificate?.length > 0,
+                docData.document.physicalCheckup?.length > 0,
+                docData.document.homeLocationSketch?.length > 0
+              ].some(Boolean)
+              
+              setHasDocuments(hasAnyDocuments)
+            } else {
+              setHasDocuments(false)
+            }
           } else {
             setHasDocuments(false)
           }
-        } else {
+        } catch (docError) {
+          console.error('❌ Document check error:', docError)
           setHasDocuments(false)
         }
 
-        // Check if personality test exists for this user
+        // STEP 3: Check personality test (only if application exists)
         try {
           console.log('🔍 DEBUG: Checking personality test status...')
           const personalityResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/status`, {
             credentials: 'include'
           })
           
-          console.log('🔍 DEBUG: Personality test response status:', personalityResponse.status)
-          
           if (personalityResponse.ok) {
             const personalityData = await personalityResponse.json()
-            console.log('🔍 DEBUG: Personality test data:', personalityData)
-            
             const testExists = personalityData.hasTest || personalityData.testId
-            console.log('🔍 DEBUG: Test exists:', testExists)
-            console.log('🔍 DEBUG: Current application status:', applicationStatus)
-            
             setHasPersonalityTest(testExists)
-            
-            // Note: Auto-completion happens on the backend when personality test is completed
-            // No need for frontend to call auto-complete endpoint (avoids permission issues)
-            if (testExists) {
-              console.log('🎯 Personality test detected - backend should have auto-completed application')
-            }
           } else {
-            const errorText = await personalityResponse.text()
-            console.error('❌ Personality test status check failed:', personalityResponse.status, errorText)
             setHasPersonalityTest(false)
           }
         } catch (personalityError) {
@@ -108,19 +109,17 @@ export function ApplicationProgressTracker() {
           setHasPersonalityTest(false)
         }
 
-        // Check interview data
+        // STEP 4: Check interview data (only if application exists)
         try {
           console.log('🔍 DEBUG: Checking interview data...')
           const interview = await applicationService.getMyInterview()
-          console.log('🔍 DEBUG: Interview data:', interview)
-          console.log('🔍 DEBUG: Interview structure:', JSON.stringify(interview, null, 2))
           setInterviewData(interview)
         } catch (interviewError) {
           console.error('❌ Interview error:', interviewError)
           setInterviewData(null)
         }
 
-        // Check evaluation status
+        // STEP 5: Check evaluation status (only if application exists)
         try {
           console.log('🔍 DEBUG: Checking evaluation status...')
           const evalResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/evaluation/status/me`, {
@@ -129,10 +128,8 @@ export function ApplicationProgressTracker() {
           
           if (evalResponse.ok) {
             const evalData = await evalResponse.json()
-            console.log('🔍 DEBUG: Evaluation status:', evalData)
             setEvaluationStatus(evalData)
           } else {
-            console.log('🔍 DEBUG: No evaluation found or error:', evalResponse.status)
             setEvaluationStatus({ hasEvaluation: false })
           }
         } catch (evalError) {
@@ -143,16 +140,20 @@ export function ApplicationProgressTracker() {
       } catch (error) {
         console.error('❌ Error fetching application progress:', error)
         setApplicationStatus("None")
+        setHasApplication(false)
         setHasDocuments(false)
         setHasPersonalityTest(false)
-      } finally {
-        setLoading(false)
       }
     }
     
     fetchApplicationProgress()
-    // Auto refresh every 15 seconds to catch OAS updates quickly
-    const interval = setInterval(fetchApplicationProgress, 15000)
+    
+    // Only poll if we need to (don't poll continuously when no application exists)
+    const interval = setInterval(() => {
+      // Refresh to check for updates
+      fetchApplicationProgress()
+    }, 30000) // Increased to 30 seconds to reduce load
+    
     return () => clearInterval(interval)
   }, [])
 
@@ -217,13 +218,23 @@ export function ApplicationProgressTracker() {
   const completedSteps = progressSteps.filter(step => step.status === "Completed").length
   const progress = Math.round((completedSteps / progressSteps.length) * 100)
 
-  if (loading) {
+  // Show message to complete application form first
+  if (!hasApplication) {
     return (
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#800000]"></div>
-            <span className="ml-2 text-gray-600">Loading application status...</span>
+        <CardHeader>
+          <CardTitle className="text-[#800000]">Application Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No Application Found</h3>
+            <p className="text-gray-500 mb-4">
+              Please complete the Application Form first to view your application progress.
+            </p>
+            <p className="text-sm text-gray-400">
+              Go to the "Application Form" tab to get started.
+            </p>
           </div>
         </CardContent>
       </Card>

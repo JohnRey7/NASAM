@@ -116,6 +116,13 @@ export const scholarEvaluationService = {
     return response.data;
   },
   
+  async getEvaluationsForScholar(scholarId: string) {
+    const response = await axios.get(`${API_URL}/scholar-evaluation/scholar/${scholarId}`, {
+      withCredentials: true
+    });
+    return response.data;
+  },
+  
   async deleteEvaluation(id: string) {
     const response = await axios.delete(`${API_URL}/scholar-evaluation/${id}`, {
       withCredentials: true
