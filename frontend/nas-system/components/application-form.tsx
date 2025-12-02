@@ -381,7 +381,9 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   };
 
   const removeCollegeLevel = (index: number) => {
-    const newLevels = collegeLevels.filter((_, i) => i !== index);
+    const newLevels = collegeLevels
+      .filter((_, i) => i !== index)
+      .map((level, i) => ({ ...level, yearLevel: i + 1 })); // Re-index yearLevels
     setCollegeLevels(newLevels);
     setFormData(prev => ({
       ...prev,
@@ -392,7 +394,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     }));
   };
 
-  const updateCollegeLevel = (index: number, field: "yearLevel" | "firstSemesterAverageFinalGrade" | "secondSemesterAverageFinalGrade" | "thirdSemesterAverageFinalGrade", value: number) => {
+  const updateCollegeLevel = (index: number, field: "firstSemesterAverageFinalGrade" | "secondSemesterAverageFinalGrade" | "thirdSemesterAverageFinalGrade", value: number) => {
     const newCollegeLevels = [...collegeLevels]
     newCollegeLevels[index][field] = value
     setCollegeLevels(newCollegeLevels)
@@ -1791,18 +1793,6 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={`college-year-${index}`}>Year Level</Label>
-                        <Input
-                          id={`college-year-${index}`}
-                          type="number"
-                          min="1"
-                          value={level.yearLevel}
-                          onChange={(e) => updateCollegeLevel(index, "yearLevel", Number(e.target.value))}
-                          placeholder="Enter year level"
-                          disabled={isReadOnly}
-                        />
-                      </div>
                       <div className="space-y-2">
                         <Label htmlFor={`first-sem-grade-${index}`}>First Semester Average Final Grade</Label>
                         <Input
