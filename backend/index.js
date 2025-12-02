@@ -290,19 +290,33 @@ app.get('/api/review', authenticate, checkPermission('interview.readOwn'), Inter
 
 
 // Evaluation Routes
-app.post('/api/evaluations', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
-app.get('/api/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluations);
-app.get('/api/evaluations/:idNumber', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationById);
-app.patch('/api/evaluations/:idNumber', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluation);
-app.delete('/api/evaluations/:idNumber', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluation);
+// User's own evaluations
+app.get('/api/evaluation/status/me', authenticate, EvaluationController.getMyEvaluationStatus);
+app.get('/api/evaluation/me', authenticate, EvaluationController.getMyLastEvaluation);
+app.get('/api/evaluations/me', authenticate, EvaluationController.getMyEvaluations);
 
-// Soft delete routes for evaluations
-app.delete('/api/evaluations/:idNumber/soft', authenticate, checkPermission('evaluation.delete'), EvaluationController.softDeleteEvaluation);
-app.put('/api/evaluations/:idNumber/restore', authenticate, checkPermission('evaluation.delete'), EvaluationController.restoreEvaluation);
-app.delete('/api/evaluations/:idNumber/permanent', authenticate, checkPermission('evaluation.delete'), EvaluationController.permanentDeleteEvaluation);
+// CRUD by idNumber (for creating and listing user's evaluations)
+app.post('/api/evaluations/:idNumber', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
+app.get('/api/evaluations/user/:idNumber', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationsByIdNumber);
+app.get('/api/evaluations/available-semesters/:idNumber', authenticate, checkPermission('evaluation.read'), EvaluationController.getAvailableSemesters);
+
+// All evaluations
+app.get('/api/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluations);
+
+// CRUD by evaluationId
+app.get('/api/evaluations/:evaluationId/id', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationById);
+app.patch('/api/evaluations/:evaluationId/id', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluation);
+app.delete('/api/evaluations/:evaluationId/id', authenticate, checkPermission('evaluation.delete'), EvaluationController.deleteEvaluation);
+
+// Soft delete routes for evaluations (by evaluationId)
+app.delete('/api/evaluations/:evaluationId/soft', authenticate, checkPermission('evaluation.delete'), EvaluationController.softDeleteEvaluation);
+app.put('/api/evaluations/:evaluationId/restore', authenticate, checkPermission('evaluation.delete'), EvaluationController.restoreEvaluation);
+app.delete('/api/evaluations/:evaluationId/permanent', authenticate, checkPermission('evaluation.delete'), EvaluationController.permanentDeleteEvaluation);
 app.get('/api/evaluations/deleted', authenticate, checkPermission('evaluation.read'), EvaluationController.getSoftDeletedEvaluations);
-app.patch('/api/evaluations/:idNumber/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeKeepingRecord);
-app.get('/api/evaluations/:idNumber/timekeeping', authenticate, checkPermission('evaluation.read_timekeeping'), EvaluationController.getTimeKeepingRecord);
+
+// Timekeeping routes (by evaluationId)
+app.patch('/api/evaluations/:evaluationId/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeKeepingRecord);
+app.get('/api/evaluations/:evaluationId/timekeeping', authenticate, checkPermission('evaluation.read_timekeeping'), EvaluationController.getTimeKeepingRecord);
 
 // Department Routes
 app.post('/api/departments', authenticate, checkPermission('department.create'), DepartmentController.createDepartment);

@@ -3,14 +3,22 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Clock, FileText, Users, Award, Calendar } from "lucide-react"
+import { CheckCircle, Clock, FileText, Users, Award, Calendar, Star } from "lucide-react"
 import { applicationService } from "@/services/applicationService"
+
+interface EvaluationStatus {
+  hasEvaluation: boolean
+  grade?: number
+  status?: 'passed' | 'failed'
+  passingGrade?: number
+}
 
 export function ApplicationProgressTracker() {
   const [applicationStatus, setApplicationStatus] = useState<string>("Pending")
   const [hasDocuments, setHasDocuments] = useState(false)
   const [hasPersonalityTest, setHasPersonalityTest] = useState(false)
   const [interviewData, setInterviewData] = useState<any>(null)
+  const [evaluationStatus, setEvaluationStatus] = useState<EvaluationStatus | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Fetch application status and documents
@@ -111,6 +119,26 @@ export function ApplicationProgressTracker() {
           console.error('❌ Interview error:', interviewError)
           setInterviewData(null)
         }
+
+        // Check evaluation status
+        try {
+          console.log('🔍 DEBUG: Checking evaluation status...')
+          const evalResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/evaluation/status/me`, {
+            credentials: 'include'
+          })
+          
+          if (evalResponse.ok) {
+            const evalData = await evalResponse.json()
+            console.log('🔍 DEBUG: Evaluation status:', evalData)
+            setEvaluationStatus(evalData)
+          } else {
+            console.log('🔍 DEBUG: No evaluation found or error:', evalResponse.status)
+            setEvaluationStatus({ hasEvaluation: false })
+          }
+        } catch (evalError) {
+          console.error('❌ Evaluation status error:', evalError)
+          setEvaluationStatus({ hasEvaluation: false })
+        }
         
       } catch (error) {
         console.error('❌ Error fetching application progress:', error)
@@ -165,6 +193,15 @@ export function ApplicationProgressTracker() {
       status: interviewData ? "Pending" : (hasPersonalityTest ? "Pending" : "Locked"),
       icon: <Calendar className="h-6 w-6" />,
       interviewDate: interviewData?.interview?.startTime || interviewData?.startTime || null
+    },
+    {
+      title: "Evaluation",
+      description: "Performance evaluation by OAS Admin",
+      status: evaluationStatus?.hasEvaluation 
+        ? "Completed" 
+        : (interviewData ? "Pending" : "Locked"),
+      icon: <Star className="h-6 w-6" />,
+      evaluationData: evaluationStatus
     },
     {
       title: "Application Status",
@@ -322,8 +359,35 @@ export function ApplicationProgressTracker() {
                     </div>
                   )}
 
-                  {/* ✅ Enhanced status messages for Application Status step */}
+                  {/* ✅ Enhanced status messages for Evaluation step */}
                   {idx === 4 && (
+                    <div className="mt-2 text-xs">
+                      {step.status === "Pending" && (
+                        <span className="text-yellow-600">⏳ Awaiting evaluation by OAS Admin</span>
+                      )}
+                      {step.status === "Completed" && step.evaluationData && (
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={step.evaluationData.status === 'passed' ? 'text-green-600' : 'text-red-600'}>
+                              {step.evaluationData.status === 'passed' ? '✓ Passed' : '✗ Failed'}
+                            </span>
+                            <span className="text-gray-500">
+                              (Grade: {step.evaluationData.grade?.toFixed(2)} / 5.00)
+                            </span>
+                          </div>
+                          <div className="mt-1 text-gray-400">
+                            Passing grade: {step.evaluationData.passingGrade?.toFixed(1)} or higher
+                          </div>
+                        </div>
+                      )}
+                      {step.status === "Locked" && (
+                        <span className="text-red-600">🔒 Complete interview first</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ✅ Enhanced status messages for Application Status step */}
+                  {idx === 5 && (
                     <div className="mt-2 text-xs">
                       {step.status === "Pending" && (
                         <span className="text-yellow-600">⏳ Awaiting final decision</span>

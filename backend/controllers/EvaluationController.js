@@ -1,9 +1,11 @@
 const EvaluationService = require('../services/EvaluationService');
 
-// Create a new evaluation (exclude timeKeepingRecord)
+// Create a new evaluation for a user by idNumber
 async function createEvaluation(req, res) {
   try {
-    const evaluation = await EvaluationService.createEvaluation(req.body);
+    const { idNumber } = req.params;
+    const evaluationData = { ...req.body, idNumber };
+    const evaluation = await EvaluationService.createEvaluation(evaluationData);
     
     res.status(201).json(evaluation);
   } catch (error) {
@@ -14,8 +16,8 @@ async function createEvaluation(req, res) {
     if (error.message.includes('not found')) {
       return res.status(404).json({ message: error.message });
     }
-    if (error.message.includes('Interview must be completed')) {
-      return res.status(400).json({ message: error.message });
+    if (error.message.includes('already exists')) {
+      return res.status(409).json({ message: error.message });
     }
     res.status(400).json({ message: `Validation error: ${error.message}` });
   }
@@ -36,11 +38,30 @@ async function getAllEvaluations(req, res) {
   }
 }
 
-// Get an evaluation by ID
-async function getEvaluationById(req, res) {
+// Get evaluations by user's idNumber (returns array)
+async function getEvaluationsByIdNumber(req, res) {
   try {
     const { idNumber } = req.params;
-    const evaluation = await EvaluationService.getEvaluationById(idNumber);
+    const evaluations = await EvaluationService.getEvaluationsByIdNumber(idNumber);
+    
+    res.status(200).json(evaluations);
+  } catch (error) {
+    console.error('Error in getEvaluationsByIdNumber:', error);
+    if (error.message.includes('Invalid')) {
+      return res.status(400).json({ message: error.message });
+    }
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+}
+
+// Get an evaluation by evaluationId
+async function getEvaluationById(req, res) {
+  try {
+    const { evaluationId } = req.params;
+    const evaluation = await EvaluationService.getEvaluationById(evaluationId);
     
     res.status(200).json(evaluation);
   } catch (error) {
@@ -55,11 +76,11 @@ async function getEvaluationById(req, res) {
   }
 }
 
-// Update an evaluation (exclude timeKeepingRecord)
+// Update an evaluation by evaluationId
 async function updateEvaluation(req, res) {
   try {
-    const { idNumber } = req.params;
-    const evaluation = await EvaluationService.updateEvaluation(idNumber, req.body);
+    const { evaluationId } = req.params;
+    const evaluation = await EvaluationService.updateEvaluation(evaluationId, req.body);
     
     res.status(200).json(evaluation);
   } catch (error) {
@@ -74,11 +95,11 @@ async function updateEvaluation(req, res) {
   }
 }
 
-// Delete an evaluation
+// Delete an evaluation by evaluationId
 async function deleteEvaluation(req, res) {
   try {
-    const { idNumber } = req.params;
-    const result = await EvaluationService.deleteEvaluation(idNumber);
+    const { evaluationId } = req.params;
+    const result = await EvaluationService.deleteEvaluation(evaluationId);
     
     res.status(200).json(result);
   } catch (error) {
@@ -93,11 +114,11 @@ async function deleteEvaluation(req, res) {
   }
 }
 
-// Update timeKeepingRecord
+// Update timeKeepingRecord by evaluationId
 async function updateTimeKeepingRecord(req, res) {
   try {
-    const { idNumber } = req.params;
-    const evaluation = await EvaluationService.updateTimeKeepingRecord(idNumber, req.body);
+    const { evaluationId } = req.params;
+    const evaluation = await EvaluationService.updateTimeKeepingRecord(evaluationId, req.body);
     
     res.status(200).json(evaluation);
   } catch (error) {
@@ -112,11 +133,11 @@ async function updateTimeKeepingRecord(req, res) {
   }
 }
 
-// Get timeKeepingRecord
+// Get timeKeepingRecord by evaluationId
 async function getTimeKeepingRecord(req, res) {
   try {
-    const { idNumber } = req.params;
-    const result = await EvaluationService.getTimeKeepingRecord(idNumber);
+    const { evaluationId } = req.params;
+    const result = await EvaluationService.getTimeKeepingRecord(evaluationId);
     
     res.status(200).json(result);
   } catch (error) {
@@ -131,11 +152,11 @@ async function getTimeKeepingRecord(req, res) {
   }
 }
 
-// Soft delete an evaluation
+// Soft delete an evaluation by evaluationId
 async function softDeleteEvaluation(req, res) {
   try {
-    const { idNumber } = req.params;
-    const result = await EvaluationService.softDeleteEvaluation(idNumber);
+    const { evaluationId } = req.params;
+    const result = await EvaluationService.softDeleteEvaluation(evaluationId);
     
     res.json(result);
   } catch (error) {
@@ -147,11 +168,11 @@ async function softDeleteEvaluation(req, res) {
   }
 }
 
-// Restore a soft-deleted evaluation
+// Restore a soft-deleted evaluation by evaluationId
 async function restoreEvaluation(req, res) {
   try {
-    const { idNumber } = req.params;
-    const result = await EvaluationService.restoreEvaluation(idNumber);
+    const { evaluationId } = req.params;
+    const result = await EvaluationService.restoreEvaluation(evaluationId);
     
     res.json(result);
   } catch (error) {
@@ -163,11 +184,11 @@ async function restoreEvaluation(req, res) {
   }
 }
 
-// Permanently delete an evaluation
+// Permanently delete an evaluation by evaluationId
 async function permanentDeleteEvaluation(req, res) {
   try {
-    const { idNumber } = req.params;
-    const result = await EvaluationService.permanentDeleteEvaluation(idNumber);
+    const { evaluationId } = req.params;
+    const result = await EvaluationService.permanentDeleteEvaluation(evaluationId);
     
     res.json(result);
   } catch (error) {
@@ -191,9 +212,73 @@ async function getSoftDeletedEvaluations(req, res) {
   }
 }
 
+// Get my evaluation status (last evaluation for authenticated user)
+async function getMyEvaluationStatus(req, res) {
+  try {
+    const userId = req.user.id;
+    const result = await EvaluationService.getEvaluationStatusByUserId(userId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in getMyEvaluationStatus:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Get all evaluations for authenticated user
+async function getMyEvaluations(req, res) {
+  try {
+    const userId = req.user.id;
+    const evaluations = await EvaluationService.getEvaluationsByUserId(userId);
+    
+    res.status(200).json(evaluations);
+  } catch (error) {
+    console.error('Error in getMyEvaluations:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Get last evaluation for authenticated user
+async function getMyLastEvaluation(req, res) {
+  try {
+    const userId = req.user.id;
+    const evaluation = await EvaluationService.getLastEvaluationByUserId(userId);
+    
+    if (!evaluation) {
+      return res.status(404).json({ message: 'No evaluation found' });
+    }
+    
+    res.status(200).json(evaluation);
+  } catch (error) {
+    console.error('Error in getMyLastEvaluation:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Get available semesters for a user by idNumber
+async function getAvailableSemesters(req, res) {
+  try {
+    const { idNumber } = req.params;
+    const { schoolYear } = req.query; // Optional query param
+    const result = await EvaluationService.getAvailableSemestersForUser(idNumber, schoolYear);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in getAvailableSemesters:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   createEvaluation,
   getAllEvaluations,
+  getEvaluationsByIdNumber,
   getEvaluationById,
   updateEvaluation,
   deleteEvaluation,
@@ -202,5 +287,9 @@ module.exports = {
   softDeleteEvaluation,
   restoreEvaluation,
   permanentDeleteEvaluation,
-  getSoftDeletedEvaluations
+  getSoftDeletedEvaluations,
+  getMyEvaluationStatus,
+  getMyEvaluations,
+  getMyLastEvaluation,
+  getAvailableSemesters
 };

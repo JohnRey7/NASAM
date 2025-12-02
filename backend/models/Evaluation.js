@@ -196,6 +196,19 @@ const evaluationSchema = new mongoose.Schema({
     },
     get: v => v ? parseFloat(v.toString()) : v
   },
+  /**
+   * Fuck it, lets just put the school year here so its less stress 
+   * Formatting is e.g 2425 for 2024-2025, 2526 for 2025-2026 and so on.
+   */
+  schoolYear: {
+    type: String,
+    required: true
+  },
+  semester: {
+    type: String,
+    required: true,
+    enum: ['First Semester', 'Second Semester', 'Third Semester']
+  },
   is_deleted: { type: Boolean, default: false }
 }, { 
   timestamps: true,
