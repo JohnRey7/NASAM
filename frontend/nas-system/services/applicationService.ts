@@ -349,13 +349,13 @@ export const applicationService = {
     }
   },
 
-  async getAllApplications(): Promise<any[]> {
+  async getAllApplications(sortOrder: 'asc' | 'desc' = 'desc'): Promise<any[]> {
     let allApplications: any[] = [];
     let page = 1;
     let hasNextPage = true;
     const limit = 100; // Use a reasonable page size
     while (hasNextPage) {
-      const response = await axios.get(`${API_URL}/application/all?limit=${limit}&page=${page}`, { withCredentials: true });
+      const response = await axios.get(`${API_URL}/application/all?limit=${limit}&page=${page}&sortOrder=${sortOrder}`, { withCredentials: true });
       const data = response.data.applications || response.data;
       allApplications = allApplications.concat(data);
       // Check for pagination object

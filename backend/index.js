@@ -389,6 +389,8 @@ app.get('/api/test-notification', (req, res) => {
   res.json({ message: 'Test notification route works!' });
 });
 
+// Backend dev: We realized that adding /api/oas/ is horseshit.
+
 // OAS Staff Dashboard Routes
 app.get('/api/oas/applications', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAllApplicationsForStaff);
 app.get('/api/oas/application/:applicationId/documents', authenticate, ApplicationController.getApplicationDocumentsByAppId);

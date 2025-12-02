@@ -472,6 +472,7 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
 export function ApplicationReview() {
   const [filter, setFilter] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // 'desc' = newest first (default)
   const [selectedApplication, setSelectedApplication] = useState<any>(null)
   const [interviewDate, setInterviewDate] = useState("")
   const [isRescheduling, setIsRescheduling] = useState(false)
@@ -487,18 +488,17 @@ export function ApplicationReview() {
   const [applicationToEdit, setApplicationToEdit] = useState<any>(null)
   const [personalityTestReviewed, setPersonalityTestReviewed] = useState(false)
 
-  const fetchApplications = () => {
-    console.log('🚀 Starting to fetch applications...');
+  const fetchApplications = (order: 'asc' | 'desc' = sortOrder) => {
+    console.log('🚀 Starting to fetch applications with sortOrder:', order);
     setLoading(true)
-    applicationService.getAllApplicationsForStaff()
+    // Use /api/application/all endpoint with FIFO sorting (oldest first by default)
+    applicationService.getAllApplications(order)
       .then((apps) => {
         console.log('✅ Raw applications received:', apps);
         console.log('✅ Number of applications:', apps?.length || 0);
         
-        // Sort FIFO: oldest first by submissionDate or createdAt
-        const sorted = [...apps].sort((a, b) => new Date(a.submissionDate || a.createdAt).getTime() - new Date(b.submissionDate || b.createdAt).getTime())
-        console.log('✅ Sorted applications:', sorted);
-        setApplications(sorted)
+        // Applications are already sorted by backend
+        setApplications(apps)
       })
       .catch((err) => {
         console.error('❌ Error fetching applications:', err);
@@ -1084,32 +1084,33 @@ export function ApplicationReview() {
           <CardDescription>Review and process scholarship applications</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex gap-3 w-full mb-2">
-              <div className="flex-1 grid grid-cols-4 gap-3">
-                <div className="p-3 bg-white border rounded">
-                  <p className="text-xs text-gray-500">Total</p>
-                  <p className="text-xl font-bold text-[#800000]">{totalCount}</p>
-                </div>
-                <div className="p-3 bg-white border rounded">
-                  <p className="text-xs text-gray-500">Pending</p>
-                  <p className="text-xl font-bold">{pendingCount}</p>
-                </div>
-                <div className="p-3 bg-white border rounded">
-                  <p className="text-xs text-gray-500">Approved</p>
-                  <p className="text-xl font-bold text-green-600">{approvedCount}</p>
-                </div>
-                <div className="p-3 bg-white border rounded">
-                  <p className="text-xs text-gray-500">Rejected</p>
-                  <p className="text-xl font-bold text-red-600">{rejectedCount}</p>
-                </div>
-              </div>
+          {/* Stats Row */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="p-3 bg-white border rounded">
+              <p className="text-xs text-gray-500">Total</p>
+              <p className="text-xl font-bold text-[#800000]">{totalCount}</p>
             </div>
+            <div className="p-3 bg-white border rounded">
+              <p className="text-xs text-gray-500">Pending</p>
+              <p className="text-xl font-bold">{pendingCount}</p>
+            </div>
+            <div className="p-3 bg-white border rounded">
+              <p className="text-xs text-gray-500">Approved</p>
+              <p className="text-xl font-bold text-green-600">{approvedCount}</p>
+            </div>
+            <div className="p-3 bg-white border rounded">
+              <p className="text-xs text-gray-500">Rejected</p>
+              <p className="text-xl font-bold text-red-600">{rejectedCount}</p>
+            </div>
+          </div>
+          
+          {/* Search and Filter Row */}
+          <div className="flex gap-4 mb-6">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <Input
                 placeholder="Search by name, ID, or application number"
-                className="pl-8"
+                className="pl-10 h-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -1117,7 +1118,7 @@ export function ApplicationReview() {
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-gray-500" />
               <Select value={filter} onValueChange={setFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px] h-10">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1140,7 +1141,17 @@ export function ApplicationReview() {
                   <th className="py-3 px-2 text-left font-medium text-sm">Student ID</th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Course</th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Gender</th>
-                  <th className="py-3 px-2 text-left font-medium text-sm">Submission Date</th>
+                  <th 
+                    className="py-3 px-2 text-left font-medium text-sm cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => {
+                      const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+                      setSortOrder(newOrder);
+                      fetchApplications(newOrder);
+                    }}
+                    title="Click to toggle sort order"
+                  >
+                    Submission Date {sortOrder === 'asc' ? '↑' : '↓'}
+                  </th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Status</th>
                   <th className="py-3 px-2 text-left font-medium text-sm">Actions</th>
                 </tr>

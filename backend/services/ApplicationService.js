@@ -433,7 +433,7 @@ class ApplicationService {
       search,
       startDate,
       endDate,
-      sortOrder = 'asc' // 'asc' for oldest first (ascending), 'desc' for newest first (descending)
+      sortOrder = 'desc' // 'desc' for newest first (descending), 'asc' for oldest first (ascending)
     } = queryParams;
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
