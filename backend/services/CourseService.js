@@ -56,14 +56,20 @@ class CourseService {
       const { page = 1, limit = 25, search = '' } = options;
 
       // Build filter query - exclude soft deleted courses
-      let filter = { is_deleted: false };
+      // Also match documents where is_deleted doesn't exist (legacy data)
+      let filter = { $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] };
 
       // Search filter
       if (search) {
-        filter.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { courseId: { $regex: search, $options: 'i' } }
-        ];
+        filter = {
+          $and: [
+            { $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] },
+            { $or: [
+              { name: { $regex: search, $options: 'i' } },
+              { courseId: { $regex: search, $options: 'i' } }
+            ]}
+          ]
+        };
       }
 
       const skip = (page - 1) * limit;
@@ -133,7 +139,10 @@ class CourseService {
    */
   static async getCourseById(courseId) {
     try {
-      const course = await Course.findOne({ courseId, is_deleted: false });
+      const course = await Course.findOne({ 
+        courseId, 
+        $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] 
+      });
 
       if (!course) {
         throw new Error('Course not found');
@@ -152,7 +161,10 @@ class CourseService {
    */
   static async getCourseByName(name) {
     try {
-      const course = await Course.findOne({ name, is_deleted: false });
+      const course = await Course.findOne({ 
+        name, 
+        $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] 
+      });
 
       if (!course) {
         throw new Error('Course not found');
@@ -172,7 +184,10 @@ class CourseService {
    */
   static async updateCourseByCourseId(courseId, updateData) {
     try {
-      const course = await Course.findOne({ courseId, is_deleted: false });
+      const course = await Course.findOne({ 
+        courseId, 
+        $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] 
+      });
 
       if (!course) {
         throw new Error('Course not found');
@@ -224,7 +239,10 @@ class CourseService {
    */
   static async updateCourseByName(name, updateData) {
     try {
-      const course = await Course.findOne({ name, is_deleted: false });
+      const course = await Course.findOne({ 
+        name, 
+        $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] 
+      });
 
       if (!course) {
         throw new Error('Course not found');
@@ -275,7 +293,10 @@ class CourseService {
    */
   static async softDeleteByCourseId(courseId) {
     try {
-      const course = await Course.findOne({ courseId, is_deleted: false });
+      const course = await Course.findOne({ 
+        courseId, 
+        $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] 
+      });
 
       if (!course) {
         throw new Error('Course not found');
@@ -300,7 +321,10 @@ class CourseService {
    */
   static async softDeleteByName(name) {
     try {
-      const course = await Course.findOne({ name, is_deleted: false });
+      const course = await Course.findOne({ 
+        name, 
+        $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] 
+      });
 
       if (!course) {
         throw new Error('Course not found');

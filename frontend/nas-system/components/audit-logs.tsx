@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Download, Search, Filter, AlertCircle, CheckCircle, XCircle } from "lucide-react"
+import { Download, Search, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 interface AuditLog {
@@ -23,7 +23,16 @@ interface AuditLog {
   archived: boolean
 }
 
+interface Pagination {
+  page: number
+  limit: number
+  total: number
+  pages: number
+  hasMore: boolean
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
+const ITEMS_PER_PAGE = 20
 
 
 export function AuditLogs() {
@@ -31,18 +40,49 @@ export function AuditLogs() {
   const [moduleFilter, setModuleFilter] = useState("all")
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: ITEMS_PER_PAGE,
+    total: 0,
+    pages: 0,
+    hasMore: false
+  })
+  const tableContainerRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
-  // Fetch audit logs from API
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  
   useEffect(() => {
-    fetchLogs()
-  }, [])
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
-  const fetchLogs = async () => {
-    setLoading(true)
+  const fetchLogs = useCallback(async (page: number = 1, reset: boolean = false, search?: string, module?: string) => {
+    // Use passed parameters or fall back to current state
+    const searchValue = search !== undefined ? search : debouncedSearch
+    const moduleValue = module !== undefined ? module : moduleFilter
+    
+    if (reset) {
+      setLoading(true)
+    } else {
+      setLoadingMore(true)
+    }
+    
     try {
-      console.log('📋 Fetching audit logs from:', `${API_URL}/audit-logs`)
-      const response = await fetch(`${API_URL}/audit-logs`, {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
+      })
+      
+      if (searchValue) params.append('search', searchValue)
+      if (moduleValue !== 'all') params.append('module', moduleValue)
+
+      console.log('📋 Fetching audit logs from:', `${API_URL}/audit-logs?${params}`)
+      const response = await fetch(`${API_URL}/audit-logs?${params}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -52,7 +92,31 @@ export function AuditLogs() {
       if (response.ok) {
         const data = await response.json()
         console.log('📋 Audit logs received:', data)
-        setLogs(data)
+        
+        // Handle both old format (array) and new format (with pagination)
+        if (Array.isArray(data)) {
+          setLogs(data)
+          setPagination({
+            page: 1,
+            limit: data.length,
+            total: data.length,
+            pages: 1,
+            hasMore: false
+          })
+        } else {
+          if (reset) {
+            setLogs(data.logs || [])
+          } else {
+            setLogs(prev => [...prev, ...(data.logs || [])])
+          }
+          setPagination(data.pagination || {
+            page: 1,
+            limit: ITEMS_PER_PAGE,
+            total: data.logs?.length || 0,
+            pages: 1,
+            hasMore: false
+          })
+        }
       } else {
         const errorData = await response.json().catch(() => null)
         console.error('📋 Failed to fetch audit logs:', response.status, errorData)
@@ -71,7 +135,33 @@ export function AuditLogs() {
       })
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
+  }, [debouncedSearch, moduleFilter, toast])
+
+  // Fetch logs when filters change (reset to page 1)
+  useEffect(() => {
+    setLogs([])
+    fetchLogs(1, true, debouncedSearch, moduleFilter)
+  }, [debouncedSearch, moduleFilter, fetchLogs])
+
+  // Handle scroll for lazy loading
+  const handleScroll = useCallback(() => {
+    if (!tableContainerRef.current || loadingMore || !pagination.hasMore) return
+    
+    const { scrollTop, scrollHeight, clientHeight } = tableContainerRef.current
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100
+    
+    if (isNearBottom) {
+      fetchLogs(pagination.page + 1, false)
+    }
+  }, [loadingMore, pagination.hasMore, pagination.page, fetchLogs])
+
+  // Page navigation
+  const goToPage = (page: number) => {
+    if (page < 1 || page > pagination.pages) return
+    setLogs([])
+    fetchLogs(page, true)
   }
 
   const handleExportLogs = async (format: 'pdf' | 'excel') => {
@@ -125,17 +215,6 @@ export function AuditLogs() {
     )
   }
 
-  const filteredLogs = logs.filter((log) => {
-    const userName = log.userId?.name || log.userId?.email || log.userId?.idNumber || 'Unknown'
-    const matchesSearch =
-      userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.module.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesModule = moduleFilter === "all" || log.module === moduleFilter
-
-    return matchesSearch && matchesModule
-  })
-
   return (
     <div className="space-y-6">
       <Card>
@@ -162,7 +241,7 @@ export function AuditLogs() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Search logs by user, action, or details"
+                placeholder="Search by user, action, or module..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -186,10 +265,14 @@ export function AuditLogs() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div 
+            ref={tableContainerRef}
+            className="overflow-x-auto max-h-[500px] overflow-y-auto border rounded-md"
+            onScroll={handleScroll}
+          >
             <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-50">
+              <thead className="sticky top-0 bg-gray-50 z-10">
+                <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Timestamp
                   </th>
@@ -209,12 +292,12 @@ export function AuditLogs() {
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center">
                       <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                        <Loader2 className="h-6 w-6 animate-spin text-[#800000]" />
                         <span className="ml-2 text-gray-500">Loading audit logs...</span>
                       </div>
                     </td>
                   </tr>
-                ) : filteredLogs.map((log) => (
+                ) : logs.map((log) => (
                   <tr key={log._id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {new Date(log.timestamp).toLocaleString()}
@@ -227,10 +310,21 @@ export function AuditLogs() {
                   </tr>
                 ))}
 
-                {!loading && filteredLogs.length === 0 && (
+                {!loading && logs.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                       No logs found matching your filters
+                    </td>
+                  </tr>
+                )}
+
+                {loadingMore && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-[#800000]" />
+                        <span className="text-sm text-gray-500">Loading more...</span>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -238,13 +332,70 @@ export function AuditLogs() {
             </table>
           </div>
 
-          <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
-            <span>
-              Showing {filteredLogs.length} of {logs.length} logs
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
+            <span className="text-sm text-gray-500">
+              Showing {logs.length} of {pagination.total} logs
+              {pagination.pages > 1 && ` (Page ${pagination.page} of ${pagination.pages})`}
             </span>
-            <Button variant="outline" size="sm" onClick={fetchLogs}>
-              Refresh
-            </Button>
+            
+            <div className="flex items-center gap-2">
+              {pagination.pages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => goToPage(pagination.page - 1)}
+                    disabled={pagination.page <= 1 || loading}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    let pageNum: number;
+                    if (pagination.pages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.pages - 2) {
+                      pageNum = pagination.pages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === pagination.page ? "default" : "outline"}
+                        size="sm"
+                        className={pageNum === pagination.page ? "bg-[#800000] text-white" : ""}
+                        onClick={() => goToPage(pageNum)}
+                        disabled={loading}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => goToPage(pagination.page + 1)}
+                    disabled={pagination.page >= pagination.pages || loading}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => fetchLogs(1, true)}
+                disabled={loading}
+              >
+                Refresh
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

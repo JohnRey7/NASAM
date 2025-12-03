@@ -7,21 +7,121 @@ const ExcelJS = require('exceljs');      // for Excel export
 // ✅ Get logs with filters (excluding archived by default)
 exports.getLogs = async (req, res) => {
   try {
-    const { userId, module, startDate, endDate, includeArchived } = req.query;
+    const { userId, module, startDate, endDate, includeArchived, page = 1, limit = 20, search } = req.query;
 
-    const filter = {};
-    if (userId) filter.userId = userId;
-    if (module) filter.module = module;
-    if (!includeArchived) filter.archived = false; // default exclude archived
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build match filter
+    const matchFilter = {};
+    if (userId) matchFilter.userId = userId;
+    if (module && module !== 'all') matchFilter.module = module;
+    if (!includeArchived) matchFilter.archived = false;
     if (startDate && endDate) {
-      filter.timestamp = { $gte: new Date(startDate), $lte: new Date(endDate) };
+      matchFilter.timestamp = { $gte: new Date(startDate), $lte: new Date(endDate) };
     }
 
-    const logs = await AuditLog.find(filter)
-      .populate('userId', 'name idNumber email')
-      .sort({ timestamp: -1 });
+    // If search is provided, use aggregation to search across user fields
+    if (search) {
+      const searchRegex = { $regex: search, $options: 'i' };
+      
+      const pipeline = [
+        // Match initial filters
+        { $match: matchFilter },
+        // Lookup user data
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'userInfo'
+          }
+        },
+        // Unwind user info (make it a single object instead of array)
+        {
+          $unwind: {
+            path: '$userInfo',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        // Search across action, module, and user fields
+        {
+          $match: {
+            $or: [
+              { action: searchRegex },
+              { module: searchRegex },
+              { 'userInfo.name': searchRegex },
+              { 'userInfo.email': searchRegex },
+              { 'userInfo.idNumber': searchRegex }
+            ]
+          }
+        },
+        // Sort by timestamp descending
+        { $sort: { timestamp: -1 } }
+      ];
 
-    res.status(200).json(logs);
+      // Get total count
+      const countPipeline = [...pipeline, { $count: 'total' }];
+      const countResult = await AuditLog.aggregate(countPipeline);
+      const total = countResult[0]?.total || 0;
+
+      // Get paginated results
+      const resultPipeline = [
+        ...pipeline,
+        { $skip: skip },
+        { $limit: limitNum },
+        // Project to match the expected format
+        {
+          $project: {
+            _id: 1,
+            timestamp: 1,
+            action: 1,
+            module: 1,
+            archived: 1,
+            userId: {
+              _id: '$userInfo._id',
+              name: '$userInfo.name',
+              email: '$userInfo.email',
+              idNumber: '$userInfo.idNumber'
+            }
+          }
+        }
+      ];
+
+      const logs = await AuditLog.aggregate(resultPipeline);
+
+      return res.status(200).json({
+        logs,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum),
+          hasMore: skip + logs.length < total
+        }
+      });
+    }
+
+    // No search - use simple find with populate
+    const total = await AuditLog.countDocuments(matchFilter);
+
+    const logs = await AuditLog.find(matchFilter)
+      .populate('userId', 'name idNumber email')
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    res.status(200).json({
+      logs,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+        hasMore: skip + logs.length < total
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

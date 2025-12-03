@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -23,7 +23,10 @@ import {
   Eye,
   MessageSquare,
   RefreshCw,
-  Edit
+  Edit,
+  ChevronLeft,
+  ChevronRight,
+  Loader2
 } from "lucide-react"
 import { AdminEditApplication } from "@/components/admin-edit-application"
 import { MessageButton } from "@/components/message-button"
@@ -472,6 +475,7 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
 export function ApplicationReview() {
   const [filter, setFilter] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // 'desc' = newest first (default)
   const [selectedApplication, setSelectedApplication] = useState<any>(null)
   const [interviewDate, setInterviewDate] = useState("")
@@ -487,29 +491,65 @@ export function ApplicationReview() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [applicationToEdit, setApplicationToEdit] = useState<any>(null)
   const [personalityTestReviewed, setPersonalityTestReviewed] = useState(false)
+  
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    totalDocs: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  })
 
-  const fetchApplications = (order: 'asc' | 'desc' = sortOrder) => {
-    console.log('🚀 Starting to fetch applications with sortOrder:', order);
-    setLoading(true)
-    // Use /api/application/all endpoint with FIFO sorting (oldest first by default)
-    applicationService.getAllApplications(order)
-      .then((apps) => {
-        console.log('✅ Raw applications received:', apps);
-        console.log('✅ Number of applications:', apps?.length || 0);
-        
-        // Applications are already sorted by backend
-        setApplications(apps)
-      })
-      .catch((err) => {
-        console.error('❌ Error fetching applications:', err);
-        setError(err.message || "Failed to load applications")
-      })
-      .finally(() => setLoading(false))
-  }
-
+  // Debounce search
   useEffect(() => {
-    fetchApplications()
-  }, [])
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const fetchApplications = useCallback(async (
+    page: number = 1,
+    order: 'asc' | 'desc' = sortOrder,
+    search?: string,
+    status?: string
+  ) => {
+    console.log('🚀 Starting to fetch applications with:', { page, order, search, status });
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const result = await applicationService.getAllApplications(order, page, 20, search, status)
+      console.log('✅ Applications received:', result);
+      
+      setApplications(result.applications)
+      setPagination({
+        page: result.pagination.page || page,
+        limit: result.pagination.limit || 20,
+        totalDocs: result.pagination.totalDocs || 0,
+        totalPages: result.pagination.totalPages || 1,
+        hasNextPage: result.pagination.hasNextPage || false,
+        hasPrevPage: result.pagination.hasPrevPage || false
+      })
+    } catch (err: any) {
+      console.error('❌ Error fetching applications:', err);
+      setError(err.message || "Failed to load applications")
+    } finally {
+      setLoading(false)
+    }
+  }, [sortOrder])
+
+  // Fetch when filters change
+  useEffect(() => {
+    fetchApplications(1, sortOrder, debouncedSearch, filter)
+  }, [debouncedSearch, filter, sortOrder, fetchApplications])
+
+  const goToPage = (page: number) => {
+    if (page < 1 || page > pagination.totalPages) return
+    fetchApplications(page, sortOrder, debouncedSearch, filter)
+  }
 
   const handleEditClick = (application: any) => {
     setApplicationToEdit(application)
@@ -517,7 +557,7 @@ export function ApplicationReview() {
   }
 
   const handleEditSuccess = () => {
-    fetchApplications() // Refresh the list
+    fetchApplications(pagination.page, sortOrder, debouncedSearch, filter) // Refresh the list
     toast({
       title: "Success",
       description: "Application list refreshed with latest changes",
@@ -543,24 +583,16 @@ export function ApplicationReview() {
   }, []);
 
   // server-side counts (fallback to client-side computation)
-  const totalCount = counts?.totalApplicants ?? applications.length
+  const totalCount = counts?.totalApplicants ?? pagination.totalDocs
   const normalize = (s: any) => (s || '').toString().toLowerCase().replace(/\s+/g, '_')
 
-  const pendingCount = counts?.counts?.pending ?? applications.filter(a => normalize(a.status) === 'pending').length
-  const approvedCount = counts?.counts?.approved ?? applications.filter(a => normalize(a.status) === 'approved').length
-  const rejectedCount = counts?.counts?.rejected ?? applications.filter(a => normalize(a.status) === 'rejected').length
+  const pendingCount = counts?.counts?.pending ?? 0
+  const approvedCount = counts?.counts?.approved ?? 0
+  const rejectedCount = counts?.counts?.rejected ?? 0
 
+  // Filter only admin applications client-side (server handles search and status)
   const filteredApplications = applications.filter((app) => {
     if (app.user?.idNumber === "ADMIN001") return false; // Exclude admin applications
-    if (filter !== "all" && normalize(app.status) !== normalize(filter)) return false;
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        (app.firstName + ' ' + app.lastName).toLowerCase().includes(searchLower) ||
-        app.user?.idNumber?.toLowerCase().includes(searchLower) ||
-        app._id?.toLowerCase().includes(searchLower)
-      );
-    }
     return true;
   });
 
@@ -568,13 +600,7 @@ export function ApplicationReview() {
   console.log('🔍 DEBUG - Total applications loaded:', applications.length);
   console.log('🔍 DEBUG - Current filter:', filter);
   console.log('🔍 DEBUG - Search term:', searchTerm);
-  console.log('🔍 DEBUG - Filtered applications:', filteredApplications.length);
-  console.log('🔍 DEBUG - Applications data:', applications.map(app => ({
-    id: app._id,
-    name: `${app.firstName} ${app.lastName}`,
-    status: app.status,
-    userIdNumber: app.user?.idNumber
-  })));
+  console.log('🔍 DEBUG - Pagination:', pagination);
 
   const getStatusBadge = (status: string) => {
     const normalized = status?.toLowerCase?.() || "";
@@ -1745,15 +1771,94 @@ export function ApplicationReview() {
                   </tr>
                 ))}
 
-                {filteredApplications.length === 0 && (
+                {filteredApplications.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-gray-500">
+                    <td colSpan={8} className="py-6 text-center text-gray-500">
                       No applications found matching your criteria
+                    </td>
+                  </tr>
+                )}
+
+                {loading && (
+                  <tr>
+                    <td colSpan={8} className="py-6 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#800000]" />
+                        <span className="text-gray-500">Loading applications...</span>
+                      </div>
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4 pt-4 border-t">
+            <span className="text-sm text-gray-500">
+              Showing {filteredApplications.length} of {pagination.totalDocs} applications
+              {pagination.totalPages > 1 && ` (Page ${pagination.page} of ${pagination.totalPages})`}
+            </span>
+            
+            <div className="flex items-center gap-2">
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => goToPage(pagination.page - 1)}
+                    disabled={!pagination.hasPrevPage || loading}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === pagination.page ? "default" : "outline"}
+                        size="sm"
+                        className={pageNum === pagination.page ? "bg-[#800000] text-white" : ""}
+                        onClick={() => goToPage(pageNum)}
+                        disabled={loading}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => goToPage(pagination.page + 1)}
+                    disabled={!pagination.hasNextPage || loading}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => fetchApplications(1, sortOrder, debouncedSearch, filter)}
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

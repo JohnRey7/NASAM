@@ -349,24 +349,29 @@ export const applicationService = {
     }
   },
 
-  async getAllApplications(sortOrder: 'asc' | 'desc' = 'desc'): Promise<any[]> {
-    let allApplications: any[] = [];
-    let page = 1;
-    let hasNextPage = true;
-    const limit = 100; // Use a reasonable page size
-    while (hasNextPage) {
-      const response = await axios.get(`${API_URL}/application/all?limit=${limit}&page=${page}&sortOrder=${sortOrder}`, { withCredentials: true });
-      const data = response.data.applications || response.data;
-      allApplications = allApplications.concat(data);
-      // Check for pagination object
-      const pagination = response.data.pagination;
-      if (pagination && pagination.hasNextPage) {
-        page++;
-      } else {
-        hasNextPage = false;
+  async getAllApplications(sortOrder: 'asc' | 'desc' = 'desc', page: number = 1, limit: number = 25, search?: string, status?: string): Promise<{ applications: any[], pagination: any }> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      sortOrder
+    });
+    
+    if (search) params.append('search', search);
+    if (status && status !== 'all') params.append('status', status);
+    
+    const response = await axios.get(`${API_URL}/application/all?${params}`, { withCredentials: true });
+    
+    return {
+      applications: response.data.applications || response.data || [],
+      pagination: response.data.pagination || {
+        totalDocs: response.data.applications?.length || 0,
+        limit,
+        page,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false
       }
-    }
-    return allApplications;
+    };
   },
 
   // Add this new method for OAS staff
