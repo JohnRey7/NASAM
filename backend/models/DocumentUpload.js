@@ -79,6 +79,8 @@ const fileUploadSchema = new mongoose.Schema({
         start: { type: Date, required: true },
         end: { type: Date, required: true }
     }],
+    verifiedAt: { type: Date },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     is_deleted: { type: Boolean, default: false }
 
 }, { timestamps: true });

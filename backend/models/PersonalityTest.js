@@ -34,6 +34,17 @@ const personalityTestSchema = new mongoose.Schema({
         enum: ['Low', 'Medium', 'High'],
         default: 'Low'
     },
+    reviewed: {
+        type: Boolean,
+        default: false
+    },
+    reviewedAt: {
+        type: Date
+    },
+    reviewedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
     is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 

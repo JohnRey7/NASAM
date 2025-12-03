@@ -28,6 +28,7 @@ import {
   Shield,
   BookOpen,
 } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
@@ -46,7 +47,7 @@ interface RoleBasedLayoutProps {
 export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState(3)
   const [profileImage, setProfileImage] = useState<string | null>(null)
@@ -98,9 +99,23 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
       .toUpperCase()
   }
 
-  const handleLogout = () => {
-    // In a real app, this would clear auth tokens, etc.
-    router.push("/")
+  const { toast } = useToast()
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account.",
+      })
+    } catch (error) {
+      console.error('Logout failed:', error)
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Navigation items based on user role
@@ -111,13 +126,7 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
     ]
 
     if (userRole === "applicant") {
-      return [
-        ...commonItems,
-        { name: "Application", href: "/dashboard#application-form", icon: <FileText className="h-5 w-5" /> },
-        { name: "Documents", href: "/dashboard#documents", icon: <ClipboardList className="h-5 w-5" /> },
-        { name: "Personality Test", href: "/dashboard#personality-test", icon: <BookOpen className="h-5 w-5" /> },
-        { name: "Interview", href: "/dashboard#status", icon: <Calendar className="h-5 w-5" /> },
-      ]
+      return commonItems
     } else if (userRole === "oas_staff") {
       return [
         ...commonItems,

@@ -1,4 +1,5 @@
 const DocumentUpload = require('../models/DocumentUpload');
+const User = require('../models/User');
 const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 const fs = require('fs').promises;
 const path = require('path');
@@ -158,6 +159,124 @@ class DocumentUploadService {
       return document;
     } catch (error) {
       console.error('Error getting documents:', error);
+      throw error;
+    }
+  }
+
+  // Get documents by user's idNumber
+  static async getDocumentsByIdNumber(idNumber) {
+    try {
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with this ID number');
+      }
+
+      return await this.getDocuments(user._id);
+    } catch (error) {
+      console.error('Error getting documents by idNumber:', error);
+      throw error;
+    }
+  }
+
+  // Create document for user by idNumber
+  static async createDocumentByIdNumber(idNumber, files, additionalData = {}) {
+    try {
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with this ID number');
+      }
+
+      // Check if document already exists
+      const existingDoc = await DocumentUpload.findOne(
+        SoftDeleteUtils.addSoftDeleteFilter({ user: user._id })
+      );
+      
+      if (existingDoc) {
+        throw new Error('Document already exists for this user. Use PUT to update.');
+      }
+
+      return await this.uploadDocuments(user._id, files, additionalData);
+    } catch (error) {
+      console.error('Error creating document by idNumber:', error);
+      throw error;
+    }
+  }
+
+  // Update document by user's idNumber
+  static async updateDocumentByIdNumber(idNumber, files, updateData = {}) {
+    try {
+      // Find user by idNumber
+      const user = await User.findOne({ idNumber });
+      if (!user) {
+        throw new Error('User not found with this ID number');
+      }
+
+      // Find the document
+      let document = await DocumentUpload.findOne(
+        SoftDeleteUtils.addSoftDeleteFilter({ user: user._id })
+      );
+
+      if (!document) {
+        // Create new document if it doesn't exist
+        document = new DocumentUpload({ user: user._id });
+      }
+
+      // Validate and process files
+      if (files) {
+        Object.entries(files).forEach(([fieldName, fileArray]) => {
+          const fileList = Array.isArray(fileArray) ? fileArray : [fileArray];
+          fileList.forEach(file => this.validateFile(file, fieldName));
+        });
+
+        Object.entries(files).forEach(([fieldName, fileArray]) => {
+          const fileList = Array.isArray(fileArray) ? fileArray : [fileArray];
+          
+          if (fieldName === 'studentPicture') {
+            if (fileList[0]) {
+              document[fieldName] = this.processFileUpload(fileList[0]);
+            }
+          } else {
+            if (!document[fieldName]) document[fieldName] = [];
+            fileList.forEach(file => {
+              if (file) {
+                document[fieldName].push(this.processFileUpload(file));
+              }
+            });
+          }
+        });
+      }
+
+      // Update grade averages if provided
+      if (updateData.gradeAverages) {
+        document.gradeAverages = {
+          ...document.gradeAverages,
+          ...updateData.gradeAverages
+        };
+      }
+
+      // Update income tax info if provided
+      if (updateData.incomeTaxInfo) {
+        document.incomeTaxInfo = {
+          ...document.incomeTaxInfo,
+          ...updateData.incomeTaxInfo
+        };
+      }
+
+      // Update semester duration if provided
+      if (updateData.semesterDuration) {
+        if (!document.semesterDuration) document.semesterDuration = [];
+        document.semesterDuration.push(updateData.semesterDuration);
+      }
+
+      await document.save();
+      
+      return await DocumentUpload.findById(document._id)
+        .populate('user', 'name idNumber email')
+        .lean();
+    } catch (error) {
+      console.error('Error updating document by idNumber:', error);
       throw error;
     }
   }

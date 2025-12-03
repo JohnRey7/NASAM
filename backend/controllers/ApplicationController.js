@@ -542,12 +542,15 @@ const ApplicationController = {
       console.log('🔍 Getting documents for application:', applicationId);
 
       const result = await ApplicationService.getApplicationDocumentsByAppId(applicationId);
-      console.log('� Processed document status:', result.documents);
+      console.log('📄 Processed document status:', result.documents);
 
       res.json({
         success: true,
         documents: result.documents,
-        summary: result.summary
+        summary: result.summary,
+        documentsVerified: result.documentsVerified,
+        documentsVerifiedAt: result.documentsVerifiedAt,
+        documentsVerifiedBy: result.documentsVerifiedBy
       });
 
     } catch (error) {
@@ -642,6 +645,34 @@ const ApplicationController = {
       res.status(500).json({
         success: false,
         message: 'Failed to verify documents',
+        error: error.message
+      });
+    }
+  },
+
+  // ADD: New method to revert document verification
+  async revertDocumentVerification(req, res) {
+    try {
+      const { applicationId } = req.params;
+      console.log('🔄 Backend: Revert document verification for:', applicationId);
+
+      const result = await ApplicationService.revertDocumentVerification(applicationId, req.user.id);
+      console.log('🔄 Document verification reverted, new status:', result.status);
+
+      res.json({
+        success: true,
+        message: 'Document verification reverted successfully',
+        application: result
+      });
+
+    } catch (error) {
+      console.error('❌ Backend: Error reverting document verification:', error);
+      if (error.message.includes('not found') || error.message.includes('not verified')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({
+        success: false,
+        message: 'Failed to revert document verification',
         error: error.message
       });
     }
@@ -1119,6 +1150,69 @@ const ApplicationController = {
         return res.status(404).json({ success: false, message: error.message });
       }
       res.status(500).json({ success: false, message: 'Failed to export applications to CSV', error: error.message });
+    }
+  },
+
+  // ===== DRAFT ENDPOINTS =====
+
+  // Save or update application draft
+  async saveDraft(req, res) {
+    try {
+      const userId = req.user.id;
+      const draftData = req.body;
+
+      console.log('💾 Saving draft for user:', userId);
+      const draft = await ApplicationService.saveDraft(userId, draftData);
+
+      res.json({
+        success: true,
+        message: 'Draft saved successfully',
+        draft
+      });
+    } catch (error) {
+      console.error('❌ Error saving draft:', error);
+      res.status(500).json({ success: false, message: 'Failed to save draft', error: error.message });
+    }
+  },
+
+  // Get user's draft
+  async getDraft(req, res) {
+    try {
+      const userId = req.user.id;
+
+      console.log('📖 Fetching draft for user:', userId);
+      const draft = await ApplicationService.getDraft(userId);
+
+      if (!draft) {
+        return res.status(404).json({ success: false, message: 'No draft found' });
+      }
+
+      res.json({
+        success: true,
+        message: 'Draft retrieved successfully',
+        draft
+      });
+    } catch (error) {
+      console.error('❌ Error fetching draft:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch draft', error: error.message });
+    }
+  },
+
+  // Delete user's draft (called after successful submission)
+  async deleteDraft(req, res) {
+    try {
+      const userId = req.user.id;
+
+      console.log('🗑️ Deleting draft for user:', userId);
+      await ApplicationService.deleteDraft(userId);
+
+      res.json({
+        success: true,
+        message: 'Draft deleted successfully'
+      });
+    } catch (error) {
+      console.error('❌ Error deleting draft:', error);
+      res.status(500).json({ success: false, message: 'Failed to delete draft', error: error.message });
     }
   }
 };

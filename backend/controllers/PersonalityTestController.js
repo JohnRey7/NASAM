@@ -58,7 +58,11 @@ const PersonalityTestController = {
     try {
       const test = await PersonalityTestService.getMyPersonalityTest(req.user.id);
       
-      res.json(test);
+      // Strip out riskLevelIndicator - applicants should not see this
+      const testObject = test.toObject ? test.toObject() : { ...test };
+      delete testObject.riskLevelIndicator;
+      
+      res.json(testObject);
     } catch (error) {
       console.error('Error in getMyPersonalityTest:', error);
       if (error.message.includes('not found')) {
@@ -169,6 +173,49 @@ const PersonalityTestController = {
         return res.status(404).json({ message: error.message });
       }
       res.status(500).json({ message: `Server error: ${error.message}` });
+    }
+  },
+
+  // PATCH /markAsReviewed/:userId - Mark personality test as reviewed by OAS staff
+  async markAsReviewed(req, res) {
+    try {
+      const { userId } = req.params;
+      const reviewedBy = req.user.id;
+      
+      const result = await PersonalityTestService.markAsReviewed(userId, reviewedBy);
+      
+      res.json({
+        success: true,
+        message: 'Personality test marked as reviewed',
+        data: result
+      });
+    } catch (error) {
+      console.error('Error in markAsReviewed:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: `Server error: ${error.message}` });
+    }
+  },
+
+  // PATCH /revertReview/:userId - Revert personality test review status
+  async revertReview(req, res) {
+    try {
+      const { userId } = req.params;
+      
+      const result = await PersonalityTestService.revertReview(userId);
+      
+      res.json({
+        success: true,
+        message: 'Personality test review reverted',
+        data: result
+      });
+    } catch (error) {
+      console.error('Error in revertReview:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: `Server error: ${error.message}` });
     }
   },
 

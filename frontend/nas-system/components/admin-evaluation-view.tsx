@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import { useConfirmation } from "@/components/ui/confirmation-dialog"
 import { scholarEvaluationService } from "@/services/scholarEvaluationService"
 import { Eye, Download, Trash2, Search, Filter } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label"
 
 export function AdminEvaluationView() {
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirmation()
   const [evaluations, setEvaluations] = useState<any[]>([])
   const [statistics, setStatistics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -71,9 +73,13 @@ export function AdminEvaluationView() {
   }
 
   const handleDeleteEvaluation = async (id: string, scholarName: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the evaluation for ${scholarName}?\n\nThis action cannot be undone.`
-    )
+    const confirmed = await confirm({
+      title: "Delete Evaluation",
+      description: `Are you sure you want to delete the evaluation for ${scholarName}?\n\nThis action cannot be undone.`,
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      type: "danger"
+    })
     if (!confirmed) return
 
     try {
@@ -405,6 +411,7 @@ export function AdminEvaluationView() {
           </DialogContent>
         </Dialog>
       )}
+      {ConfirmDialog}
     </div>
   )
 }

@@ -38,7 +38,6 @@ export function PersonalityTest() {
   const [testId, setTestId] = useState<string | null>(null)
   const [questions, setQuestions] = useState<any[]>([])
   const [score, setScore] = useState<number | null>(null)
-  const [riskLevel, setRiskLevel] = useState<string | null>(null)
   const [loading, setLoading] = useState(true);
   const [applicationStatus, setApplicationStatus] = useState<string>("");
   const [isFormVerified, setIsFormVerified] = useState(false);
@@ -119,7 +118,6 @@ export function PersonalityTest() {
     try {
       const result = await stopPersonalityTest()
       setScore(result.score)
-      setRiskLevel(result.riskLevelIndicator)
       toast({
         title: "Personality test successfully submitted",
         description: "Your personality test has been completed and submitted successfully. Your application has been automatically approved.",
@@ -182,7 +180,6 @@ export function PersonalityTest() {
           if (data.test.endTime) {
             setTestCompleted(true);
             setScore(data.test.score ? Number(data.test.score) : null);
-            setRiskLevel(data.test.riskLevelIndicator || null);
           }
         }
       } catch (error) {
@@ -370,16 +367,10 @@ export function PersonalityTest() {
             <p className="text-sm text-gray-500 mb-2">
               You answered {Object.keys(answers).length} out of {questions.length} questions.
             </p>
-            {score !== null && riskLevel && (
+            {score !== null && (
               <div className="mt-4">
-                <p className="font-semibold">Your Score: {score.toFixed(2)}</p>
-                <p className={`font-semibold ${riskLevel === "High" ? "text-red-600" : riskLevel === "Medium" ? "text-yellow-600" : "text-green-600"}`}>
-                  Risk Level: {riskLevel}
-                </p>
-                <p className="text-sm mt-2">
-                  {riskLevel === "High" && "Guidance: Your responses indicate areas that may need attention. The scholarship committee will review your application carefully."}
-                  {riskLevel === "Medium" && "Guidance: Your responses show a balanced profile. Continue demonstrating your commitment to academic excellence."}
-                  {riskLevel === "Low" && "Guidance: Excellent! Your responses demonstrate strong personal qualities that align well with our scholarship values."}
+                <p className="text-sm text-gray-600">
+                  Your responses have been submitted successfully. The scholarship committee will review your assessment.
                 </p>
               </div>
             )}

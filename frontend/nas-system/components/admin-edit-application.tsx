@@ -10,6 +10,41 @@ import { useToast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import axios from "axios"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+
+// Comprehensive list of world nationalities
+const NATIONALITIES = [
+  "Afghan", "Albanian", "Algerian", "American", "Andorran", "Angolan", "Antiguan", "Argentine",
+  "Armenian", "Australian", "Austrian", "Azerbaijani", "Bahamian", "Bahraini", "Bangladeshi",
+  "Barbadian", "Belarusian", "Belgian", "Belizean", "Beninese", "Bhutanese", "Bolivian",
+  "Bosnian", "Botswanan", "Brazilian", "British", "Bruneian", "Bulgarian", "Burkinabe",
+  "Burmese", "Burundian", "Cambodian", "Cameroonian", "Canadian", "Cape Verdean",
+  "Central African", "Chadian", "Chilean", "Chinese", "Colombian", "Comoran", "Congolese",
+  "Costa Rican", "Croatian", "Cuban", "Cypriot", "Czech", "Danish", "Djiboutian", "Dominican",
+  "Dutch", "East Timorese", "Ecuadorean", "Egyptian", "Emirian", "Equatorial Guinean",
+  "Eritrean", "Estonian", "Ethiopian", "Fijian", "Filipino", "Finnish", "French", "Gabonese",
+  "Gambian", "Georgian", "German", "Ghanaian", "Greek", "Grenadian", "Guatemalan", "Guinean",
+  "Guinea-Bissauan", "Guyanese", "Haitian", "Honduran", "Hungarian", "Icelandic", "Indian",
+  "Indonesian", "Iranian", "Iraqi", "Irish", "Israeli", "Italian", "Ivorian", "Jamaican",
+  "Japanese", "Jordanian", "Kazakhstani", "Kenyan", "Kiribati", "Korean (North)", "Korean (South)",
+  "Kosovar", "Kuwaiti", "Kyrgyz", "Laotian", "Latvian", "Lebanese", "Lesothan", "Liberian",
+  "Libyan", "Liechtensteiner", "Lithuanian", "Luxembourger", "Macedonian", "Malagasy", "Malawian",
+  "Malaysian", "Maldivian", "Malian", "Maltese", "Marshallese", "Mauritanian", "Mauritian",
+  "Mexican", "Micronesian", "Moldovan", "Monacan", "Mongolian", "Montenegrin", "Moroccan",
+  "Mozambican", "Namibian", "Nauruan", "Nepalese", "New Zealander", "Nicaraguan", "Nigerian",
+  "Nigerien", "Norwegian", "Omani", "Pakistani", "Palauan", "Palestinian", "Panamanian",
+  "Papua New Guinean", "Paraguayan", "Peruvian", "Polish", "Portuguese", "Qatari", "Romanian",
+  "Russian", "Rwandan", "Saint Kitts and Nevis", "Saint Lucian", "Salvadoran", "Samoan",
+  "San Marinese", "Sao Tomean", "Saudi", "Senegalese", "Serbian", "Seychellois", "Sierra Leonean",
+  "Singaporean", "Slovak", "Slovenian", "Solomon Islander", "Somali", "South African",
+  "South Sudanese", "Spanish", "Sri Lankan", "Sudanese", "Surinamese", "Swazi", "Swedish",
+  "Swiss", "Syrian", "Taiwanese", "Tajik", "Tanzanian", "Thai", "Togolese", "Tongan",
+  "Trinidadian", "Tunisian", "Turkish", "Turkmen", "Tuvaluan", "Ugandan", "Ukrainian",
+  "Uruguayan", "Uzbek", "Vanuatuan", "Vatican", "Venezuelan", "Vietnamese", "Yemeni",
+  "Zambian", "Zimbabwean"
+];
 
 interface AdminEditApplicationProps {
   application: any
@@ -22,6 +57,30 @@ export function AdminEditApplication({ application, open, onOpenChange, onSucces
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<any>({})
+  const [courses, setCourses] = useState<Array<{ courseId: string; name: string }>>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+
+  // Fetch courses from API
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setCoursesLoading(true);
+        const response = await axios.get(`${API_URL}/course/all`, {
+          withCredentials: true
+        });
+        if (response.data?.courses) {
+          setCourses(response.data.courses);
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+    if (open) {
+      fetchCourses();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (application) {
@@ -31,6 +90,7 @@ export function AdminEditApplication({ application, open, onOpenChange, onSucces
         middleName: application.middleName || '',
         lastName: application.lastName || '',
         suffix: application.suffix || '',
+        birthDate: application.birthDate || '',
         emailAddress: application.emailAddress || application.user?.email || '',
         contactNumber: application.contactNumber || '',
         gender: application.gender || '',
@@ -233,6 +293,15 @@ export function AdminEditApplication({ application, open, onOpenChange, onSucces
                   />
                 </div>
                 <div>
+                  <Label htmlFor="birthDate">Birth Date *</Label>
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    value={formData.birthDate ? (typeof formData.birthDate === 'string' ? formData.birthDate.split('T')[0] : new Date(formData.birthDate).toISOString().split('T')[0]) : ''}
+                    onChange={(e) => handleInputChange('birthDate', e.target.value)}
+                  />
+                </div>
+                <div>
                   <Label htmlFor="emailAddress">Email Address</Label>
                   <Input
                     id="emailAddress"
@@ -264,11 +333,21 @@ export function AdminEditApplication({ application, open, onOpenChange, onSucces
                 </div>
                 <div>
                   <Label htmlFor="citizenship">Citizenship *</Label>
-                  <Input
-                    id="citizenship"
+                  <Select
                     value={formData.citizenship || ''}
-                    onChange={(e) => handleInputChange('citizenship', e.target.value)}
-                  />
+                    onValueChange={(value) => handleInputChange('citizenship', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select citizenship" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {NATIONALITIES.map((nationality) => (
+                        <SelectItem key={nationality} value={nationality}>
+                          {nationality}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="civilStatus">Civil Status *</Label>
@@ -310,12 +389,22 @@ export function AdminEditApplication({ application, open, onOpenChange, onSucces
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <Label htmlFor="programOfStudyAndYear">Program of Study *</Label>
-                  <Input
-                    id="programOfStudyAndYear"
+                  <Select
                     value={formData.programOfStudyAndYear || ''}
-                    onChange={(e) => handleInputChange('programOfStudyAndYear', e.target.value)}
-                    placeholder="e.g., BSIT, BSCS, BSBA"
-                  />
+                    onValueChange={(value) => handleInputChange('programOfStudyAndYear', value)}
+                    disabled={coursesLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={coursesLoading ? "Loading courses..." : "Select program"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((course) => (
+                        <SelectItem key={course.courseId} value={`${course.name} (${course.courseId})`}>
+                          {course.name} ({course.courseId})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="yearLevel">Year Level *</Label>

@@ -269,7 +269,6 @@ class InterviewService {
           interview.applicationId.user,
           interview.applicationId._id,
           newDateTime,
-          'Interview time updated',
           'Department Head'
         );
         console.log('✅ Reschedule notification sent to applicant');

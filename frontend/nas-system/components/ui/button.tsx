@@ -5,37 +5,53 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Clock, AlertCircle, Users, FileText, MessageSquare } from "lucide-react"
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { cva, type VariantProps } from "class-variance-authority"
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "outline" | "ghost" | "destructive"
-  size?: "default" | "sm" | "lg" | "icon"
-}
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-blue-600 text-white hover:bg-blue-700",
+        outline: "border border-gray-300 bg-white hover:bg-gray-50",
+        ghost: "hover:bg-gray-100",
+        destructive: "bg-red-600 text-white hover:bg-red-700",
+        link: "text-blue-600 underline-offset-4 hover:underline",
+        secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 px-3 text-sm",
+        lg: "h-11 px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className = "", variant = "default", size = "default", ...props }, ref) => {
-    const baseClasses = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50"
-    
-    const variantClasses = {
-      default: "bg-blue-600 text-white hover:bg-blue-700",
-      outline: "border border-gray-300 bg-white hover:bg-gray-50",
-      ghost: "hover:bg-gray-100",
-      destructive: "bg-red-600 text-white hover:bg-red-700"
-    }
-    
-    const sizeClasses = {
-      default: "h-10 px-4 py-2",
-      sm: "h-9 px-3 text-sm", 
-      lg: "h-11 px-8",
-      icon: "h-10 w-10"
-    }
-    
-    const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
-    
-    return <button className={classes} ref={ref} {...props} />
+  ({ className = "", variant, size, ...props }, ref) => {
+    return (
+      <button
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
   }
 )
 
 Button.displayName = "Button"
+
+export { buttonVariants }
 
 type ApplicationStage = {
   id: string

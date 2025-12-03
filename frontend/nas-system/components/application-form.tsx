@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useContext } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation"
 import axios from "axios"
 import { useAuth } from "@/contexts/auth-context"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useApplicationForm } from "@/contexts/application-form-context"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
@@ -25,6 +26,7 @@ const defaultFormData: ApplicationFormData = {
   middleName: '',
   lastName: '',
   suffix: '',
+  birthDate: '',
   programOfStudyAndYear: '',
   existingScholarship: '',
   remainingUnitsIncludingThisTerm: 0,
@@ -99,6 +101,38 @@ const defaultFormData: ApplicationFormData = {
   references: []
 };
 
+// Comprehensive list of world nationalities
+const NATIONALITIES = [
+  "Afghan", "Albanian", "Algerian", "American", "Andorran", "Angolan", "Antiguan", "Argentine",
+  "Armenian", "Australian", "Austrian", "Azerbaijani", "Bahamian", "Bahraini", "Bangladeshi",
+  "Barbadian", "Belarusian", "Belgian", "Belizean", "Beninese", "Bhutanese", "Bolivian",
+  "Bosnian", "Botswanan", "Brazilian", "British", "Bruneian", "Bulgarian", "Burkinabe",
+  "Burmese", "Burundian", "Cambodian", "Cameroonian", "Canadian", "Cape Verdean",
+  "Central African", "Chadian", "Chilean", "Chinese", "Colombian", "Comoran", "Congolese",
+  "Costa Rican", "Croatian", "Cuban", "Cypriot", "Czech", "Danish", "Djiboutian", "Dominican",
+  "Dutch", "East Timorese", "Ecuadorean", "Egyptian", "Emirian", "Equatorial Guinean",
+  "Eritrean", "Estonian", "Ethiopian", "Fijian", "Filipino", "Finnish", "French", "Gabonese",
+  "Gambian", "Georgian", "German", "Ghanaian", "Greek", "Grenadian", "Guatemalan", "Guinean",
+  "Guinea-Bissauan", "Guyanese", "Haitian", "Honduran", "Hungarian", "Icelandic", "Indian",
+  "Indonesian", "Iranian", "Iraqi", "Irish", "Israeli", "Italian", "Ivorian", "Jamaican",
+  "Japanese", "Jordanian", "Kazakhstani", "Kenyan", "Kiribati", "Korean (North)", "Korean (South)",
+  "Kosovar", "Kuwaiti", "Kyrgyz", "Laotian", "Latvian", "Lebanese", "Lesothan", "Liberian",
+  "Libyan", "Liechtensteiner", "Lithuanian", "Luxembourger", "Macedonian", "Malagasy", "Malawian",
+  "Malaysian", "Maldivian", "Malian", "Maltese", "Marshallese", "Mauritanian", "Mauritian",
+  "Mexican", "Micronesian", "Moldovan", "Monacan", "Mongolian", "Montenegrin", "Moroccan",
+  "Mozambican", "Namibian", "Nauruan", "Nepalese", "New Zealander", "Nicaraguan", "Nigerian",
+  "Nigerien", "Norwegian", "Omani", "Pakistani", "Palauan", "Palestinian", "Panamanian",
+  "Papua New Guinean", "Paraguayan", "Peruvian", "Polish", "Portuguese", "Qatari", "Romanian",
+  "Russian", "Rwandan", "Saint Kitts and Nevis", "Saint Lucian", "Salvadoran", "Samoan",
+  "San Marinese", "Sao Tomean", "Saudi", "Senegalese", "Serbian", "Seychellois", "Sierra Leonean",
+  "Singaporean", "Slovak", "Slovenian", "Solomon Islander", "Somali", "South African",
+  "South Sudanese", "Spanish", "Sri Lankan", "Sudanese", "Surinamese", "Swazi", "Swedish",
+  "Swiss", "Syrian", "Taiwanese", "Tajik", "Tanzanian", "Thai", "Togolese", "Tongan",
+  "Trinidadian", "Tunisian", "Turkish", "Turkmen", "Tuvaluan", "Ugandan", "Ukrainian",
+  "Uruguayan", "Uzbek", "Vanuatuan", "Vatican", "Venezuelan", "Vietnamese", "Yemeni",
+  "Zambian", "Zimbabwean"
+];
+
 type Organization = {
   nameOfOrganization: string;
   position: string;
@@ -112,27 +146,149 @@ type ApplicationFormProps = {
 };
 
 export function ApplicationForm({ applicationId, initialData, readOnly, onUpdateSuccess }: ApplicationFormProps) {
-  const [currentStep, setCurrentStep] = useState(1)
+  // Try to use context for form persistence (when used in dashboard)
+  let formContext: ReturnType<typeof useApplicationForm> | null = null;
+  try {
+    formContext = useApplicationForm();
+  } catch {
+    // Context not available - will use local state
+  }
+
+  // Use context state if available, otherwise use local state
+  const [localCurrentStep, setLocalCurrentStep] = useState(1);
+  const [localFormData, setLocalFormData] = useState<ApplicationFormData>(defaultFormData);
+  const [localSiblings, setLocalSiblings] = useState<Array<{ name: string; age: number; programCurrentlyTakingOrFinished: string; schoolOrOccupation: string }>>([]);
+  const [localOrganizations, setLocalOrganizations] = useState([{ nameOfOrganization: "", position: "" }]);
+  const [localCollegeLevels, setLocalCollegeLevels] = useState([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+  const [localReferences, setLocalReferences] = useState([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
+  const [localIsReadOnly, setLocalIsReadOnly] = useState(false);
+  const [localHasExistingApplication, setLocalHasExistingApplication] = useState(false);
+  const [localDraftLoaded, setLocalDraftLoaded] = useState(false);
+  const [localIsInitialLoad, setLocalIsInitialLoad] = useState(true);
+
+  // Choose between context and local state
+  const currentStep = formContext?.currentStep ?? localCurrentStep;
+  const setCurrentStep = formContext?.setCurrentStep ?? setLocalCurrentStep;
+  const formData = formContext?.formData ?? localFormData;
+  const setFormData = formContext?.setFormData ?? setLocalFormData;
+  const siblings = formContext?.siblings ?? localSiblings;
+  const setSiblings = formContext?.setSiblings ?? setLocalSiblings;
+  const organizations = formContext?.organizations ?? localOrganizations;
+  const setOrganizations = formContext?.setOrganizations ?? setLocalOrganizations;
+  const collegeLevels = formContext?.collegeLevels ?? localCollegeLevels;
+  const setCollegeLevels = formContext?.setCollegeLevels ?? setLocalCollegeLevels;
+  const references = formContext?.references ?? localReferences;
+  const setReferences = formContext?.setReferences ?? setLocalReferences;
+  const isReadOnly = readOnly ?? formContext?.isReadOnly ?? localIsReadOnly;
+  const setIsReadOnly = formContext?.setIsReadOnly ?? setLocalIsReadOnly;
+  const hasExistingApplication = formContext?.hasExistingApplication ?? localHasExistingApplication;
+  const setHasExistingApplication = formContext?.setHasExistingApplication ?? setLocalHasExistingApplication;
+  const draftLoaded = formContext?.draftLoaded ?? localDraftLoaded;
+  const setDraftLoaded = setLocalDraftLoaded; // Local only - context manages internally
+  const isLoading = formContext?.isLoading ?? false;
+  const isInitialLoad = localIsInitialLoad; // Local only - for non-context mode
+  const setIsInitialLoad = setLocalIsInitialLoad;
+  const saveDraftToServerFromContext = formContext?.saveDraftToServer;
+
   const [isSaving, setIsSaving] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isReadOnly, setIsReadOnly] = useState(false)
-  const [formData, setFormData] = useState<ApplicationFormData>(defaultFormData)
-  const [siblings, setSiblings] = useState<Array<{ name: string; age: number; programCurrentlyTakingOrFinished?: string; schoolOrOccupation?: string }>>([])  // Start with empty array - siblings are optional
-  const [organizations, setOrganizations] = useState([{ nameOfOrganization: "", position: "" }])
-  const [collegeLevels, setCollegeLevels] = useState([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }])
-  const [references, setReferences] = useState([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }])
   const { toast } = useToast()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [organizationName, setOrganizationName] = useState("")
   const [position, setPosition] = useState("")
   const [organizationErrors, setOrganizationErrors] = useState<string[]>([])
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({})
   const { user } = useAuth();
   const isAdminOrStaff = user?.role === "admin" || user?.role === "oas_staff";
   const [showConfirm, setShowConfirm] = useState(false);
-  const [hasExistingApplication, setHasExistingApplication] = useState(false);
+  const [courses, setCourses] = useState<Array<{ courseId: string; name: string }>>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [userRegistrationData, setUserRegistrationData] = useState<{ email?: string; course?: { courseId: string; name: string } } | null>(null);
+
+  // Helper function to get error class for inputs
+  const getErrorClass = (fieldName: string) => fieldErrors[fieldName] ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "";
 
   const totalSteps = 4
+
+  // Fetch user registration data (email and course) from the backend
+  // This is always needed to determine if fields should be disabled
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/auth/me`, {
+          withCredentials: true
+        });
+        if (response.data?.user) {
+          const userData = {
+            email: response.data.user.email || '',
+            course: response.data.user.course || null
+          };
+          setUserRegistrationData(userData);
+          
+          // Only update form data when NOT using context (context handles its own loading)
+          if (!formContext) {
+            setFormData(prev => ({
+              ...prev,
+              emailAddress: prev.emailAddress || userData.email || '',
+              programOfStudyAndYear: prev.programOfStudyAndYear || (userData.course ? `${userData.course.name} (${userData.course.courseId})` : '')
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+    fetchUserData();
+  }, [formContext]);
+
+  // Fetch courses from API
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setCoursesLoading(true);
+        const response = await axios.get(`${API_URL}/course/all`, {
+          withCredentials: true
+        });
+
+        if (response.data?.courses) {
+          setCourses(response.data.courses);
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        toast({
+          title: "Warning",
+          description: "Could not load courses. You may need to enter your program manually.",
+          variant: "destructive"
+        });
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+    fetchCourses();
+  }, []);
+
+  // Autofill email and program of study from user's registration data
+  // This effect runs when userRegistrationData changes AND after hasExistingApplication is determined
+  useEffect(() => {
+    if (userRegistrationData && !hasExistingApplication && !initialData && !applicationId) {
+      setFormData(prev => {
+        // Only update if the fields are empty (not already filled by existing application)
+        const newEmailAddress = prev.emailAddress || userRegistrationData.email || '';
+        const newProgramOfStudy = prev.programOfStudyAndYear || (userRegistrationData.course ? `${userRegistrationData.course.name} (${userRegistrationData.course.courseId})` : '');
+        
+        // Only update if there's actually something to update
+        if (newEmailAddress !== prev.emailAddress || newProgramOfStudy !== prev.programOfStudyAndYear) {
+          return {
+            ...prev,
+            emailAddress: newEmailAddress,
+            programOfStudyAndYear: newProgramOfStudy
+          };
+        }
+        return prev;
+      });
+    }
+  }, [userRegistrationData, hasExistingApplication, initialData, applicationId]);
 
   // Validation functions
   const validateNameField = (value: string): boolean => {
@@ -168,6 +324,9 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   };
 
   useEffect(() => {
+    // Skip if using context - context handles loading
+    if (formContext) return;
+    
     if (initialData) {
       setFormData({ ...defaultFormData, ...initialData });
       setIsReadOnly(!!readOnly);
@@ -189,7 +348,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       loadExistingApplication();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, applicationId]);
+  }, [initialData, applicationId, formContext]);
 
   useEffect(() => {
     if (typeof readOnly === 'boolean') {
@@ -257,24 +416,185 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
         setReferences(appData.references?.length > 0
           ? appData.references
           : [{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
+        setIsInitialLoad(false);
       } else {
         setHasExistingApplication(false);
-        setFormData(defaultFormData);
+        // No submitted application - try to load a draft
+        await loadDraft();
+        setIsInitialLoad(false);
+      }
+    } catch (error: any) {
+      console.error('Error loading application:', error);
+      // If 404 or no application found, user hasn't submitted yet - try loading draft
+      if (error?.response?.status === 404 || error?.message?.includes('not found')) {
+        setHasExistingApplication(false);
+        setIsReadOnly(false);
+        await loadDraft();
+        setIsInitialLoad(false);
+      } else {
+        // Other errors - still mark initial load as complete
+        setIsInitialLoad(false);
+      }
+    }
+  }
+
+  // Load draft from server
+  const loadDraft = async (showToast = true) => {
+    try {
+      const draftResponse = await applicationService.getDraft();
+      if (draftResponse?.draft) {
+        const draftData = draftResponse.draft;
+        console.log('📖 Loaded draft from server:', draftData);
+        
+        // Restore form data from draft
+        setFormData(prev => ({
+          ...defaultFormData,
+          ...draftData,
+          // Preserve email and program from registration if draft doesn't have them
+          emailAddress: draftData.emailAddress || prev.emailAddress || '',
+          programOfStudyAndYear: draftData.programOfStudyAndYear || prev.programOfStudyAndYear || '',
+          familyBackground: {
+            ...defaultFormData.familyBackground,
+            ...draftData.familyBackground,
+            father: {
+              ...defaultFormData.familyBackground.father,
+              ...draftData.familyBackground?.father
+            },
+            mother: {
+              ...defaultFormData.familyBackground.mother,
+              ...draftData.familyBackground?.mother
+            },
+            siblings: draftData.familyBackground?.siblings?.length > 0
+              ? draftData.familyBackground.siblings
+              : [{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]
+          },
+          education: {
+            ...defaultFormData.education,
+            ...draftData.education,
+            elementary: {
+              ...defaultFormData.education.elementary,
+              ...draftData.education?.elementary
+            },
+            secondary: {
+              ...defaultFormData.education.secondary,
+              ...draftData.education?.secondary
+            },
+            collegeLevel: draftData.education?.collegeLevel?.length > 0
+              ? draftData.education.collegeLevel
+              : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }],
+            currentMembershipInOrganizations: draftData.education?.currentMembershipInOrganizations?.length > 0
+              ? draftData.education.currentMembershipInOrganizations
+              : [{ nameOfOrganization: "", position: "" }],
+          },
+          references: draftData.references?.length > 0
+            ? draftData.references
+            : [{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]
+        }));
+        
+        // Restore local state arrays
+        setSiblings(draftData.familyBackground?.siblings?.length > 0
+          ? draftData.familyBackground.siblings
+          : [{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
+        setCollegeLevels(draftData.education?.collegeLevel?.length > 0
+          ? draftData.education.collegeLevel
+          : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+        setOrganizations(draftData.education?.currentMembershipInOrganizations?.length > 0
+          ? draftData.education.currentMembershipInOrganizations
+          : [{ nameOfOrganization: "", position: "" }]);
+        setReferences(draftData.references?.length > 0
+          ? draftData.references
+          : [{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
+        
+        // Restore current step
+        if (draftData.currentStep) {
+          setCurrentStep(draftData.currentStep);
+        }
+        
+        setIsReadOnly(false);
+        setDraftLoaded(true);
+        
+        // Only show toast on first load, not on tab switches
+        if (showToast && !draftLoaded) {
+          toast({
+            title: "Draft Restored",
+            description: "Your previously saved draft has been loaded.",
+          });
+        }
+      } else {
+        // No draft found - start fresh
+        setFormData(prev => ({
+          ...defaultFormData,
+          emailAddress: prev.emailAddress || '',
+          programOfStudyAndYear: prev.programOfStudyAndYear || ''
+        }));
         setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
         setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
         setOrganizations([{ nameOfOrganization: "", position: "" }]);
         setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
         setIsReadOnly(false);
       }
-    } catch (error: any) {
-      console.error('Error loading application:', error);
-      // If 404 or no application found, user hasn't submitted yet
-      if (error?.response?.status === 404 || error?.message?.includes('not found')) {
-        setHasExistingApplication(false);
-        setIsReadOnly(false);
-      }
+    } catch (error) {
+      console.error('Error loading draft:', error);
+      // If draft fails to load, just start with empty form
+      setFormData(prev => ({
+        ...defaultFormData,
+        emailAddress: prev.emailAddress || '',
+        programOfStudyAndYear: prev.programOfStudyAndYear || ''
+      }));
+      setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
+      setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+      setOrganizations([{ nameOfOrganization: "", position: "" }]);
+      setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
+      setIsReadOnly(false);
     }
   }
+
+  // Auto-save draft when form data changes (debounced) - only when not using context
+  const saveDraftToServer = async () => {
+    // Use context save if available
+    if (saveDraftToServerFromContext) {
+      return saveDraftToServerFromContext();
+    }
+    
+    if (isReadOnly || hasExistingApplication) return;
+    
+    try {
+      const draftData = {
+        ...formData,
+        currentStep,
+        familyBackground: {
+          ...formData.familyBackground,
+          siblings
+        },
+        education: {
+          ...formData.education,
+          collegeLevel: collegeLevels,
+          currentMembershipInOrganizations: organizations
+        },
+        references
+      };
+      
+      await applicationService.saveDraft(draftData);
+      console.log('💾 Draft auto-saved');
+    } catch (error) {
+      console.error('Failed to auto-save draft:', error);
+    }
+  };
+
+  // Debounced auto-save effect - only when NOT using context (context handles auto-save)
+  useEffect(() => {
+    // Skip if using context - context handles auto-save
+    if (formContext) return;
+    // Don't auto-save during initial load or if read-only
+    if (isReadOnly || hasExistingApplication) return;
+    
+    const timeoutId = setTimeout(() => {
+      saveDraftToServer();
+    }, 2000); // Save after 2 seconds of inactivity
+    
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, siblings, collegeLevels, organizations, references, currentStep, isReadOnly, hasExistingApplication, isInitialLoad]);
 
   const addSibling = () => {
     const newSibling = { name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" };
@@ -553,8 +873,21 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       } else {
         // Create new application
         await applicationService.submitApplication(submissionData);
+        
+        // Delete draft after successful submission
+        try {
+          await applicationService.deleteDraft();
+          console.log('🗑️ Draft deleted after successful submission');
+        } catch (draftError) {
+          console.error('Failed to delete draft (non-critical):', draftError);
+        }
+        
         setHasExistingApplication(true); // Now user has an application
         toast({ title: "Success", description: "Application submitted successfully.", duration: 3000 });
+        // Reload the page after a short delay to show the toast
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       }
     } catch (error) {
       console.error('Submit error:', error);
@@ -600,50 +933,51 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
   const validateStep1 = () => {
     const requiredFields = [
-      'firstName', 'lastName', 'programOfStudyAndYear', 'remainingUnitsIncludingThisTerm', 'remainingTermsToGraduate',
+      'firstName', 'lastName', 'birthDate', 'programOfStudyAndYear', 'remainingUnitsIncludingThisTerm', 'remainingTermsToGraduate',
       'citizenship', 'civilStatus', 'annualFamilyIncome', 'residingAt',
       'permanentResidentialAddress', 'contactNumber', 'yearLevel'
     ] as const;
 
+    const newErrors: Record<string, boolean> = {};
+    let hasErrors = false;
+    let firstErrorField = '';
+
     for (const field of requiredFields) {
       if (!formData[field]) {
-        toast({
-          title: "Required Field Missing",
-          description: `Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
-          variant: "destructive"
-        });
-        return false;
+        newErrors[field] = true;
+        hasErrors = true;
+        if (!firstErrorField) firstErrorField = field;
       }
     }
 
     // Eligibility validation based on SRS requirements
     
     // 1. Year Level Requirement: Must be First Year or Second Year
-    if (formData.yearLevel !== 'First Year' && formData.yearLevel !== 'Second Year') {
-      toast({
-        title: "Eligibility Error",
-        description: "Only First Year and Second Year students are eligible for this scholarship.",
-        variant: "destructive"
-      });
-      return false;
+    if (formData.yearLevel && formData.yearLevel !== 'First Year' && formData.yearLevel !== 'Second Year') {
+      newErrors['yearLevel'] = true;
+      hasErrors = true;
     }
 
     // 2. Family Income Requirement: Must not exceed ₱300,000
     if (formData.annualFamilyIncome === '>300k') {
-      toast({
-        title: "Eligibility Error",
-        description: "Gross Annual Family Income must not exceed ₱300,000 to be eligible.",
-        variant: "destructive"
-      });
-      return false;
+      newErrors['annualFamilyIncome'] = true;
+      hasErrors = true;
     }
 
     // 3. Program Restriction: Must not be enrolled in BS Nursing
-    if (formData.programOfStudyAndYear.toLowerCase().includes('nursing') || 
-        formData.programOfStudyAndYear.toLowerCase().includes('bsn')) {
+    if (formData.programOfStudyAndYear && 
+        (formData.programOfStudyAndYear.toLowerCase().includes('nursing') || 
+         formData.programOfStudyAndYear.toLowerCase().includes('bsn'))) {
+      newErrors['programOfStudyAndYear'] = true;
+      hasErrors = true;
+    }
+
+    setFieldErrors(prev => ({ ...prev, ...newErrors }));
+
+    if (hasErrors) {
       toast({
-        title: "Eligibility Error",
-        description: "Students enrolled in BS Nursing are not eligible for this scholarship.",
+        title: "Please fix the errors",
+        description: "Some required fields are missing or have invalid values. Fields with errors are highlighted in red.",
         variant: "destructive"
       });
       return false;
@@ -657,14 +991,13 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   const validateStep2 = () => {
     // Validate father's information
     const fatherFields = ['firstName', 'lastName', 'age', 'occupation', 'grossAnnualIncome', 'contactNumber'] as const;
+    const newErrors: Record<string, boolean> = {};
+    let hasErrors = false;
+
     for (const field of fatherFields) {
       if (!formData.familyBackground.father[field]) {
-        toast({
-          title: "Required Field Missing",
-          description: `Please fill in father's ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
-          variant: "destructive"
-        });
-        return false;
+        newErrors[`father_${field}`] = true;
+        hasErrors = true;
       }
     }
 
@@ -672,91 +1005,80 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     const motherFields = ['firstName', 'lastName', 'age', 'occupation', 'grossAnnualIncome', 'contactNumber'] as const;
     for (const field of motherFields) {
       if (!formData.familyBackground.mother[field]) {
-        toast({
-          title: "Required Field Missing",
-          description: `Please fill in mother's ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
-          variant: "destructive"
-        });
-        return false;
+        newErrors[`mother_${field}`] = true;
+        hasErrors = true;
       }
     }
 
+    setFieldErrors(prev => ({ ...prev, ...newErrors }));
+
+    if (hasErrors) {
+      toast({
+        title: "Please fix the errors",
+        description: "Some required fields are missing. Fields with errors are highlighted in red.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
     // Siblings are now optional - only validate if they exist
-    // Validate each sibling's required fields (if any siblings are added)
-    // for (const [index, sibling] of siblings.entries()) {
-    //   if (!sibling.name || !sibling.age) {
-    //     toast({
-    //       title: "Required Field Missing",
-    //       description: `Please fill in all required fields for sibling ${index + 1}`,
-    //       variant: "destructive"
-    //     });
-    //     return false;
-    //   }
-    // }
 
     return true;
   };
 
   const validateStep3 = () => {
+    const newErrors: Record<string, boolean> = {};
+    let hasErrors = false;
+
     // Validate elementary education
-    if (!formData.education.elementary.nameAndAddressOfSchool || !formData.education.elementary.generalAverage) {
-      toast({
-        title: "Required Field Missing",
-        description: "Please fill in all elementary education information",
-        variant: "destructive"
-      });
-      return false;
+    if (!formData.education.elementary.nameAndAddressOfSchool) {
+      newErrors['elementary_school'] = true;
+      hasErrors = true;
+    }
+    if (!formData.education.elementary.generalAverage) {
+      newErrors['elementary_grade'] = true;
+      hasErrors = true;
     }
 
     // Validate elementary education grade range (75-100)
-    if (formData.education.elementary.generalAverage < 75 || formData.education.elementary.generalAverage > 100) {
-      toast({
-        title: "Invalid Grade",
-        description: "Elementary education grade must be between 75-100.",
-        variant: "destructive"
-      });
-      return false;
+    if (formData.education.elementary.generalAverage && 
+        (formData.education.elementary.generalAverage < 75 || formData.education.elementary.generalAverage > 100)) {
+      newErrors['elementary_grade'] = true;
+      hasErrors = true;
     }
 
     // Validate secondary education
-    if (!formData.education.secondary.nameAndAddressOfSchool || !formData.education.secondary.generalAverage) {
-      toast({
-        title: "Required Field Missing",
-        description: "Please fill in all secondary education information",
-        variant: "destructive"
-      });
-      return false;
+    if (!formData.education.secondary.nameAndAddressOfSchool) {
+      newErrors['secondary_school'] = true;
+      hasErrors = true;
+    }
+    if (!formData.education.secondary.generalAverage) {
+      newErrors['secondary_grade'] = true;
+      hasErrors = true;
     }
 
     // Validate secondary education grade range (75-100)
-    if (formData.education.secondary.generalAverage < 75 || formData.education.secondary.generalAverage > 100) {
-      toast({
-        title: "Invalid Grade",
-        description: "Secondary education grade must be between 75-100.",
-        variant: "destructive"
-      });
-      return false;
+    if (formData.education.secondary.generalAverage &&
+        (formData.education.secondary.generalAverage < 75 || formData.education.secondary.generalAverage > 100)) {
+      newErrors['secondary_grade'] = true;
+      hasErrors = true;
     }
 
     // Validate at least one college level
     if (collegeLevels.length === 0) {
-      toast({
-        title: "Required Information Missing",
-        description: "Please add at least one college level",
-        variant: "destructive"
-      });
-      return false;
+      newErrors['college_levels'] = true;
+      hasErrors = true;
     }
 
     // Validate each college level
     for (const [index, level] of collegeLevels.entries()) {
-      if (!level.yearLevel || !level.firstSemesterAverageFinalGrade) {
-        toast({
-          title: "Required Field Missing",
-          description: `Please fill in all required fields for year ${index + 1}`,
-          variant: "destructive"
-        });
-        return false;
+      if (!level.yearLevel) {
+        newErrors[`college_${index}_yearLevel`] = true;
+        hasErrors = true;
+      }
+      if (!level.firstSemesterAverageFinalGrade) {
+        newErrors[`college_${index}_firstSem`] = true;
+        hasErrors = true;
       }
     }
 
@@ -764,12 +1086,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     if (formData.isCitUSeniorHighGraduate) {
       // Must have grade average >= 80% in secondary education
       if (formData.education.secondary.generalAverage < 80) {
-        toast({
-          title: "Eligibility Error",
-          description: "CIT-U Senior High graduates must have a grade average of at least 80%.",
-          variant: "destructive"
-        });
-        return false;
+        newErrors['secondary_grade'] = true;
+        hasErrors = true;
       }
     }
 
@@ -777,69 +1095,78 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     if (!formData.isCitUSeniorHighGraduate) {
       // Must have at least 1 semester residency
       if (!formData.citUResidency?.semesterCount || formData.citUResidency.semesterCount < 1) {
-        toast({
-          title: "Eligibility Error",
-          description: "Non-CIT-U Senior High graduates must have at least 1 semester residency at CIT-U.",
-          variant: "destructive"
-        });
-        return false;
+        newErrors['citU_semesterCount'] = true;
+        hasErrors = true;
       }
 
       // Weighted Average Grade must be >= 3.5
       if (!formData.citUResidency?.weightedAverageGrade || formData.citUResidency.weightedAverageGrade < 3.5) {
-        toast({
-          title: "Eligibility Error",
-          description: "Non-CIT-U Senior High graduates must have a Weighted Average Grade of at least 3.5.",
-          variant: "destructive"
-        });
-        return false;
+        newErrors['citU_weightedAverage'] = true;
+        hasErrors = true;
       }
 
       // Must have no failing marks
       if (formData.citUResidency?.hasFailingMarks) {
-        toast({
-          title: "Eligibility Error",
-          description: "Non-CIT-U Senior High graduates must have no failing marks.",
-          variant: "destructive"
-        });
-        return false;
+        newErrors['citU_failingMarks'] = true;
+        hasErrors = true;
       }
 
       // Must have minimum load of 15 units (regular) or 6 units (summer)
       if (!formData.citUResidency?.minimumUnitsCompleted || formData.citUResidency.minimumUnitsCompleted < 6) {
-        toast({
-          title: "Eligibility Error",
-          description: "Non-CIT-U Senior High graduates must have completed minimum load of 15 units (regular semester) or 6 units (summer).",
-          variant: "destructive"
-        });
-        return false;
+        newErrors['citU_minimumUnits'] = true;
+        hasErrors = true;
       }
+    }
+
+    setFieldErrors(prev => ({ ...prev, ...newErrors }));
+
+    if (hasErrors) {
+      toast({
+        title: "Please fix the errors",
+        description: "Some required fields are missing or have invalid values. Fields with errors are highlighted in red.",
+        variant: "destructive"
+      });
+      return false;
     }
 
     return true;
   };
 
   const validateStep4 = () => {
+    const newErrors: Record<string, boolean> = {};
+    let hasErrors = false;
+
     // Validate at least two references
     if (references.length < 2) {
-      toast({
-        title: "Required Information Missing",
-        description: "Please add at least two references",
-        variant: "destructive"
-      });
-      return false;
+      newErrors['references_count'] = true;
+      hasErrors = true;
     }
 
     // Validate each reference
     for (const [index, ref] of references.entries()) {
-      if (!ref.name || !ref.relationshipToTheApplicant || !ref.contactNumber) {
-        toast({
-          title: "Required Field Missing",
-          description: `Please fill in all required fields for reference ${index + 1}`,
-          variant: "destructive"
-        });
-        return false;
+      if (!ref.name) {
+        newErrors[`reference_${index}_name`] = true;
+        hasErrors = true;
       }
+      if (!ref.relationshipToTheApplicant) {
+        newErrors[`reference_${index}_relationship`] = true;
+        hasErrors = true;
+      }
+      if (!ref.contactNumber) {
+        newErrors[`reference_${index}_contact`] = true;
+        hasErrors = true;
+      }
+    }
+
+    setFieldErrors(prev => ({ ...prev, ...newErrors }));
+
+    if (hasErrors) {
+      toast({
+        title: "Please fix the errors",
+        description: "Some required fields are missing. Fields with errors are highlighted in red.",
+        variant: "destructive"
+      });
+      return false;
     }
 
     return true;
@@ -889,8 +1216,42 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Scholarship Application Form</CardTitle>
-          <CardDescription>Complete all sections to submit your application</CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle>Scholarship Application Form</CardTitle>
+              <CardDescription>Complete all sections to submit your application</CardDescription>
+            </div>
+            {!isReadOnly && !hasExistingApplication && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setIsSaving(true);
+                  try {
+                    await saveDraftToServer();
+                    toast({
+                      title: "Draft Saved",
+                      description: "Your progress has been saved.",
+                    });
+                  } catch (error) {
+                    toast({
+                      title: "Error",
+                      description: "Failed to save draft. Please try again.",
+                      variant: "destructive"
+                    });
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
+                disabled={isSaving}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? "Saving..." : "Save Draft"}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="pt-6 space-y-10">
           {/* --- Personal Information Section --- */}
@@ -898,24 +1259,29 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email-address">Email Address (optional)</Label>
+                  <Label htmlFor="email-address">Email Address</Label>
                   <Input
                     id="email-address"
                     value={formData.emailAddress}
                     onChange={(e) => setFormData({ ...formData, emailAddress: e.target.value })}
                     placeholder="Enter your email address"
-                    disabled={isReadOnly}
+                    disabled={isReadOnly || !!userRegistrationData?.email}
+                    className={userRegistrationData?.email ? "bg-gray-100 cursor-not-allowed" : ""}
                   />
+                  {userRegistrationData?.email && (
+                    <p className="text-xs text-muted-foreground">This field is auto-filled from your registration.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="first-name">First Name</Label>
                   <Input
                     id="first-name"
                     value={formData.firstName}
-                    onChange={(e) => handleNameChange('firstName', e.target.value)}
+                    onChange={(e) => { handleNameChange('firstName', e.target.value); setFieldErrors(prev => ({ ...prev, firstName: false })); }}
                     placeholder="Enter your first name"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('firstName')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -933,10 +1299,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="last-name"
                     value={formData.lastName}
-                    onChange={(e) => handleNameChange('lastName', e.target.value)}
+                    onChange={(e) => { handleNameChange('lastName', e.target.value); setFieldErrors(prev => ({ ...prev, lastName: false })); }}
                     placeholder="Enter your last name"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('lastName')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -950,15 +1317,38 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="program-study">Program of Study and Year</Label>
+                  <Label htmlFor="birth-date">Birth Date</Label>
                   <Input
-                    id="program-study"
-                    value={formData.programOfStudyAndYear}
-                    onChange={(e) => setFormData({ ...formData, programOfStudyAndYear: e.target.value })}
-                    placeholder="e.g., BSIT, BSCS, BSBA"
+                    id="birth-date"
+                    type="date"
+                    value={formData.birthDate ? formData.birthDate.split('T')[0] : ''}
+                    onChange={(e) => { setFormData({ ...formData, birthDate: e.target.value }); setFieldErrors(prev => ({ ...prev, birthDate: false })); }}
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('birthDate')}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="program-study">Program of Study</Label>
+                  <Select
+                    value={formData.programOfStudyAndYear}
+                    onValueChange={(value) => { setFormData({ ...formData, programOfStudyAndYear: value }); setFieldErrors(prev => ({ ...prev, programOfStudyAndYear: false })); }}
+                    disabled={isReadOnly || coursesLoading || !!userRegistrationData?.course}
+                  >
+                    <SelectTrigger id="program-study" className={`${userRegistrationData?.course ? "bg-gray-100 cursor-not-allowed" : ""} ${getErrorClass('programOfStudyAndYear')}`}>
+                      <SelectValue placeholder={coursesLoading ? "Loading courses..." : "Select your program"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((course) => (
+                        <SelectItem key={course.courseId} value={`${course.name} (${course.courseId})`}>
+                          {course.name} ({course.courseId})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {userRegistrationData?.course && (
+                    <p className="text-xs text-muted-foreground">This field is auto-filled from your registration.</p>
+                  )}
                 </div>
                 
                 {/* New Eligibility Fields */}
@@ -966,19 +1356,16 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Label htmlFor="year-level">Year Level</Label>
                   <Select
                     value={formData.yearLevel}
-                    onValueChange={(value) => setFormData({ ...formData, yearLevel: value })}
+                    onValueChange={(value) => { setFormData({ ...formData, yearLevel: value }); setFieldErrors(prev => ({ ...prev, yearLevel: false })); }}
                     disabled={isReadOnly}
                     required
                   >
-                    <SelectTrigger id="year-level">
+                    <SelectTrigger id="year-level" className={getErrorClass('yearLevel')}>
                       <SelectValue placeholder="Select year level" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="First Year">First Year</SelectItem>
                       <SelectItem value="Second Year">Second Year</SelectItem>
-                      <SelectItem value="Third Year">Third Year (Not Eligible)</SelectItem>
-                      <SelectItem value="Fourth Year">Fourth Year (Not Eligible)</SelectItem>
-                      <SelectItem value="Fifth Year">Fifth Year (Not Eligible)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1000,10 +1387,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     type="number"
                     min="0"
                     value={formData.remainingUnitsIncludingThisTerm}
-                    onChange={(e) => setFormData({ ...formData, remainingUnitsIncludingThisTerm: Number(e.target.value) })}
+                    onChange={(e) => { setFormData({ ...formData, remainingUnitsIncludingThisTerm: Number(e.target.value) }); setFieldErrors(prev => ({ ...prev, remainingUnitsIncludingThisTerm: false })); }}
                     placeholder="Enter remaining units"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('remainingUnitsIncludingThisTerm')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1013,22 +1401,31 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     type="number"
                     min="0"
                     value={formData.remainingTermsToGraduate}
-                    onChange={(e) => setFormData({ ...formData, remainingTermsToGraduate: Number(e.target.value) })}
+                    onChange={(e) => { setFormData({ ...formData, remainingTermsToGraduate: Number(e.target.value) }); setFieldErrors(prev => ({ ...prev, remainingTermsToGraduate: false })); }}
                     placeholder="Enter remaining terms"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('remainingTermsToGraduate')}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="citizenship">Citizenship</Label>
-                  <Input
-                    id="citizenship"
+                  <Select
                     value={formData.citizenship}
-                    onChange={(e) => setFormData({ ...formData, citizenship: e.target.value })}
-                    placeholder="Enter your citizenship"
+                    onValueChange={(value) => { setFormData({ ...formData, citizenship: value }); setFieldErrors(prev => ({ ...prev, citizenship: false })); }}
                     disabled={isReadOnly}
-                    required
-                  />
+                  >
+                    <SelectTrigger id="citizenship" className={getErrorClass('citizenship')}>
+                      <SelectValue placeholder="Select your citizenship" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {NATIONALITIES.map((nationality) => (
+                        <SelectItem key={nationality} value={nationality}>
+                          {nationality}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender</Label>
@@ -1050,11 +1447,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Label htmlFor="civil-status">Civil Status</Label>
                   <Select
                     value={formData.civilStatus}
-                    onValueChange={(value) => setFormData({ ...formData, civilStatus: value })}
+                    onValueChange={(value) => { setFormData({ ...formData, civilStatus: value }); setFieldErrors(prev => ({ ...prev, civilStatus: false })); }}
                     disabled={isReadOnly}
                     required
                   >
-                    <SelectTrigger id="civil-status">
+                    <SelectTrigger id="civil-status" className={getErrorClass('civilStatus')}>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1069,18 +1466,18 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Label htmlFor="annual-income">Annual Family Income</Label>
                   <Select
                     value={formData.annualFamilyIncome}
-                    onValueChange={(value) => setFormData({ ...formData, annualFamilyIncome: value })}
+                    onValueChange={(value) => { setFormData({ ...formData, annualFamilyIncome: value }); setFieldErrors(prev => ({ ...prev, annualFamilyIncome: false })); }}
                     disabled={isReadOnly}
                     required
                   >
-                    <SelectTrigger id="annual-income">
+                    <SelectTrigger id="annual-income" className={getErrorClass('annualFamilyIncome')}>
                       <SelectValue placeholder="Select income range" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="<100k">Below ₱100,000</SelectItem>
                       <SelectItem value="100k-200k">₱100,000 - ₱200,000</SelectItem>
                       <SelectItem value="200k-300k">₱200,000 - ₱300,000</SelectItem>
-                      <SelectItem value=">300k">Above ₱300,000 (Not Eligible)</SelectItem>
+                      <SelectItem value=">300k">Above ₱300,000</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1098,11 +1495,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Label htmlFor="residing-at">Residing At</Label>
                   <Select
                     value={formData.residingAt}
-                    onValueChange={(value) => setFormData({ ...formData, residingAt: value })}
+                    onValueChange={(value) => { setFormData({ ...formData, residingAt: value }); setFieldErrors(prev => ({ ...prev, residingAt: false })); }}
                     disabled={isReadOnly}
                     required
                   >
-                    <SelectTrigger id="residing-at">
+                    <SelectTrigger id="residing-at" className={getErrorClass('residingAt')}>
                       <SelectValue placeholder="Select residence" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1117,10 +1514,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="permanent-address"
                     value={formData.permanentResidentialAddress}
-                    onChange={(e) => setFormData({ ...formData, permanentResidentialAddress: e.target.value })}
+                    onChange={(e) => { setFormData({ ...formData, permanentResidentialAddress: e.target.value }); setFieldErrors(prev => ({ ...prev, permanentResidentialAddress: false })); }}
                     placeholder="Enter permanent address"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('permanentResidentialAddress')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1128,10 +1526,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="contact-number"
                     value={formData.contactNumber}
-                    onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                    onChange={(e) => { setFormData({ ...formData, contactNumber: e.target.value }); setFieldErrors(prev => ({ ...prev, contactNumber: false })); }}
                     placeholder="Enter your contact number"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('contactNumber')}
                   />
                 </div>
               </div>
@@ -1149,9 +1548,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="father-first-name"
                       value={safeFather.firstName}
-                      onChange={(e) => updateFatherField('firstName', e.target.value)}
+                      onChange={(e) => { updateFatherField('firstName', e.target.value); setFieldErrors(prev => ({ ...prev, father_firstName: false })); }}
                       placeholder="Enter father's first name"
                       disabled={isReadOnly}
+                      className={getErrorClass('father_firstName')}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1159,9 +1559,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="father-last-name"
                       value={safeFather.lastName}
-                      onChange={(e) => updateFatherField('lastName', e.target.value)}
+                      onChange={(e) => { updateFatherField('lastName', e.target.value); setFieldErrors(prev => ({ ...prev, father_lastName: false })); }}
                       placeholder="Enter father's last name"
                       disabled={isReadOnly}
+                      className={getErrorClass('father_lastName')}
                     />
                   </div>
                 </div>
@@ -1173,9 +1574,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       type="number"
                       min="0"
                       value={safeFather.age}
-                      onChange={(e) => updateFatherField('age', Number(e.target.value))}
+                      onChange={(e) => { updateFatherField('age', Number(e.target.value)); setFieldErrors(prev => ({ ...prev, father_age: false })); }}
                       placeholder="Enter age"
                       disabled={isReadOnly}
+                      className={getErrorClass('father_age')}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1183,9 +1585,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="father-occupation"
                       value={safeFather.occupation}
-                      onChange={(e) => updateFatherField('occupation', e.target.value)}
+                      onChange={(e) => { updateFatherField('occupation', e.target.value); setFieldErrors(prev => ({ ...prev, father_occupation: false })); }}
                       placeholder="Enter occupation"
                       disabled={isReadOnly}
+                      className={getErrorClass('father_occupation')}
                     />
                   </div>
                 </div>
@@ -1195,9 +1598,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="father-income"
                       value={safeFather.grossAnnualIncome}
-                      onChange={(e) => updateFatherField('grossAnnualIncome', e.target.value)}
+                      onChange={(e) => { updateFatherField('grossAnnualIncome', e.target.value); setFieldErrors(prev => ({ ...prev, father_grossAnnualIncome: false })); }}
                       placeholder="Enter annual income"
                       disabled={isReadOnly}
+                      className={getErrorClass('father_grossAnnualIncome')}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1205,11 +1609,44 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="father-contact"
                       value={safeFather.contactNumber}
-                      onChange={(e) => updateFatherField('contactNumber', e.target.value)}
+                      onChange={(e) => { updateFatherField('contactNumber', e.target.value); setFieldErrors(prev => ({ ...prev, father_contactNumber: false })); }}
                       placeholder="Enter contact number"
+                      disabled={isReadOnly}
+                      className={getErrorClass('father_contactNumber')}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="father-company-name">Company Name (optional)</Label>
+                    <Input
+                      id="father-company-name"
+                      value={safeFather.companyName || ''}
+                      onChange={(e) => updateFatherField('companyName', e.target.value)}
+                      placeholder="Enter company name"
                       disabled={isReadOnly}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="father-company-address">Company Address (optional)</Label>
+                    <Input
+                      id="father-company-address"
+                      value={safeFather.companyAddress || ''}
+                      onChange={(e) => updateFatherField('companyAddress', e.target.value)}
+                      placeholder="Enter company address"
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="father-home-address">Home Address</Label>
+                  <Input
+                    id="father-home-address"
+                    value={safeFather.homeAddress || ''}
+                    onChange={(e) => updateFatherField('homeAddress', e.target.value)}
+                    placeholder="Enter home address"
+                    disabled={isReadOnly}
+                  />
                 </div>
               </div>
 
@@ -1221,9 +1658,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="mother-first-name"
                       value={safeMother.firstName}
-                      onChange={(e) => updateMotherField('firstName', e.target.value)}
+                      onChange={(e) => { updateMotherField('firstName', e.target.value); setFieldErrors(prev => ({ ...prev, mother_firstName: false })); }}
                       placeholder="Enter mother's first name"
                       disabled={isReadOnly}
+                      className={getErrorClass('mother_firstName')}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1231,9 +1669,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="mother-last-name"
                       value={safeMother.lastName}
-                      onChange={(e) => updateMotherField('lastName', e.target.value)}
+                      onChange={(e) => { updateMotherField('lastName', e.target.value); setFieldErrors(prev => ({ ...prev, mother_lastName: false })); }}
                       placeholder="Enter mother's last name"
                       disabled={isReadOnly}
+                      className={getErrorClass('mother_lastName')}
                     />
                   </div>
                 </div>
@@ -1245,9 +1684,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       type="number"
                       min="0"
                       value={safeMother.age}
-                      onChange={(e) => updateMotherField('age', Number(e.target.value))}
+                      onChange={(e) => { updateMotherField('age', Number(e.target.value)); setFieldErrors(prev => ({ ...prev, mother_age: false })); }}
                       placeholder="Enter age"
                       disabled={isReadOnly}
+                      className={getErrorClass('mother_age')}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1255,9 +1695,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="mother-occupation"
                       value={safeMother.occupation}
-                      onChange={(e) => updateMotherField('occupation', e.target.value)}
+                      onChange={(e) => { updateMotherField('occupation', e.target.value); setFieldErrors(prev => ({ ...prev, mother_occupation: false })); }}
                       placeholder="Enter occupation"
                       disabled={isReadOnly}
+                      className={getErrorClass('mother_occupation')}
                     />
                   </div>
                 </div>
@@ -1267,9 +1708,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="mother-income"
                       value={safeMother.grossAnnualIncome}
-                      onChange={(e) => updateMotherField('grossAnnualIncome', e.target.value)}
+                      onChange={(e) => { updateMotherField('grossAnnualIncome', e.target.value); setFieldErrors(prev => ({ ...prev, mother_grossAnnualIncome: false })); }}
                       placeholder="Enter annual income"
                       disabled={isReadOnly}
+                      className={getErrorClass('mother_grossAnnualIncome')}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1277,11 +1719,44 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     <Input
                       id="mother-contact"
                       value={safeMother.contactNumber}
-                      onChange={(e) => updateMotherField('contactNumber', e.target.value)}
+                      onChange={(e) => { updateMotherField('contactNumber', e.target.value); setFieldErrors(prev => ({ ...prev, mother_contactNumber: false })); }}
                       placeholder="Enter contact number"
+                      disabled={isReadOnly}
+                      className={getErrorClass('mother_contactNumber')}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="mother-company-name">Company Name (optional)</Label>
+                    <Input
+                      id="mother-company-name"
+                      value={safeMother.companyName || ''}
+                      onChange={(e) => updateMotherField('companyName', e.target.value)}
+                      placeholder="Enter company name"
                       disabled={isReadOnly}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mother-company-address">Company Address (optional)</Label>
+                    <Input
+                      id="mother-company-address"
+                      value={safeMother.companyAddress || ''}
+                      onChange={(e) => updateMotherField('companyAddress', e.target.value)}
+                      placeholder="Enter company address"
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mother-home-address">Home Address</Label>
+                  <Input
+                    id="mother-home-address"
+                    value={safeMother.homeAddress || ''}
+                    onChange={(e) => updateMotherField('homeAddress', e.target.value)}
+                    placeholder="Enter home address"
+                    disabled={isReadOnly}
+                  />
                 </div>
               </div>
 
@@ -1334,6 +1809,28 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                             />
                           </div>
                         </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`sibling-program-${index}`}>Program/Course (optional)</Label>
+                            <Input
+                              id={`sibling-program-${index}`}
+                              value={sibling.programCurrentlyTakingOrFinished || ''}
+                              onChange={(e) => updateSibling(index, "programCurrentlyTakingOrFinished", e.target.value)}
+                              placeholder="e.g., BS Computer Science"
+                              disabled={isReadOnly}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`sibling-school-${index}`}>School/Occupation (optional)</Label>
+                            <Input
+                              id={`sibling-school-${index}`}
+                              value={sibling.schoolOrOccupation || ''}
+                              onChange={(e) => updateSibling(index, "schoolOrOccupation", e.target.value)}
+                              placeholder="e.g., CIT-U or Software Engineer"
+                              disabled={isReadOnly}
+                            />
+                          </div>
+                        </div>
                       </div>
                     ))}
                     <Button variant="outline" className="w-full" onClick={addSibling} disabled={isReadOnly}>
@@ -1355,7 +1852,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="elementary-school"
                     value={safeElementary.nameAndAddressOfSchool}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setFormData({
                         ...formData,
                         education: {
@@ -1365,11 +1862,13 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                             nameAndAddressOfSchool: e.target.value,
                           },
                         },
-                      })
-                    }
+                      });
+                      setFieldErrors(prev => ({ ...prev, elementary_school: false }));
+                    }}
                     placeholder="Enter school name and address"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('elementary_school')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1423,7 +1922,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     max="100"
                     step="0.01"
                     value={safeElementary.generalAverage}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setFormData({
                         ...formData,
                         education: {
@@ -1433,11 +1932,13 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                             generalAverage: Number(e.target.value),
                           },
                         },
-                      })
-                    }
+                      });
+                      setFieldErrors(prev => ({ ...prev, elementary_grade: false }));
+                    }}
                     placeholder="Enter average (75-100)"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('elementary_grade')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1489,7 +1990,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   <Input
                     id="secondary-school"
                     value={safeSecondary.nameAndAddressOfSchool}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setFormData({
                         ...formData,
                         education: {
@@ -1499,11 +2000,13 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                             nameAndAddressOfSchool: e.target.value,
                           },
                         },
-                      })
-                    }
+                      });
+                      setFieldErrors(prev => ({ ...prev, secondary_school: false }));
+                    }}
                     placeholder="Enter school name and address"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('secondary_school')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1557,7 +2060,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     max="100"
                     step="0.01"
                     value={safeSecondary.generalAverage}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setFormData({
                         ...formData,
                         education: {
@@ -1567,11 +2070,13 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                             generalAverage: Number(e.target.value),
                           },
                         },
-                      })
-                    }
+                      });
+                      setFieldErrors(prev => ({ ...prev, secondary_grade: false }));
+                    }}
                     placeholder="Enter average (75-100)"
                     disabled={isReadOnly}
                     required
+                    className={getErrorClass('secondary_grade')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1910,10 +2415,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       <Input
                         id={`reference-name-${index}`}
                         value={ref.name}
-                        onChange={e => updateReference(index, 'name', e.target.value)}
+                        onChange={e => { updateReference(index, 'name', e.target.value); setFieldErrors(prev => ({ ...prev, [`reference_${index}_name`]: false })); }}
                         placeholder="Enter reference's name"
                         disabled={isReadOnly}
                         required
+                        className={getErrorClass(`reference_${index}_name`)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1921,10 +2427,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       <Input
                         id={`reference-relationship-${index}`}
                         value={ref.relationshipToTheApplicant}
-                        onChange={e => updateReference(index, 'relationshipToTheApplicant', e.target.value)}
+                        onChange={e => { updateReference(index, 'relationshipToTheApplicant', e.target.value); setFieldErrors(prev => ({ ...prev, [`reference_${index}_relationship`]: false })); }}
                         placeholder="Enter relationship"
                         disabled={isReadOnly}
                         required
+                        className={getErrorClass(`reference_${index}_relationship`)}
                       />
                     </div>
                     <div className="space-y-2 col-span-2">
@@ -1932,10 +2439,11 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       <Input
                         id={`reference-contact-${index}`}
                         value={ref.contactNumber}
-                        onChange={e => updateReference(index, 'contactNumber', e.target.value)}
+                        onChange={e => { updateReference(index, 'contactNumber', e.target.value); setFieldErrors(prev => ({ ...prev, [`reference_${index}_contact`]: false })); }}
                         placeholder="Enter contact number"
                         disabled={isReadOnly}
                         required
+                        className={getErrorClass(`reference_${index}_contact`)}
                       />
                     </div>
                   </div>

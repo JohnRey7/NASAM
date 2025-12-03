@@ -24,8 +24,7 @@ export function ToolsCard() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [departmentManagementOpen, setDepartmentManagementOpen] = useState(false);
-  const [evaluationControlOpen, setEvaluationControlOpen] = useState(false);
-  const [evaluationViewOpen, setEvaluationViewOpen] = useState(false);
+  const [scholarEvaluationsOpen, setScholarEvaluationsOpen] = useState(false);
   
   // New state for inline components
   const [courseManagementOpen, setCourseManagementOpen] = useState(false);
@@ -41,6 +40,7 @@ export function ToolsCard() {
     if (except !== 'department') setDepartmentManagementOpen(false);
     if (except !== 'logs') setViewLogsOpen(false);
     if (except !== 'notification') setSendNotificationOpen(false);
+    if (except !== 'evaluation') setScholarEvaluationsOpen(false);
   };
 
   // Export all applications to CSV
@@ -205,7 +205,15 @@ export function ToolsCard() {
             <Button variant="default" className="flex items-center gap-2 bg-[#800000] text-white" onClick={() => setDialogOpen(true)}>
               <UserPlus className="h-5 w-5" /> Create Department Head
             </Button>
-            <Button variant="outline" className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50" onClick={() => setEvaluationControlOpen(true)}>
+            <Button 
+              variant={scholarEvaluationsOpen ? "default" : "outline"} 
+              className={`flex items-center gap-2 ${scholarEvaluationsOpen ? 'bg-green-600 text-white' : 'border-green-600 text-green-700 hover:bg-green-50'}`}
+              onClick={() => {
+                const newState = !scholarEvaluationsOpen;
+                if (newState) closeOtherPanels('evaluation');
+                setScholarEvaluationsOpen(newState);
+              }}
+            >
               <ClipboardCheck className="h-5 w-5" /> Scholar Evaluations
             </Button>
           </div>
@@ -246,6 +254,33 @@ export function ToolsCard() {
         </div>
       )}
 
+      {/* Scholar Evaluations - Inline below the card */}
+      {scholarEvaluationsOpen && (
+        <div className="mt-6 border-0 rounded-xl bg-white shadow-soft">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                  <ClipboardCheck className="h-5 w-5 text-green-600" />
+                  Scholar Evaluation Management
+                </h3>
+                <p className="text-sm text-gray-500">Manage evaluation periods and view all scholar evaluations</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setScholarEvaluationsOpen(false)}>
+                Close
+              </Button>
+            </div>
+            <div className="space-y-6">
+              <AdminEvaluationControl />
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold mb-4">All Evaluations</h3>
+                <AdminEvaluationView />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Create Department Head Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -281,23 +316,6 @@ export function ToolsCard() {
               <Button onClick={() => setErrorDialog(false)}>Close</Button>
             </DialogClose>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Scholar Evaluation Management Dialog */}
-      <Dialog open={evaluationControlOpen} onOpenChange={setEvaluationControlOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Scholar Evaluation Management</DialogTitle>
-            <DialogDescription>Manage evaluation periods and view all scholar evaluations</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6 overflow-y-auto max-h-[70vh]">
-            <AdminEvaluationControl />
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold mb-4">All Evaluations</h3>
-              <AdminEvaluationView />
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
     </>

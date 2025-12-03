@@ -196,6 +196,11 @@ app.delete('/api/application/user/:userId', authenticate, checkPermission('appli
 app.put('/api/application/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
 app.put('/api/application/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
 
+// Application Draft routes (for form persistence)
+app.post('/api/application/draft', authenticate, ApplicationController.saveDraft);
+app.get('/api/application/draft', authenticate, ApplicationController.getDraft);
+app.delete('/api/application/draft', authenticate, ApplicationController.deleteDraft);
+
 // Application soft delete routes
 app.delete('/api/application/:id/soft', authenticate, checkPermission('applicationForm.delete'), ApplicationController.softDeleteApplication);
 app.put('/api/application/:id/restore', authenticate, checkPermission('applicationForm.delete'), ApplicationController.restoreApplication);
@@ -231,6 +236,12 @@ app.get('/api/document-uploads/user/:userId', authenticate, checkPermission('doc
 app.patch('/api/document-uploads/:userId', authenticate, uploadDocumentsMiddleware, DocumentUploadController.updateDocument);
 app.delete('/api/document-uploads/:userId', authenticate, DocumentUploadController.deleteDocument);
 
+// New Document CRUD routes by idNumber
+app.post('/api/document/:idNumber', authenticate, checkPermission('document.create'), uploadDocumentsMiddleware, DocumentUploadController.createDocumentByIdNumber);
+app.get('/api/document/me', authenticate, DocumentUploadController.getMyDocuments);
+app.get('/api/document/:idNumber', authenticate, checkPermission('document.get'), DocumentUploadController.getDocumentsByIdNumber);
+app.put('/api/document/:idNumber', authenticate, checkPermission('document.update'), uploadDocumentsMiddleware, DocumentUploadController.updateDocumentByIdNumber);
+
 // End term semester grade specific routes
 app.post('/api/document-uploads/end-term-grade', authenticate, uploadDocumentsMiddleware, checkPermission('document.upload.endTermGrade'),DocumentUploadController.addEndTermSemesterGrade);
 app.patch('/api/document-uploads/:userId/end-term-grade/:gradeId', authenticate, uploadDocumentsMiddleware, checkPermission('document.upload.endTermGrade'), DocumentUploadController.updateEndTermSemesterGrade);
@@ -251,6 +262,8 @@ app.get('/api/personality-test/all', authenticate, checkPermission('personality_
 app.get('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.read'), PersonalityTestController.getPersonalityTestByUserId);
 app.patch('/api/personality-test/test/:testId', authenticate, checkPermission('personality_test.update'), PersonalityTestController.updatePersonalityTest);
 app.delete('/api/personality-test/user/:userId', authenticate, checkPermission('personality_test.delete'), PersonalityTestController.deletePersonalityTestByUserId);
+app.patch('/api/personality-test/user/:userId/mark-reviewed', authenticate, checkPermission('personality_test.update'), PersonalityTestController.markAsReviewed);
+app.patch('/api/personality-test/user/:userId/revert-review', authenticate, checkPermission('personality_test.update'), PersonalityTestController.revertReview);
 
 // Personality Test Template routes
 app.post('/api/personality-test/template', authenticate, checkPermission('personality_test.template.create'), PersonalityTestController.createTemplate);
@@ -430,6 +443,7 @@ app.get('/api/oas/application/export/all', authenticate, checkPermission('applic
 // Application verification routes
 app.patch('/api/oas/application/:applicationId/verify', authenticate, ApplicationController.verifyApplicationForm);
 app.patch('/api/oas/application/:applicationId/verify-documents', authenticate, ApplicationController.verifyApplicationDocuments);
+app.patch('/api/oas/application/:applicationId/revert-document-verification', authenticate, ApplicationController.revertDocumentVerification);
 
 // Test routes (can be removed in production)
 app.get('/api/test-verify', (req, res) => {

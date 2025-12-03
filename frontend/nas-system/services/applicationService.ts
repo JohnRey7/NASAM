@@ -9,6 +9,7 @@ export interface ApplicationFormData {
   middleName?: string;
   lastName: string;
   suffix?: string;
+  birthDate: string;
   programOfStudyAndYear: string;
   existingScholarship?: string;
   remainingUnitsIncludingThisTerm: number;
@@ -407,6 +408,7 @@ export const applicationService = {
     }
   },
 
+
   // Add method to fetch interview data for applicants
   async getMyInterview() {
     try {
@@ -452,6 +454,66 @@ export const applicationService = {
       return payload;
     } catch (error) {
       console.error('Error fetching application counts:', error);
+      throw error;
+    }
+  },
+
+  // ===== DRAFT METHODS FOR FORM PERSISTENCE =====
+
+  async saveDraft(draftData: Partial<ApplicationFormData> & { currentStep?: number }) {
+    try {
+      const response = await axios.post(`${API_URL}/application/draft`, draftData, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Error saving draft:', error.response?.data);
+        throw new Error(error.response?.data?.message || 'Failed to save draft');
+      }
+      throw error;
+    }
+  },
+
+  async getDraft() {
+    try {
+      const response = await axios.get(`${API_URL}/application/draft`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          // No draft found, that's okay
+          return null;
+        }
+        console.error('Error fetching draft:', error.response?.data);
+        throw new Error(error.response?.data?.message || 'Failed to fetch draft');
+      }
+      throw error;
+    }
+  },
+
+  async deleteDraft() {
+    try {
+      const response = await axios.delete(`${API_URL}/application/draft`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Error deleting draft:', error.response?.data);
+        throw new Error(error.response?.data?.message || 'Failed to delete draft');
+      }
       throw error;
     }
   }

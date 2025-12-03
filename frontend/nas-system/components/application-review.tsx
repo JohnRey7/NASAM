@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useConfirmation } from "@/components/ui/confirmation-dialog"
 
 import { useToast } from "@/components/ui/use-toast"  // ✅ CHANGED: from hooks to components
 import {
@@ -26,7 +27,8 @@ import {
   Edit,
   ChevronLeft,
   ChevronRight,
-  Loader2
+  Loader2,
+  Trash2
 } from "lucide-react"
 import { AdminEditApplication } from "@/components/admin-edit-application"
 import { MessageButton } from "@/components/message-button"
@@ -43,27 +45,90 @@ import {
 import { Label } from "@/components/ui/label"
 import { applicationService } from "@/services/applicationService"
 
-function DocumentChecker({ applicationId, userId }: { applicationId: string; userId?: string }) {
+function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: string; userId?: string; idNumber?: string }) {
   const { toast } = useToast();
+  const { confirm, ConfirmDialog } = useConfirmation();
   
   const [documents, setDocuments] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+
+  // Check if file is an image based on extension or mime type
+  const isImageFile = (filename: string | undefined): boolean => {
+    if (!filename) return false;
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+    const lowerFilename = filename.toLowerCase();
+    return imageExtensions.some(ext => lowerFilename.endsWith(ext));
+  };
+
+  const handlePreviewDocument = async (docType: string, filePath: string, originalName?: string) => {
+    // Check if file is an image
+    const filename = originalName || filePath;
+    if (!isImageFile(filename)) {
+      toast({
+        title: "Preview Not Available",
+        description: "Preview is only available for image files. Use Download instead.",
+      });
+      return;
+    }
+
+    try {
+      // Remove "files/" prefix if present
+      const cleanFilePath = filePath.replace(/^files\//, '');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/files/${cleanFilePath}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load image');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      setPreviewImage({ url, name: originalName || docType });
+    } catch (error) {
+      toast({
+        title: "Preview Failed",
+        description: `Failed to preview ${docType}: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const closePreview = () => {
+    if (previewImage?.url) {
+      window.URL.revokeObjectURL(previewImage.url);
+    }
+    setPreviewImage(null);
+  };
 
   useEffect(() => {
     fetchDocuments();
-  }, [applicationId]);
+  }, [applicationId, idNumber]);
 
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      // First try to get documents using the OAS endpoint
-      let response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents`, {
+      let response;
+      
+      // Try different endpoints in order of preference
+      // 1. First try the OAS endpoint with applicationId
+      response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents`, {
         credentials: 'include'
       });
 
+      // 2. If OAS endpoint fails and we have idNumber, try the new document endpoint
+      if (!response.ok && idNumber) {
+        console.log('📄 Trying /api/document/:idNumber endpoint with:', idNumber);
+        response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document/${idNumber}`, {
+          credentials: 'include'
+        });
+      }
+
+      // 3. If still failing and we have userId, try the document-uploads endpoint
       if (!response.ok && userId) {
-        // If OAS endpoint fails and we have userId, try the document-uploads endpoint
         response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/user/${userId}`, {
           credentials: 'include'
         });
@@ -222,17 +287,63 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
     }
   };
 
+  const handleRevertDocumentVerification = async () => {
+    const isConfirmed = await confirm({
+      title: "Revert Document Verification",
+      description: "This will revert the document verification status. The applicant will need to wait for documents to be verified again before they can take the personality test.",
+      confirmText: "Revert Verification",
+      cancelText: "Cancel",
+      type: "warning"
+    });
+
+    if (!isConfirmed) return;
+
+    try {
+      console.log('🔄 Reverting document verification for application:', applicationId);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/revert-document-verification`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('🔄 Document verification reverted:', result);
+
+      toast({
+        title: "Verification Reverted",
+        description: `Document verification has been reverted. Documents need to be verified again.`,
+        duration: 5000
+      });
+
+      // Refresh documents to show updated status
+      await fetchDocuments();
+
+    } catch (error) {
+      console.error('❌ Revert verification failed:', error);
+      
+      toast({
+        title: "Revert Failed",
+        description: `Failed to revert verification: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+        duration: 5000
+      });
+    }
+  };
+
   const handleDeleteDocuments = async (applicationId: string) => {
-    const isConfirmed = window.confirm(
-      `🟠 SOFT DELETE DOCUMENTS ONLY\n\n` +
-      `This will:\n` +
-      `• ✅ Keep the application form intact\n` +
-      `• ❌ Mark all uploaded documents as deleted (soft delete)\n` +
-      `• ✅ CAN BE RESTORED if needed\n` +
-      `• 📄 Student can re-upload new documents\n\n` +
-      `Perfect for: Bad documents, wrong files, corrupted uploads\n\n` +
-      `Proceed?`
-    );
+    const isConfirmed = await confirm({
+      title: "Soft Delete Documents Only",
+      description: `This will:\n• ✅ Keep the application form intact\n• ❌ Mark all uploaded documents as deleted (soft delete)\n• ✅ CAN BE RESTORED if needed\n• 📄 Student can re-upload new documents\n\nPerfect for: Bad documents, wrong files, corrupted uploads`,
+      confirmText: "Delete Documents",
+      cancelText: "Cancel",
+      type: "warning"
+    });
 
     if (!isConfirmed) return;
 
@@ -335,14 +446,28 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
       <div className="space-y-3">
         {documentTypes.map(({ key, label, required }) => {
           const doc = documents?.documents?.[key];
+          const canPreview = doc?.uploaded && isImageFile(doc.originalName || doc.filePath || doc.filename);
+          
           return (
-            <div key={key} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+            <div 
+              key={key} 
+              className={`flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 ${canPreview ? 'cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all' : ''}`}
+              onClick={() => {
+                if (canPreview) {
+                  const filePath = doc.filePath || doc.filename;
+                  if (filePath) {
+                    handlePreviewDocument(label, filePath, doc.originalName);
+                  }
+                }
+              }}
+            >
               <div className="flex items-center gap-3">
                 {getDocumentIcon(doc?.uploaded)}
                 <div>
                   <p className="font-medium text-sm">
                     {label}
                     {required && <span className="text-red-500 ml-1">*</span>}
+                    {canPreview && <span className="text-blue-500 ml-2 text-xs">(Click to preview)</span>}
                   </p>
                   <p className="text-xs text-gray-500">
                     {doc?.uploaded ? (
@@ -407,7 +532,8 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering image preview
                       const downloadPath = doc.filePath || doc.filename;
                       const downloadName = doc.originalName || doc.filename;
                       if (downloadPath) {
@@ -440,15 +566,49 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
 
       {/* Action Buttons */}
       <div className="pt-4 border-t">
+        {/* Verification Status Banner */}
+        {documents?.documentsVerified && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <div>
+              <p className="text-sm font-medium text-green-800">Documents Verified</p>
+              {documents.documentsVerifiedAt && (
+                <p className="text-xs text-green-600">
+                  Verified on {new Date(documents.documentsVerifiedAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                  {documents.documentsVerifiedBy && (
+                    <span> by {documents.documentsVerifiedBy.name || documents.documentsVerifiedBy.email || 'OAS Staff'}</span>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+        
         <div className="flex gap-2">
-          <Button
-            className="bg-green-600 hover:bg-green-700 text-white"
-            onClick={handleVerifyAllDocuments}
-            disabled={!documents?.summary?.isComplete}
-          >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            {documents?.summary?.isComplete ? 'Verify All Documents' : 'Documents Incomplete'}
-          </Button>
+          {documents?.documentsVerified ? (
+            <Button
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={handleRevertDocumentVerification}
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Revert Verification
+            </Button>
+          ) : (
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleVerifyAllDocuments}
+              disabled={!documents?.summary?.isComplete}
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              {documents?.summary?.isComplete ? 'Verify All Documents' : 'Documents Incomplete'}
+            </Button>
+          )}
           
           <Button 
             variant="outline"
@@ -461,13 +621,35 @@ function DocumentChecker({ applicationId, userId }: { applicationId: string; use
           <Button 
             variant="destructive"
             onClick={() => handleDeleteDocuments(applicationId)}
-            className="bg-orange-600 hover:bg-orange-700"
+            className="bg-red-600 hover:bg-red-700"
           >
             <XCircle className="mr-2 h-4 w-4" />
             Delete Documents
           </Button>
         </div>
       </div>
+
+      {/* Image Preview Dialog */}
+      {previewImage && (
+        <Dialog open={!!previewImage} onOpenChange={(open) => !open && closePreview()}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+            <DialogHeader className="p-4 pb-2">
+              <DialogTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                {previewImage.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="px-4 pb-4 flex items-center justify-center overflow-auto">
+              <img 
+                src={previewImage.url} 
+                alt={previewImage.name}
+                className="max-w-full max-h-[70vh] object-contain rounded-lg"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      {ConfirmDialog}
     </div>
   );
 }
@@ -479,11 +661,13 @@ export function ApplicationReview() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // 'desc' = newest first (default)
   const [selectedApplication, setSelectedApplication] = useState<any>(null)
   const [interviewDate, setInterviewDate] = useState("")
+  const [interviewTime, setInterviewTime] = useState("09:00")
   const [isRescheduling, setIsRescheduling] = useState(false)
   const [personalityTestData, setPersonalityTestData] = useState<any>(null);
   const [personalityTestLoading, setPersonalityTestLoading] = useState(false);
   const [remarks, setRemarks] = useState("")
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirmation()
   const [applications, setApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -640,7 +824,15 @@ export function ApplicationReview() {
     }
   }
 
-  const handleScheduleInterview = async () => {
+  const handleScheduleInterview = async (app?: any) => {
+    // Use passed application or fall back to selectedApplication
+    const targetApplication = app || selectedApplication;
+    
+    console.log('🔥 handleScheduleInterview called');
+    console.log('📅 interviewDate:', interviewDate);
+    console.log('⏰ interviewTime:', interviewTime);
+    console.log('📋 targetApplication:', targetApplication);
+    
     if (!interviewDate) {
       toast({
         title: "Error",
@@ -650,7 +842,16 @@ export function ApplicationReview() {
       return
     }
 
-    if (!selectedApplication) {
+    if (!interviewTime) {
+      toast({
+        title: "Error",
+        description: "Please select an interview time",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!targetApplication) {
       toast({
         title: "Error",
         description: "No application selected",
@@ -660,7 +861,9 @@ export function ApplicationReview() {
     }
 
     try {
-      console.log('Scheduling interview for application:', selectedApplication._id);
+      // Combine date and time into a full datetime string
+      const interviewDateTime = `${interviewDate}T${interviewTime}:00`;
+      console.log('Scheduling interview for application:', targetApplication._id, 'at', interviewDateTime);
       
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/admin/interview/schedule`, {
         method: 'POST',
@@ -669,8 +872,8 @@ export function ApplicationReview() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          applicationId: selectedApplication._id,
-          interviewDate: interviewDate,
+          applicationId: targetApplication._id,
+          interviewDate: interviewDateTime,
           notes: 'Scheduled via OAS Staff Dashboard'
         })
       });
@@ -683,30 +886,45 @@ export function ApplicationReview() {
       const result = await response.json();
       console.log('Interview operation result:', result);
 
+      // Format date and time for display
+      const formatDateTime = (dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      };
+
       // Handle both new and existing interviews
       if (result.isExisting) {
         if (result.isRescheduled) {
           // Interview was rescheduled
-          const newDate = new Date(result.interviewDate).toLocaleDateString();
+          const newDateTime = formatDateTime(result.interviewDate);
           toast({
             title: "Interview Rescheduled",
-            description: `Interview for ${selectedApplication.firstName} ${selectedApplication.lastName} has been rescheduled to ${newDate}. Notification sent to the applicant.`,
+            description: `Interview for ${targetApplication.firstName} ${targetApplication.lastName} has been rescheduled to ${newDateTime}. Notification sent to the applicant.`,
             duration: 5000
           })
         } else {
           // Interview already exists - show existing interview details
-          const existingDate = new Date(result.interviewDate).toLocaleDateString();
+          const existingDateTime = formatDateTime(result.interviewDate);
           toast({
             title: "Interview Already Scheduled",
-            description: `${selectedApplication.firstName} ${selectedApplication.lastName} already has an interview scheduled for ${existingDate}. A reminder notification has been sent to the applicant.`,
+            description: `${targetApplication.firstName} ${targetApplication.lastName} already has an interview scheduled for ${existingDateTime}. A reminder notification has been sent to the applicant.`,
             duration: 7000
           })
         }
       } else {
         // New interview scheduled
+        const scheduledDateTime = formatDateTime(interviewDateTime);
         toast({
           title: "Interview Scheduled",
-          description: `Interview scheduled for ${selectedApplication.firstName} ${selectedApplication.lastName} on ${new Date(interviewDate).toLocaleDateString()}. Interview ID: ${result.interviewId}`,
+          description: `Interview scheduled for ${targetApplication.firstName} ${targetApplication.lastName} on ${scheduledDateTime}. Interview ID: ${result.interviewId}`,
           duration: 5000
         })
         
@@ -717,6 +935,7 @@ export function ApplicationReview() {
       // Close dialog and reset form
       setSelectedApplication(null)
       setInterviewDate("")
+      setInterviewTime("09:00")
       setIsRescheduling(false)
       
       // Refresh the applications list to show updated status
@@ -814,18 +1033,13 @@ export function ApplicationReview() {
 
   const handleDeleteApplication = async (application: any) => {
     // Confirmation dialog
-    const isConfirmed = window.confirm(
-      `⚠️ SOFT DELETE APPLICATION\n\n` +
-      `Student: ${application.firstName} ${application.lastName}\n` +
-      `Email: ${application.emailAddress}\n` +
-      `Submission Date: ${new Date(application.submissionDate || application.createdAt).toLocaleDateString()}\n\n` +
-      `This action will:\n` +
-      `• Mark the entire application as deleted (soft delete)\n` +
-      `• Hide from active applications list\n` +
-      `• CAN BE RESTORED if needed\n` +
-      `• Allow the student to submit a fresh application\n\n` +
-      `Are you sure you want to proceed?`
-    );
+    const isConfirmed = await confirm({
+      title: "Soft Delete Application",
+      description: `Student: ${application.firstName} ${application.lastName}\nEmail: ${application.emailAddress}\nSubmission Date: ${new Date(application.submissionDate || application.createdAt).toLocaleDateString()}\n\nThis action will:\n• Mark the entire application as deleted (soft delete)\n• Hide from active applications list\n• CAN BE RESTORED if needed\n• Allow the student to submit a fresh application`,
+      confirmText: "Delete Application",
+      cancelText: "Cancel",
+      type: "danger"
+    });
 
     if (!isConfirmed) {
       return;
@@ -892,18 +1106,13 @@ export function ApplicationReview() {
 
   // Delete Application Form Only
   const handleDeleteApplicationForm = async (application: any) => {
-    const isConfirmed = window.confirm(
-      `🟡 SOFT DELETE APPLICATION FORM ONLY\n\n` +
-      `Student: ${application.firstName} ${application.lastName}\n` +
-      `Email: ${application.emailAddress}\n\n` +
-      `This will:\n` +
-      `• ❌ Mark application form as deleted (soft delete)\n` +
-      `• ✅ Keep all uploaded documents intact\n` +
-      `• ✅ CAN BE RESTORED if needed\n` +
-      `• ✅ Student can resubmit form using existing documents\n\n` +
-      `Perfect for: Wrong answers, form errors\n\n` +
-      `Proceed?`
-    );
+    const isConfirmed = await confirm({
+      title: "Soft Delete Application Form Only",
+      description: `Student: ${application.firstName} ${application.lastName}\nEmail: ${application.emailAddress}\n\nThis will:\n• ❌ Mark application form as deleted (soft delete)\n• ✅ Keep all uploaded documents intact\n• ✅ CAN BE RESTORED if needed\n• ✅ Student can resubmit form using existing documents\n\nPerfect for: Wrong answers, form errors`,
+      confirmText: "Delete Form",
+      cancelText: "Cancel",
+      type: "warning"
+    });
 
     if (!isConfirmed) return;
 
@@ -950,18 +1159,13 @@ export function ApplicationReview() {
 
   // Delete Documents Only
   const handleDeleteDocuments = async (application: any) => {
-    const isConfirmed = window.confirm(
-      `🟠 SOFT DELETE DOCUMENTS ONLY\n\n` +
-      `Student: ${application.firstName} ${application.lastName}\n` +
-      `Email: ${application.emailAddress}\n\n` +
-      `This will:\n` +
-      `• ✅ Keep the application form intact\n` +
-      `• ❌ Mark all uploaded documents as deleted (soft delete)\n` +
-      `• ✅ CAN BE RESTORED if needed\n` +
-      `• 📄 Student can re-upload new documents\n\n` +
-      `Perfect for: Bad documents, wrong files, corrupted uploads\n\n` +
-      `Proceed?`
-    );
+    const isConfirmed = await confirm({
+      title: "Soft Delete Documents Only",
+      description: `Student: ${application.firstName} ${application.lastName}\nEmail: ${application.emailAddress}\n\nThis will:\n• ✅ Keep the application form intact\n• ❌ Mark all uploaded documents as deleted (soft delete)\n• ✅ CAN BE RESTORED if needed\n• 📄 Student can re-upload new documents\n\nPerfect for: Bad documents, wrong files, corrupted uploads`,
+      confirmText: "Delete Documents",
+      cancelText: "Cancel",
+      type: "warning"
+    });
 
     if (!isConfirmed) return;
 
@@ -1019,6 +1223,8 @@ export function ApplicationReview() {
       if (response.ok) {
         const data = await response.json();
         setPersonalityTestData(data);
+        // Set reviewed state from backend data
+        setPersonalityTestReviewed(data.reviewed || false);
         console.log('Personality test data fetched:', data);
       } else if (response.status === 404) {
         // No personality test found - this is normal
@@ -1202,7 +1408,10 @@ export function ApplicationReview() {
                               className="h-8 w-8"
                               onClick={() => {
                                 setSelectedApplication(application);
-                                setPersonalityTestReviewed(false);
+                                // Fetch personality test data to get correct reviewed status
+                                if (application?.user?._id) {
+                                  fetchPersonalityTestData(application.user._id);
+                                }
                               }}
                               title="View Application"
                             >
@@ -1230,6 +1439,10 @@ export function ApplicationReview() {
                                   <div>
                                     <p className="text-sm font-medium text-gray-500">Full Name</p>
                                     <p>{application.firstName} {application.middleName} {application.lastName} {application.suffix}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Birth Date</p>
+                                    <p>{application.birthDate ? new Date(application.birthDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-gray-500">Student ID</p>
@@ -1319,7 +1532,11 @@ export function ApplicationReview() {
                               </TabsContent>
 
                               <TabsContent value="documents" className="space-y-4 py-4">
-                                <DocumentChecker applicationId={application._id} userId={application.user?._id || application.userId} />
+                                <DocumentChecker 
+                                  applicationId={application._id} 
+                                  userId={application.user?._id || application.userId} 
+                                  idNumber={application.user?.idNumber}
+                                />
                               </TabsContent>
 
                               <TabsContent value="personality" className="space-y-4 py-4">
@@ -1436,28 +1653,112 @@ export function ApplicationReview() {
                                         </div>
                                       </div>
 
-                                      {/* Action Button */}
-                                      <div className="mt-6">
-                                        <Button 
-                                          className={personalityTestReviewed ? "bg-gray-400 cursor-not-allowed px-6 py-2" : "bg-green-600 hover:bg-green-700 text-white px-6 py-2"}
-                                          disabled={personalityTestReviewed}
-                                          onClick={() => {
-                                            setPersonalityTestReviewed(true);
-                                            toast({
-                                              title: "✅ Marked as Reviewed",
-                                              description: `Personality assessment for ${selectedApplication?.firstName} ${selectedApplication?.lastName} has been reviewed by staff.`,
-                                            });
-                                          }}
-                                        >
-                                          {personalityTestReviewed ? (
-                                            <>
-                                              <CheckCircle className="mr-2 h-4 w-4" />
-                                              Reviewed
-                                            </>
-                                          ) : (
-                                            "Mark as Reviewed"
-                                          )}
-                                        </Button>
+                                      {/* Action Buttons - Only show one button based on review status */}
+                                      <div className="mt-6 flex gap-3">
+                                        {!personalityTestReviewed ? (
+                                          <Button 
+                                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
+                                            onClick={async () => {
+                                              try {
+                                                const userId = selectedApplication?.user?._id || selectedApplication?.userId;
+                                                if (!userId) {
+                                                  throw new Error('User ID not found');
+                                                }
+                                                
+                                                const response = await fetch(
+                                                  `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/user/${userId}/mark-reviewed`,
+                                                  {
+                                                    method: 'PATCH',
+                                                    credentials: 'include',
+                                                    headers: {
+                                                      'Content-Type': 'application/json'
+                                                    }
+                                                  }
+                                                );
+                                                
+                                                if (!response.ok) {
+                                                  const errorData = await response.json();
+                                                  throw new Error(errorData.message || `HTTP ${response.status}`);
+                                                }
+                                                
+                                                setPersonalityTestReviewed(true);
+                                                toast({
+                                                  title: "✅ Marked as Reviewed",
+                                                  description: `Personality assessment for ${selectedApplication?.firstName} ${selectedApplication?.lastName} has been reviewed by staff.`,
+                                                });
+                                              } catch (error) {
+                                                console.error('Error marking as reviewed:', error);
+                                                toast({
+                                                  title: "Review Failed",
+                                                  description: `Failed to mark as reviewed: ${error instanceof Error ? error.message : String(error)}`,
+                                                  variant: "destructive",
+                                                  duration: 5000
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            Mark as Reviewed
+                                          </Button>
+                                        ) : (
+                                          <Button 
+                                            variant="destructive"
+                                            className="px-6 py-2"
+                                            onClick={async () => {
+                                              const isConfirmed = await confirm({
+                                                title: "Reset Personality Test",
+                                                description: `Student: ${selectedApplication?.firstName} ${selectedApplication?.lastName}\n\nThis will:\n• Delete the current personality test results\n• Allow the applicant to retake the test`,
+                                                confirmText: "Reset Test",
+                                                cancelText: "Cancel",
+                                                type: "danger"
+                                              });
+                                              if (!isConfirmed) return;
+                                              
+                                              try {
+                                                const userId = selectedApplication?.user?._id || selectedApplication?.userId;
+                                                if (!userId) {
+                                                  throw new Error('User ID not found');
+                                                }
+                                                
+                                                const response = await fetch(
+                                                  `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/user/${userId}`,
+                                                  {
+                                                    method: 'DELETE',
+                                                    credentials: 'include',
+                                                    headers: {
+                                                      'Content-Type': 'application/json'
+                                                    }
+                                                  }
+                                                );
+                                                
+                                                if (!response.ok) {
+                                                  const errorData = await response.json();
+                                                  throw new Error(errorData.message || `HTTP ${response.status}`);
+                                                }
+                                                
+                                                toast({
+                                                  title: "Personality Test Reset",
+                                                  description: `${selectedApplication?.firstName} ${selectedApplication?.lastName}'s personality test has been deleted. They can now retake the test.`,
+                                                  duration: 5000
+                                                });
+                                                
+                                                // Refresh personality test data
+                                                setPersonalityTestData(null);
+                                                setPersonalityTestReviewed(false);
+                                              } catch (error) {
+                                                console.error('Error resetting personality test:', error);
+                                                toast({
+                                                  title: "Reset Failed",
+                                                  description: `Failed to reset personality test: ${error instanceof Error ? error.message : String(error)}`,
+                                                  variant: "destructive",
+                                                  duration: 5000
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Revert Test
+                                          </Button>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -1478,15 +1779,6 @@ export function ApplicationReview() {
                               </TabsContent>
 
                               <TabsContent value="interview" className="space-y-4 py-4">
-                                {(() => {
-                                  console.log('📅 Interview Data:', {
-                                    scheduled: application.interviewScheduled,
-                                    date: application.interviewDate,
-                                    completed: application.interviewCompleted,
-                                    status: application.interviewStatus
-                                  });
-                                  return null;
-                                })()}
                                 {application.interviewScheduled ? (
                                   <div className="space-y-4">
                                     <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
@@ -1499,14 +1791,23 @@ export function ApplicationReview() {
                                             Interview Scheduled
                                           </p>
                                           {application.interviewDate ? (
-                                            <p className="text-sm font-medium text-blue-800">
-                                              {new Date(application.interviewDate).toLocaleDateString('en-US', {
-                                                weekday: 'long',
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                              })}
-                                            </p>
+                                            <div className="space-y-1">
+                                              <p className="text-sm font-medium text-blue-800">
+                                                {new Date(application.interviewDate).toLocaleDateString('en-US', {
+                                                  weekday: 'long',
+                                                  year: 'numeric',
+                                                  month: 'long',
+                                                  day: 'numeric'
+                                                })}
+                                              </p>
+                                              <p className="text-sm font-medium text-blue-800">
+                                                <strong>Time:</strong> {new Date(application.interviewDate).toLocaleTimeString('en-US', {
+                                                  hour: 'numeric',
+                                                  minute: '2-digit',
+                                                  hour12: true
+                                                })}
+                                              </p>
+                                            </div>
                                           ) : (
                                             <p className="text-sm text-gray-500">Date not available</p>
                                           )}
@@ -1596,7 +1897,14 @@ export function ApplicationReview() {
                                               className="border-orange-300 text-orange-600 hover:bg-orange-50"
                                               onClick={() => {
                                                 setIsRescheduling(true)
-                                                setInterviewDate(application.interviewDate ? new Date(application.interviewDate).toISOString().split('T')[0] : '')
+                                                if (application.interviewDate) {
+                                                  const existingDate = new Date(application.interviewDate);
+                                                  setInterviewDate(existingDate.toISOString().split('T')[0]);
+                                                  setInterviewTime(existingDate.toTimeString().slice(0, 5));
+                                                } else {
+                                                  setInterviewDate('');
+                                                  setInterviewTime('09:00');
+                                                }
                                               }}
                                             >
                                               <Calendar className="mr-2 h-4 w-4" />
@@ -1605,21 +1913,32 @@ export function ApplicationReview() {
                                           </div>
                                         ) : (
                                           <div className="space-y-4">
-                                            <div className="space-y-2">
-                                              <Label htmlFor="reschedule-date">New Interview Date</Label>
-                                              <Input
-                                                id="reschedule-date"
-                                                type="date"
-                                                value={interviewDate}
-                                                onChange={(e) => setInterviewDate(e.target.value)}
-                                                min={new Date().toISOString().split('T')[0]}
-                                              />
+                                            <div className="grid grid-cols-2 gap-4">
+                                              <div className="space-y-2">
+                                                <Label htmlFor="reschedule-date">New Interview Date</Label>
+                                                <Input
+                                                  id="reschedule-date"
+                                                  type="date"
+                                                  value={interviewDate}
+                                                  onChange={(e) => setInterviewDate(e.target.value)}
+                                                  min={new Date().toISOString().split('T')[0]}
+                                                />
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label htmlFor="reschedule-time">New Interview Time</Label>
+                                                <Input
+                                                  id="reschedule-time"
+                                                  type="time"
+                                                  value={interviewTime}
+                                                  onChange={(e) => setInterviewTime(e.target.value)}
+                                                />
+                                              </div>
                                             </div>
 
                                             <div className="flex gap-2">
                                               <Button
                                                 className="bg-[#800000] hover:bg-[#600000]"
-                                                onClick={handleScheduleInterview}
+                                                onClick={() => handleScheduleInterview(application)}
                                               >
                                                 <Calendar className="mr-2 h-4 w-4" />
                                                 Confirm Reschedule
@@ -1627,7 +1946,10 @@ export function ApplicationReview() {
                                               
                                               <Button
                                                 variant="outline"
-                                                onClick={() => setIsRescheduling(false)}
+                                                onClick={() => {
+                                                  setIsRescheduling(false)
+                                                  setInterviewTime("09:00")
+                                                }}
                                               >
                                                 Cancel
                                               </Button>
@@ -1664,20 +1986,31 @@ export function ApplicationReview() {
 
                                     {!application.interviewScheduled && (
                                       <div className="space-y-4 pt-4">
-                                        <div className="space-y-2">
-                                          <Label htmlFor="interview-date">Schedule Interview Date</Label>
-                                          <Input
-                                            id="interview-date"
-                                            type="date"
-                                            value={interviewDate}
-                                            onChange={(e) => setInterviewDate(e.target.value)}
-                                            min={new Date().toISOString().split('T')[0]}
-                                          />
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div className="space-y-2">
+                                            <Label htmlFor="interview-date">Schedule Interview Date</Label>
+                                            <Input
+                                              id="interview-date"
+                                              type="date"
+                                              value={interviewDate}
+                                              onChange={(e) => setInterviewDate(e.target.value)}
+                                              min={new Date().toISOString().split('T')[0]}
+                                            />
+                                          </div>
+                                          <div className="space-y-2">
+                                            <Label htmlFor="interview-time">Interview Time</Label>
+                                            <Input
+                                              id="interview-time"
+                                              type="time"
+                                              value={interviewTime}
+                                              onChange={(e) => setInterviewTime(e.target.value)}
+                                            />
+                                          </div>
                                         </div>
 
                                         <Button
                                           className="bg-[#800000] hover:bg-[#600000]"
-                                          onClick={handleScheduleInterview}
+                                          onClick={() => handleScheduleInterview(application)}
                                         >
                                           <Calendar className="mr-2 h-4 w-4" />
                                           Schedule Interview
@@ -1710,27 +2043,15 @@ export function ApplicationReview() {
                             </Tabs>
 
                             <DialogFooter>
-                              <div className="flex gap-2 ml-auto">
-                                
-                                <Button 
-                                  variant="destructive"
-                                  onClick={() => handleDeleteApplication(application)}
-                                  className="bg-red-600 hover:bg-red-700 text-white"
-                                >
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Delete Application
-                                </Button>
-                                
-                                <Button 
-                                  variant="outline" 
-                                  onClick={() => {
-                                    setSelectedApplication(null)
-                                    setIsRescheduling(false)
-                                  }}
-                                >
-                                  Close
-                                </Button>
-                              </div>
+                              <Button 
+                                variant="outline" 
+                                onClick={() => {
+                                  setSelectedApplication(null)
+                                  setIsRescheduling(false)
+                                }}
+                              >
+                                Close
+                              </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
@@ -1766,6 +2087,16 @@ export function ApplicationReview() {
                             className="h-8 w-8"
                           />
                         )}
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteApplication(application)}
+                          title="Delete Application"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -1872,6 +2203,9 @@ export function ApplicationReview() {
           onSuccess={handleEditSuccess}
         />
       )}
+      
+      {/* Confirmation Dialog */}
+      {ConfirmDialog}
     </div>
   )
 }

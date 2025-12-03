@@ -12,6 +12,10 @@ interface User {
   email: string
   role: UserRole
   profileImage?: string
+  course?: {
+    courseId: string
+    name: string
+  }
   department?: {
     _id: string
     departmentCode: string
@@ -103,6 +107,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 ...data.user,
                 name: displayName,
                 role: data.user?.role?.name || parsedUser.role,
+                course: data.user?.course ? {
+                  courseId: data.user.course.courseId || "",
+                  name: data.user.course.name || ""
+                } : parsedUser.course,
                 department: data.user?.department ? {
                   _id: data.user.department._id || data.user.department,
                   departmentCode: data.user.department.departmentCode || "",
@@ -183,6 +191,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: displayName,
         email: data.user.email || "",
         role: data.user.role?.name || "applicant", // Default to applicant if role name is missing
+        course: data.user.course ? {
+          courseId: data.user.course.courseId || "",
+          name: data.user.course.name || ""
+        } : undefined,
         department: data.user.department ? {
           _id: data.user.department._id || data.user.department,
           departmentCode: data.user.department.departmentCode || "",

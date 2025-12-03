@@ -1,6 +1,122 @@
 const DocumentUploadService = require('../services/DocumentUploadService');
 
 const DocumentUploadController = {
+  // Create document for user by idNumber
+  async createDocumentByIdNumber(req, res) {
+    try {
+      const { idNumber } = req.params;
+      const result = await DocumentUploadService.createDocumentByIdNumber(idNumber, req.files, req.body);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Document created successfully',
+        data: result
+      });
+    } catch (error) {
+      console.error('Error in createDocumentByIdNumber:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ 
+          success: false, 
+          message: error.message 
+        });
+      }
+      if (error.message.includes('already exists')) {
+        return res.status(409).json({ 
+          success: false, 
+          message: error.message 
+        });
+      }
+      if (error.message.includes('File size') || error.message.includes('Invalid file')) {
+        return res.status(400).json({ 
+          success: false, 
+          message: error.message 
+        });
+      }
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to create document' 
+      });
+    }
+  },
+
+  // Get documents by idNumber
+  async getDocumentsByIdNumber(req, res) {
+    try {
+      const { idNumber } = req.params;
+      const result = await DocumentUploadService.getDocumentsByIdNumber(idNumber);
+      
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error in getDocumentsByIdNumber:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ 
+          success: false, 
+          message: error.message 
+        });
+      }
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to get documents',
+        error: error.message
+      });
+    }
+  },
+
+  // Get my documents (current user)
+  async getMyDocuments(req, res) {
+    try {
+      const userId = req.user.id;
+      const result = await DocumentUploadService.getDocuments(userId);
+      
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error in getMyDocuments:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to get documents',
+        error: error.message
+      });
+    }
+  },
+
+  // Update document by idNumber
+  async updateDocumentByIdNumber(req, res) {
+    try {
+      const { idNumber } = req.params;
+      const result = await DocumentUploadService.updateDocumentByIdNumber(idNumber, req.files, req.body);
+      
+      res.json({
+        success: true,
+        message: 'Document updated successfully',
+        data: result
+      });
+    } catch (error) {
+      console.error('Error in updateDocumentByIdNumber:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ 
+          success: false, 
+          message: error.message 
+        });
+      }
+      if (error.message.includes('File size') || error.message.includes('Invalid file')) {
+        return res.status(400).json({ 
+          success: false, 
+          message: error.message 
+        });
+      }
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to update document' 
+      });
+    }
+  },
+
   // Create or update document upload
   async uploadDocuments(req, res) {
     try {

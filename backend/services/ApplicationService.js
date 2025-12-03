@@ -1,5 +1,6 @@
 const ApplicationForm = require('../models/ApplicationForm');
 const ApplicationHistory = require('../models/ApplicationHistory');
+const ApplicationDraft = require('../models/ApplicationDraft');
 const mongoose = require('mongoose');
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
@@ -296,8 +297,8 @@ class ApplicationService {
         });
       }
 
-      // Sanitize CIT-U residency fields
-      if (sanitizedData.citUResidency) {
+      // Sanitize CIT-U residency fields (only required for non-CIT-U SHS graduates)
+      if (sanitizedData.citUResidency && !sanitizedData.isCitUSeniorHighGraduate) {
         if (sanitizedData.citUResidency.semesterCount !== undefined) {
           sanitizedData.citUResidency.semesterCount = this.sanitizeNumericField(sanitizedData.citUResidency.semesterCount, 'Semester Count', { integer: true, min: 0, max: 20 });
         }
@@ -307,6 +308,9 @@ class ApplicationService {
         if (sanitizedData.citUResidency.minimumUnitsCompleted !== undefined) {
           sanitizedData.citUResidency.minimumUnitsCompleted = this.sanitizeNumericField(sanitizedData.citUResidency.minimumUnitsCompleted, 'Minimum Units Completed', { integer: true, min: 0, max: 50 });
         }
+      } else if (sanitizedData.isCitUSeniorHighGraduate) {
+        // Clear citUResidency for CIT-U SHS graduates as it's not needed
+        sanitizedData.citUResidency = undefined;
       }
 
       return sanitizedData;
@@ -1018,7 +1022,8 @@ class ApplicationService {
     }
 
     const DocumentUpload = require('../models/DocumentUpload');
-    const documents = await DocumentUpload.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: application.user }));
+    const documents = await DocumentUpload.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: application.user }))
+      .populate('verifiedBy', 'name email');
 
     // Debug logging
     console.log('📄 Raw documents from DB:', {
@@ -1093,6 +1098,11 @@ class ApplicationService {
       gradeAverages: documents?.gradeAverages || null,
       incomeTaxInfo: documents?.incomeTaxInfo || null,
       userId: application.user,
+      // Add verification status from DocumentUpload model
+      documentsVerified: !!documents?.verifiedAt,
+      documentsVerifiedAt: documents?.verifiedAt || null,
+      documentsVerifiedBy: documents?.verifiedBy || null,
+      applicationStatus: application.status,
       summary: {
         totalRequired,
         totalUploaded,
@@ -1199,6 +1209,16 @@ class ApplicationService {
       throw new Error('Application not found');
     }
 
+    // Update DocumentUpload verification status
+    const DocumentUpload = require('../models/DocumentUpload');
+    await DocumentUpload.findOneAndUpdate(
+      { user: application.user._id },
+      {
+        verifiedAt: new Date(),
+        verifiedBy: verifiedBy
+      }
+    );
+
     const updatedApplication = await ApplicationForm.findByIdAndUpdate(
       applicationId,
       { 
@@ -1227,7 +1247,48 @@ class ApplicationService {
     return {
       id: updatedApplication._id,
       status: updatedApplication.status,
+      documentsVerified: true,
       documentsVerifiedAt: updatedApplication.documentsVerifiedAt
+    };
+  }
+
+  // Revert document verification
+  static async revertDocumentVerification(applicationId, revertedBy) {
+    const application = await ApplicationForm.findById(applicationId).populate('user');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Check if documents are verified in DocumentUpload
+    const DocumentUpload = require('../models/DocumentUpload');
+    const documents = await DocumentUpload.findOne({ user: application.user._id });
+    
+    if (!documents?.verifiedAt && !application.documentsVerifiedAt) {
+      throw new Error('Documents are not verified');
+    }
+
+    // Clear verification in DocumentUpload
+    await DocumentUpload.findOneAndUpdate(
+      { user: application.user._id },
+      { $unset: { verifiedAt: 1, verifiedBy: 1 } }
+    );
+
+    const updatedApplication = await ApplicationForm.findByIdAndUpdate(
+      applicationId,
+      { 
+        status: 'form_verified', // Revert to form_verified status
+        $unset: { documentsVerifiedAt: 1, documentsVerifiedBy: 1 }
+      },
+      { new: true }
+    );
+
+    console.log('📱 Document verification reverted for application:', applicationId);
+
+    return {
+      id: updatedApplication._id,
+      status: updatedApplication.status,
+      documentsVerified: false,
+      documentsVerifiedAt: null
     };
   }
 
@@ -1343,89 +1404,137 @@ class ApplicationService {
         throw new Error(`Failed to load PDF template: ${error.message}`);
       }
 
+      // Helper function to format birth date
+      const formatBirthDate = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        try {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          });
+        } catch (e) {
+          return dateStr;
+        }
+      };
+
+      // Helper function to construct full name
+      const constructFullName = (person) => {
+        if (!person) return 'N/A';
+        const parts = [
+          person.firstName,
+          person.middleName && person.middleName !== 'N/A' ? person.middleName : '',
+          person.lastName,
+          person.suffix && person.suffix !== 'N/A' ? person.suffix : ''
+        ].filter(p => p && p.trim());
+        return parts.join(' ') || 'N/A';
+      };
+
+      // Helper to display value or N/A
+      const displayValue = (val, defaultVal = 'N/A') => {
+        if (val === null || val === undefined || val === '') return defaultVal;
+        if (typeof val === 'number' && val === 0) return '0';
+        return String(val);
+      };
+
       const data = {
-        firstName: application.firstName || '',
-        middleName: application.middleName || 'N/A',
-        lastName: application.lastName || '',
-        suffix: application.suffix || 'N/A',
-        emailAddress: application.emailAddress || 'N/A',
-        programOfStudyAndYear: application.programOfStudyAndYear || '',
-        existingScholarship: application.existingScholarship || 'N/A',
-        remainingUnits: application.remainingUnitsIncludingThisTerm || 0,
-        remainingUnitsIncludingThisTerm: application.remainingUnitsIncludingThisTerm || 0,
-        remainingTermsToGraduate: application.remainingTermsToGraduate || 0,
-        citizenship: application.citizenship || '',
-        civilStatus: application.civilStatus || '',
-        annualFamilyIncome: application.annualFamilyIncome || '',
-        currentAddress: application.currentResidenceAddress || 'N/A',
-        residingAt: application.residingAt || '',
-        permanentResidence: application.permanentResidentialAddress || '',
-        contactNumber: application.contactNumber || '',
-        // Add gender field
-        gender: application.gender || 'N/A',
-        // Add CIT-U residency fields
+        firstName: displayValue(application.firstName),
+        middleName: displayValue(application.middleName),
+        lastName: displayValue(application.lastName),
+        suffix: displayValue(application.suffix),
+        emailAddress: displayValue(application.emailAddress),
+        programOfStudyAndYear: displayValue(application.programOfStudyAndYear),
+        yearLevel: displayValue(application.yearLevel),
+        existingScholarship: displayValue(application.existingScholarship, 'None'),
+        remainingUnitsIncludingThisTerm: displayValue(application.remainingUnitsIncludingThisTerm, '0'),
+        remainingTermsToGraduate: displayValue(application.remainingTermsToGraduate, '0'),
+        citizenship: displayValue(application.citizenship),
+        civilStatus: displayValue(application.civilStatus),
+        annualFamilyIncome: displayValue(application.annualFamilyIncome),
+        currentAddress: displayValue(application.currentResidenceAddress),
+        residingAt: displayValue(application.residingAt),
+        permanentResidence: displayValue(application.permanentResidentialAddress),
+        contactNumber: displayValue(application.contactNumber),
+        gender: displayValue(application.gender),
+        birthDate: formatBirthDate(application.birthDate),
         isCitUSeniorHighGraduate: application.isCitUSeniorHighGraduate || false,
+        isCitUSeniorHighGraduateText: application.isCitUSeniorHighGraduate ? 'Yes' : 'No',
         citUResidency: {
-          semesterCount: application.citUResidency?.semesterCount || 0,
-          weightedAverageGrade: application.citUResidency?.weightedAverageGrade || 0,
-          hasFailingMarks: application.citUResidency?.hasFailingMarks || false,
-          minimumUnitsCompleted: application.citUResidency?.minimumUnitsCompleted || 0
+          semesterCount: displayValue(application.citUResidency?.semesterCount, '0'),
+          weightedAverageGrade: displayValue(application.citUResidency?.weightedAverageGrade, '0'),
+          hasFailingMarks: application.citUResidency?.hasFailingMarks ? 'Yes' : 'No',
+          minimumUnitsCompleted: displayValue(application.citUResidency?.minimumUnitsCompleted, '0')
         },
         family: {
           father: {
-            firstName: application.familyBackground?.father?.firstName || '',
-            middleName: application.familyBackground?.father?.middleName || 'N/A',
-            lastName: application.familyBackground?.father?.lastName || '',
-            suffix: application.familyBackground?.father?.suffix || 'N/A',
-            age: application.familyBackground?.father?.age || 0,
-            occupation: application.familyBackground?.father?.occupation || '',
-            grossAnnualIncome: application.familyBackground?.father?.grossAnnualIncome || '',
-            companyName: application.familyBackground?.father?.companyName || 'N/A',
-            companyAddress: application.familyBackground?.father?.companyAddress || 'N/A',
-            homeAddress: application.familyBackground?.father?.homeAddress || 'N/A',
-            contactNumber: application.familyBackground?.father?.contactNumber || ''
+            fullName: constructFullName(application.familyBackground?.father),
+            firstName: displayValue(application.familyBackground?.father?.firstName),
+            middleName: displayValue(application.familyBackground?.father?.middleName),
+            lastName: displayValue(application.familyBackground?.father?.lastName),
+            suffix: displayValue(application.familyBackground?.father?.suffix),
+            age: displayValue(application.familyBackground?.father?.age, '0'),
+            occupation: displayValue(application.familyBackground?.father?.occupation),
+            grossAnnualIncome: displayValue(application.familyBackground?.father?.grossAnnualIncome),
+            companyName: displayValue(application.familyBackground?.father?.companyName),
+            companyAddress: displayValue(application.familyBackground?.father?.companyAddress),
+            homeAddress: displayValue(application.familyBackground?.father?.homeAddress),
+            contactNumber: displayValue(application.familyBackground?.father?.contactNumber)
           },
           mother: {
-            firstName: application.familyBackground?.mother?.firstName || '',
-            middleName: application.familyBackground?.mother?.middleName || 'N/A',
-            lastName: application.familyBackground?.mother?.lastName || '',
-            suffix: application.familyBackground?.mother?.suffix || 'N/A',
-            age: application.familyBackground?.mother?.age || 0,
-            occupation: application.familyBackground?.mother?.occupation || '',
-            grossAnnualIncome: application.familyBackground?.mother?.grossAnnualIncome || '',
-            companyName: application.familyBackground?.mother?.companyName || 'N/A',
-            companyAddress: application.familyBackground?.mother?.companyAddress || 'N/A',
-            homeAddress: application.familyBackground?.mother?.homeAddress || 'N/A',
-            contactNumber: application.familyBackground?.mother?.contactNumber || ''
+            fullName: constructFullName(application.familyBackground?.mother),
+            firstName: displayValue(application.familyBackground?.mother?.firstName),
+            middleName: displayValue(application.familyBackground?.mother?.middleName),
+            lastName: displayValue(application.familyBackground?.mother?.lastName),
+            suffix: displayValue(application.familyBackground?.mother?.suffix),
+            age: displayValue(application.familyBackground?.mother?.age, '0'),
+            occupation: displayValue(application.familyBackground?.mother?.occupation),
+            grossAnnualIncome: displayValue(application.familyBackground?.mother?.grossAnnualIncome),
+            companyName: displayValue(application.familyBackground?.mother?.companyName),
+            companyAddress: displayValue(application.familyBackground?.mother?.companyAddress),
+            homeAddress: displayValue(application.familyBackground?.mother?.homeAddress),
+            contactNumber: displayValue(application.familyBackground?.mother?.contactNumber)
           },
-          siblings: application.familyBackground?.siblings || []
+          siblings: (application.familyBackground?.siblings || []).map(sibling => ({
+            name: displayValue(sibling.name),
+            age: displayValue(sibling.age, '0'),
+            programCurrentlyTakingOrFinished: displayValue(sibling.programCurrentlyTakingOrFinished),
+            schoolOrOccupation: displayValue(sibling.schoolOrOccupation)
+          })).filter(s => s.name !== 'N/A' || s.programCurrentlyTakingOrFinished !== 'N/A')
         },
         education: {
           elementary: {
-            nameAndAddressOfSchool: application.education?.elementary?.nameAndAddressOfSchool || '',
-            honorOrAwardsReceived: application.education?.elementary?.honorOrAwardsReceived || 'N/A',
-            nameOfOrganizationAndPositionHeld: application.education?.elementary?.nameOfOrganizationAndPositionHeld || 'N/A',
-            generalAverage: application.education?.elementary?.generalAverage || 0,
-            rankAmongGraduates: application.education?.elementary?.rankAmongGraduates || 'N/A',
-            contestTrainingsConferencesParticipated: application.education?.elementary?.contestTrainingsConferencesParticipated || 'N/A'
+            nameAndAddressOfSchool: displayValue(application.education?.elementary?.nameAndAddressOfSchool),
+            honorOrAwardsReceived: displayValue(application.education?.elementary?.honorOrAwardsReceived),
+            nameOfOrganizationAndPositionHeld: displayValue(application.education?.elementary?.nameOfOrganizationAndPositionHeld),
+            generalAverage: displayValue(application.education?.elementary?.generalAverage, '0'),
+            rankAmongGraduates: displayValue(application.education?.elementary?.rankAmongGraduates),
+            contestTrainingsConferencesParticipated: displayValue(application.education?.elementary?.contestTrainingsConferencesParticipated)
           },
           secondary: {
-            nameAndAddressOfSchool: application.education?.secondary?.nameAndAddressOfSchool || '',
-            honorOrAwardsReceived: application.education?.secondary?.honorOrAwardsReceived || 'N/A',
-            nameOfOrganizationAndPositionHeld: application.education?.secondary?.nameOfOrganizationAndPositionHeld || 'N/A',
-            generalAverage: application.education?.secondary?.generalAverage || 0,
-            rankAmongGraduates: application.education?.secondary?.rankAmongGraduates || 'N/A',
-            contestTrainingsConferencesParticipated: application.education?.secondary?.contestTrainingsConferencesParticipated || 'N/A'
+            nameAndAddressOfSchool: displayValue(application.education?.secondary?.nameAndAddressOfSchool),
+            honorOrAwardsReceived: displayValue(application.education?.secondary?.honorOrAwardsReceived),
+            nameOfOrganizationAndPositionHeld: displayValue(application.education?.secondary?.nameOfOrganizationAndPositionHeld),
+            generalAverage: displayValue(application.education?.secondary?.generalAverage, '0'),
+            rankAmongGraduates: displayValue(application.education?.secondary?.rankAmongGraduates),
+            contestTrainingsConferencesParticipated: displayValue(application.education?.secondary?.contestTrainingsConferencesParticipated)
           },
           collegeLevel: (application.education?.collegeLevel || []).map(item => ({
             yearLevel: ApplicationService.formatYearLevel(item.yearLevel),
-            firstSemesterAverageFinalGrade: item.firstSemesterAverageFinalGrade || 0,
-            secondSemesterAverageFinalGrade: item.secondSemesterAverageFinalGrade || 0,
-            thirdSemesterAverageFinalGrade: item.thirdSemesterAverageFinalGrade || 0
+            firstSemesterAverageFinalGrade: displayValue(item.firstSemesterAverageFinalGrade, 'N/A'),
+            secondSemesterAverageFinalGrade: displayValue(item.secondSemesterAverageFinalGrade, 'N/A'),
+            thirdSemesterAverageFinalGrade: displayValue(item.thirdSemesterAverageFinalGrade, 'N/A')
           })),
-          currentMembershipInOrganizations: application.education?.currentMembershipInOrganizations || []
+          currentMembershipInOrganizations: (application.education?.currentMembershipInOrganizations || []).map(org => ({
+            nameOfOrganization: displayValue(org.nameOfOrganization),
+            position: displayValue(org.position)
+          })).filter(o => o.nameOfOrganization !== 'N/A' || o.position !== 'N/A')
         },
-        references: application.references || []
+        references: (application.references || []).map(ref => ({
+          name: displayValue(ref.name),
+          relationshipToTheApplicant: displayValue(ref.relationshipToTheApplicant),
+          contactNumber: displayValue(ref.contactNumber)
+        })).filter(r => r.name !== 'N/A')
       };
 
       let html = template;
@@ -1514,11 +1623,18 @@ class ApplicationService {
         }
       }
 
-      // Handle {{#if}} statements
+      // Handle {{#if}} statements with else
       html = html.replace(/{{#if ([^}]+)}}([\s\S]*?){{else}}([\s\S]*?){{\/if}}/g, (match, condition, ifContent, elseContent) => {
         const path = condition.split('.');
         const value = path.reduce((obj, k) => obj?.[k], data);
         return value && (Array.isArray(value) ? value.length : value) ? ifContent : elseContent;
+      });
+
+      // Handle {{#if}} statements without else
+      html = html.replace(/{{#if ([^}]+)}}([\s\S]*?){{\/if}}/g, (match, condition, ifContent) => {
+        const path = condition.split('.');
+        const value = path.reduce((obj, k) => obj?.[k], data);
+        return value && (Array.isArray(value) ? value.length : value) ? ifContent : '';
       });
 
       // Handle {{#unless}} statements
@@ -1528,13 +1644,17 @@ class ApplicationService {
         return !value || (Array.isArray(value) && value.length === 0) ? unlessContent : '';
       });
 
+      // CLEANUP: Remove any remaining unhandled placeholders (e.g., {{anything}})
+      // This prevents raw placeholder text from appearing in the PDF
+      html = html.replace(/\{\{\{?[^}]+\}?\}\}/g, 'N/A');
+
       browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: 'networkidle0' });
       const pdfBuffer = await page.pdf({
-        format: 'A4',
+        format: 'Letter',
         printBackground: true,
-        margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' }
+        margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' }
       });
 
       return pdfBuffer;
@@ -1697,13 +1817,53 @@ class ApplicationService {
   // Soft Delete Methods
   static async softDeleteApplication(applicationId) {
     try {
+      // First, get the application to find the user ID
+      const application = await ApplicationForm.findById(applicationId);
+      if (!application) {
+        throw new Error('Application not found');
+      }
+      
+      const userId = application.user;
+      
+      // Soft delete the application form
       const result = await SoftDeleteUtils.softDeleteById(ApplicationForm, applicationId);
+      
+      // Soft delete related documents (DocumentUpload)
+      const DocumentUpload = require('../models/DocumentUpload');
+      await DocumentUpload.updateMany(
+        { user: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      // Soft delete related personality test
+      const PersonalityTest = require('../models/PersonalityTest');
+      await PersonalityTest.updateMany(
+        { user: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      // Soft delete related interviews
+      const Interview = require('../models/Interview');
+      await Interview.updateMany(
+        { user: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
       await ActivityLogger.logApplicationUpdate(
-        result.user, 
+        userId, 
         applicationId, 
         'application_soft_deleted'
       );
-      return { message: 'Application soft deleted successfully', data: result };
+      
+      return { 
+        message: 'Application and all related data soft deleted successfully', 
+        data: result,
+        deletedRelated: {
+          documents: true,
+          personalityTest: true,
+          interviews: true
+        }
+      };
     } catch (error) {
       console.error('Error soft deleting application:', error);
       throw error;
@@ -1712,13 +1872,53 @@ class ApplicationService {
 
   static async restoreApplication(applicationId) {
     try {
+      // First, get the application (including soft deleted) to find the user ID
+      const application = await ApplicationForm.findById(applicationId);
+      if (!application) {
+        throw new Error('Application not found');
+      }
+      
+      const userId = application.user;
+      
+      // Restore the application form
       const result = await SoftDeleteUtils.restoreById(ApplicationForm, applicationId);
+      
+      // Restore related documents (DocumentUpload)
+      const DocumentUpload = require('../models/DocumentUpload');
+      await DocumentUpload.updateMany(
+        { user: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      // Restore related personality test
+      const PersonalityTest = require('../models/PersonalityTest');
+      await PersonalityTest.updateMany(
+        { user: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      // Restore related interviews
+      const Interview = require('../models/Interview');
+      await Interview.updateMany(
+        { user: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
       await ActivityLogger.logApplicationUpdate(
-        result.user, 
+        userId, 
         applicationId, 
         'application_restored'
       );
-      return { message: 'Application restored successfully', data: result };
+      
+      return { 
+        message: 'Application and all related data restored successfully', 
+        data: result,
+        restoredRelated: {
+          documents: true,
+          personalityTest: true,
+          interviews: true
+        }
+      };
     } catch (error) {
       console.error('Error restoring application:', error);
       throw error;
@@ -2035,6 +2235,71 @@ class ApplicationService {
       };
     } catch (error) {
       console.error('Error exporting applications to CSV:', error);
+      throw error;
+    }
+  }
+
+  // ===== DRAFT METHODS =====
+
+  // Save or update application draft
+  static async saveDraft(userId, draftData) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Remove any _id from draftData to avoid conflicts
+      const { _id, ...cleanDraftData } = draftData;
+
+      // Use findOneAndUpdate with upsert to create or update
+      const draft = await ApplicationDraft.findOneAndUpdate(
+        { user: userId },
+        { 
+          ...cleanDraftData,
+          user: userId,
+          updatedAt: new Date()
+        },
+        { 
+          new: true, 
+          upsert: true,
+          runValidators: false // Allow partial data
+        }
+      );
+
+      console.log('💾 Draft saved for user:', userId);
+      return draft;
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      throw error;
+    }
+  }
+
+  // Get user's draft
+  static async getDraft(userId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      const draft = await ApplicationDraft.findOne({ user: userId });
+      return draft;
+    } catch (error) {
+      console.error('Error getting draft:', error);
+      throw error;
+    }
+  }
+
+  // Delete user's draft
+  static async deleteDraft(userId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      await ApplicationDraft.deleteOne({ user: userId });
+      console.log('🗑️ Draft deleted for user:', userId);
+    } catch (error) {
+      console.error('Error deleting draft:', error);
       throw error;
     }
   }

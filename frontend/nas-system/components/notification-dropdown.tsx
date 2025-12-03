@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Bell, X, CheckCircle, AlertCircle, Clock, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import { useConfirmation } from "@/components/ui/confirmation-dialog"
 
 interface Notification {
   _id: string
@@ -27,6 +28,7 @@ export function NotificationDropdown() {
   const [unreadCount, setUnreadCount] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirmation()
 
   console.log('🔔 Notification API URL:', API_URL)
 
@@ -154,7 +156,13 @@ export function NotificationDropdown() {
   }
 
   const deleteAllNotifications = async () => {
-    const confirmed = window.confirm('Are you sure you want to delete all notifications?')
+    const confirmed = await confirm({
+      title: "Delete All Notifications",
+      description: "Are you sure you want to delete all notifications?",
+      confirmText: "Delete All",
+      cancelText: "Cancel",
+      type: "danger"
+    })
     if (!confirmed) return
 
     try {
@@ -339,6 +347,7 @@ export function NotificationDropdown() {
           </Card>
         </div>
       )}
+      {ConfirmDialog}
     </div>
   )
 }

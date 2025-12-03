@@ -263,7 +263,7 @@ class NotificationService {
   }
 
   // Create interview reminder notification
-  static async createInterviewReminderNotification(userId, interviewDate, interviewId) {
+  static async createInterviewReminderNotification(userId, applicationId, interviewDate, scheduledBy = 'Staff') {
     try {
       const formattedDate = new Date(interviewDate).toLocaleString('en-US', {
         dateStyle: 'long',
@@ -277,8 +277,9 @@ class NotificationService {
         message: `You have an interview scheduled on ${formattedDate}. Please be prepared.`,
         priority: 'high',
         metadata: {
-          interviewId: interviewId,
+          applicationId: applicationId,
           interviewDate: interviewDate,
+          scheduledBy: scheduledBy,
           action: 'interview_reminder'
         }
       });
@@ -288,8 +289,35 @@ class NotificationService {
     }
   }
 
+  // Create interview scheduled notification
+  static async createInterviewScheduledNotification(userId, applicationId, interviewDate, scheduledBy = 'Staff') {
+    try {
+      const formattedDate = new Date(interviewDate).toLocaleString('en-US', {
+        dateStyle: 'long',
+        timeStyle: 'short'
+      });
+
+      return await NotificationService.createNotification({
+        userId: userId,
+        type: 'interview_scheduled',
+        title: 'Interview Scheduled',
+        message: `Your interview has been scheduled for ${formattedDate}. Please be prepared and arrive on time.`,
+        priority: 'high',
+        metadata: {
+          applicationId: applicationId,
+          interviewDate: interviewDate,
+          scheduledBy: scheduledBy,
+          action: 'interview_scheduled'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating interview scheduled notification:', error);
+      throw error;
+    }
+  }
+
   // Create interview rescheduled notification
-  static async createInterviewRescheduledNotification(userId, newInterviewDate, interviewId) {
+  static async createInterviewRescheduledNotification(userId, applicationId, newInterviewDate, scheduledBy = 'Staff') {
     try {
       const formattedDate = new Date(newInterviewDate).toLocaleString('en-US', {
         dateStyle: 'long',
@@ -300,11 +328,12 @@ class NotificationService {
         userId: userId,
         type: 'interview_rescheduled',
         title: 'Interview Rescheduled',
-        message: `Your interview has been rescheduled to ${formattedDate}.`,
+        message: `Your interview has been rescheduled to ${formattedDate}. Please mark your calendar.`,
         priority: 'high',
         metadata: {
-          interviewId: interviewId,
+          applicationId: applicationId,
           interviewDate: newInterviewDate,
+          scheduledBy: scheduledBy,
           action: 'interview_rescheduled'
         }
       });

@@ -9,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import { useConfirmation } from "@/components/ui/confirmation-dialog"
 import { scholarEvaluationService } from "@/services/scholarEvaluationService"
 import { Calendar, Lock, Unlock, Bell } from "lucide-react"
 
 export function AdminEvaluationControl() {
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirmation()
   const [currentPeriod, setCurrentPeriod] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
@@ -73,14 +75,13 @@ export function AdminEvaluationControl() {
   }
 
   const handleClosePeriod = async () => {
-    const confirmed = window.confirm(
-      `Are you sure you want to close the evaluation period for ${currentPeriod?.ratingPeriod}?\n\n` +
-      `This will:\n` +
-      `• Prevent new evaluations from being submitted\n` +
-      `• Lock the current evaluation data\n` +
-      `• Update statistics\n\n` +
-      `You can open a new period later.`
-    )
+    const confirmed = await confirm({
+      title: "Close Evaluation Period",
+      description: `Are you sure you want to close the evaluation period for ${currentPeriod?.ratingPeriod}?\n\nThis will:\n• Prevent new evaluations from being submitted\n• Lock the current evaluation data\n• Update statistics\n\nYou can open a new period later.`,
+      confirmText: "Close Period",
+      cancelText: "Cancel",
+      type: "warning"
+    })
 
     if (!confirmed) return
 
@@ -250,6 +251,7 @@ export function AdminEvaluationControl() {
           </ul>
         </div>
       </CardContent>
+      {ConfirmDialog}
     </Card>
   )
 }

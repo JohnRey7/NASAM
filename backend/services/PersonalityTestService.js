@@ -254,8 +254,8 @@ class PersonalityTestService {
       return {
         message: 'Personality test completed',
         testId: test._id,
-        score,
-        riskLevelIndicator
+        score
+        // Note: riskLevelIndicator is intentionally not returned to applicants
       };
     } catch (error) {
       console.error('Error stopping personality test:', error);
@@ -511,6 +511,67 @@ class PersonalityTestService {
       return { message: 'Personality test deleted successfully' };
     } catch (error) {
       console.error('Error deleting personality test by user ID:', error);
+      throw error;
+    }
+  }
+
+  // Mark personality test as reviewed by OAS staff
+  static async markAsReviewed(userId, reviewedBy) {
+    try {
+      // Find application for user
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        throw new Error('No application found for user');
+      }
+
+      // Find and update test
+      const test = await PersonalityTest.findOneAndUpdate(
+        { applicationId: application._id },
+        {
+          reviewed: true,
+          reviewedAt: new Date(),
+          reviewedBy: reviewedBy
+        },
+        { new: true }
+      ).populate('reviewedBy', 'name email');
+      
+      if (!test) {
+        throw new Error('No personality test found for user');
+      }
+
+      return test;
+    } catch (error) {
+      console.error('Error marking personality test as reviewed:', error);
+      throw error;
+    }
+  }
+
+  // Revert personality test review status
+  static async revertReview(userId) {
+    try {
+      // Find application for user
+      const application = await ApplicationForm.findOne({ user: userId });
+      if (!application) {
+        throw new Error('No application found for user');
+      }
+
+      // Find and update test
+      const test = await PersonalityTest.findOneAndUpdate(
+        { applicationId: application._id },
+        {
+          reviewed: false,
+          $unset: { reviewedAt: 1, reviewedBy: 1 }
+        },
+        { new: true }
+      );
+      
+      if (!test) {
+        throw new Error('No personality test found for user');
+      }
+
+      return test;
+    } catch (error) {
+      console.error('Error reverting personality test review:', error);
       throw error;
     }
   }

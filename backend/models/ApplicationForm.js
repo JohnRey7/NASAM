@@ -18,6 +18,7 @@ const applicationFormSchema = new mongoose.Schema({
   middleName: { type: String },
   lastName: { type: String, required: true },
   suffix: { type: String },
+  birthDate: { type: Date, required: true },
   programOfStudyAndYear: { type: String, required: true },
   existingScholarship: { type: String },
   remainingUnitsIncludingThisTerm: {
@@ -170,7 +171,7 @@ const applicationFormSchema = new mongoose.Schema({
     },
   status: {
     type: String,
-    enum: ['pending', 'form_verified', 'document_verification', 'interview_scheduled', 'approved', 'rejected'],
+    enum: ['draft', 'pending', 'form_verified', 'document_verification', 'interview_scheduled', 'approved', 'rejected'],
     default: 'pending'
   },
   // Application form verification fields

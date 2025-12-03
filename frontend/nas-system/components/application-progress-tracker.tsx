@@ -157,59 +157,70 @@ export function ApplicationProgressTracker() {
     return () => clearInterval(interval)
   }, [])
 
-  // Application progress steps in order - INCLUDING INTERVIEW STEP
+  // Determine if each step is complete for sequential logic
+  const isApplicationFormComplete = ["form_verified", "document_verification", "approved", "rejected"].includes(applicationStatus)
+  const isDocumentsComplete = ["document_verification", "approved", "rejected"].includes(applicationStatus)
+  const isPersonalityTestComplete = hasPersonalityTest
+  const isInterviewComplete = interviewData?.interview?.status === "completed" || interviewData?.status === "completed"
+  const isEvaluationComplete = evaluationStatus?.hasEvaluation
+
+  // Application progress steps in order - SEQUENTIAL LOGIC
   const progressSteps = [
     {
       title: "Application Form",
       description: "Application form and documents received", 
-      // ✅ FIXED: Check for the exact status your backend sets
       status: applicationStatus === "None" ? "Not Submitted" :
-              applicationStatus === "form_verified" ? "Completed" :  // ✅ CHECK THIS EXACT VALUE
-              ["document_verification", "approved", "rejected"].includes(applicationStatus) ? "Completed" :
-              "Pending",  // ✅ Default to pending for submitted but not verified
+              isApplicationFormComplete ? "Completed" :
+              "Pending",
       icon: <FileText className="h-6 w-6" />
     },
     {
       title: "Documents",
       description: "Upload required documents for verification",
+      // Documents: Locked until application form is verified, then Pending until document_verification
       status: applicationStatus === "None" ? "Not Submitted" :
-              ["document_verification", "approved", "rejected"].includes(applicationStatus)
-                ? "Completed" :
-              applicationStatus === "form_verified"
-                ? "Pending" : 
-              hasDocuments ? "Pending" : "Not Submitted",
+              isDocumentsComplete ? "Completed" :
+              isApplicationFormComplete ? "Pending" :
+              hasDocuments ? "Pending" : "Locked",
       icon: <Users className="h-6 w-6" />
     },
     {
       title: "Personality Test",
       description: "Complete psychological assessment",
+      // Personality Test: Locked until documents are verified
       status: applicationStatus === "None" ? "Not Submitted" :
-              hasPersonalityTest ? "Completed" :
-              applicationStatus === "document_verification" ? "Pending" : "Locked",
+              isPersonalityTestComplete ? "Completed" :
+              isDocumentsComplete ? "Pending" : "Locked",
       icon: <Users className="h-6 w-6" />
     },
     {
       title: "Interview",
       description: "Scheduled interview with department head",
-      status: interviewData ? "Pending" : (hasPersonalityTest ? "Pending" : "Locked"),
+      // Interview: Locked until personality test is complete
+      status: applicationStatus === "None" ? "Not Submitted" :
+              isInterviewComplete ? "Completed" :
+              isPersonalityTestComplete ? "Pending" : "Locked",
       icon: <Calendar className="h-6 w-6" />,
       interviewDate: interviewData?.interview?.startTime || interviewData?.startTime || null
     },
     {
       title: "Evaluation",
       description: "Performance evaluation by OAS Admin",
-      status: evaluationStatus?.hasEvaluation 
-        ? "Completed" 
-        : (interviewData ? "Pending" : "Locked"),
+      // Evaluation: Locked until interview is complete
+      status: applicationStatus === "None" ? "Not Submitted" :
+              isEvaluationComplete ? "Completed" :
+              isInterviewComplete ? "Pending" : "Locked",
       icon: <Star className="h-6 w-6" />,
       evaluationData: evaluationStatus
     },
     {
       title: "Application Status",
       description: "Application approval or rejection",
+      // Final status: Only after evaluation is complete
       status: applicationStatus === "None" ? "Not Submitted" :
               applicationStatus === "rejected" ? "Completed" :
-              applicationStatus === "approved" && hasPersonalityTest ? "Pending" : "Not Submitted",
+              applicationStatus === "approved" ? "Completed" :
+              isEvaluationComplete ? "Pending" : "Locked",
       icon: <Award className="h-6 w-6" />
     }
   ]
@@ -322,6 +333,9 @@ export function ApplicationProgressTracker() {
                       {step.status === "Completed" && (
                         <span className="text-green-600">✓ Documents verified by OAS staff</span>
                       )}
+                      {step.status === "Locked" && (
+                        <span className="text-red-600">🔒 Locked - Application form must be verified first</span>
+                      )}
                     </div>
                   )}
                   
@@ -408,6 +422,9 @@ export function ApplicationProgressTracker() {
                       )}
                       {step.status === "Completed" && applicationStatus === "rejected" && (
                         <span className="text-red-600">❌ Application rejected</span>
+                      )}
+                      {step.status === "Locked" && (
+                        <span className="text-red-600">🔒 Complete all previous steps first</span>
                       )}
                     </div>
                   )}

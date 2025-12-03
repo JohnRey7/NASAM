@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { LogOut, Settings, User } from "lucide-react"
-import { authService } from "@/services/authService"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import { useState, useEffect } from "react"
@@ -23,7 +22,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 export function UserNav() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, status } = useAuth()
+  const { user, status, logout } = useAuth()
   const [profileImage, setProfileImage] = useState<string | null>(null)
   
   console.log('👤 UserNav - User data:', user)
@@ -93,7 +92,7 @@ export function UserNav() {
 
   const handleLogout = async () => {
     try {
-      await authService.logout();
+      await logout();
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account.",
