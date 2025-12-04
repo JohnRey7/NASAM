@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, Users, CheckCircle, Eye, MessageSquare, Search, ClipboardCheck, Bell, Plus } from "lucide-react";
+import { Calendar, Clock, Users, CheckCircle, Eye, MessageSquare, Search, ClipboardCheck, Bell, Plus, Download, AlertTriangle, XCircle, RefreshCw, X, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { departmentHeadService } from "@/services/departmentHeadService";
 import { scholarEvaluationService } from "@/services/scholarEvaluationService";
@@ -24,8 +24,12 @@ interface InterviewData {
   interviewId: string;
   applicantName: string;
   course: string;
+  courseId?: string;
+  department?: string;
+  departmentCode?: string;
   schedule: string;
-  status: 'not yet scheduled' | 'pending' | 'complete';
+  status: 'not yet scheduled' | 'pending interview' | 'pending evaluation' | 'evaluated' | 'approved' | 'rejected';
+  applicationStatus?: string;
 }
 
 // Helper function to safely extract numeric values from MongoDB $numberDecimal format
@@ -43,7 +47,9 @@ export default function DepartmentHeadDashboardPage() {
   const { user } = useAuth();
   const [interviews, setInterviews] = useState<InterviewData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [applicationDetails, setApplicationDetails] = useState<any>(null);
   const [interviewSchedule, setInterviewSchedule] = useState<string>('');
@@ -55,6 +61,13 @@ export default function DepartmentHeadDashboardPage() {
   });
   const { toast } = useToast();
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalApplicants, setTotalApplicants] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const PAGE_SIZE = 10;
+  
   // Evaluation state
   const [evaluationPeriod, setEvaluationPeriod] = useState<any>(null);
   const [showEvaluationForm, setShowEvaluationForm] = useState(false);
@@ -65,15 +78,140 @@ export default function DepartmentHeadDashboardPage() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<any>(null);
   const [isViewingEvaluation, setIsViewingEvaluation] = useState(false);
   const [loadingEvaluations, setLoadingEvaluations] = useState(false);
+  
+  // Document state
+  const [documents, setDocuments] = useState<any>(null);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  
+  // Personality test state  
+  const [personalityTestData, setPersonalityTestData] = useState<any>(null);
+  const [personalityTestLoading, setPersonalityTestLoading] = useState(false);
+  
+  // Interview state
+  const [interviewData, setInterviewData] = useState<any>(null);
+  const [interviewLoading, setInterviewLoading] = useState(false);
+  const [interviewers, setInterviewers] = useState<any[]>([]);
+  const [selectedInterviewer, setSelectedInterviewer] = useState<string>("");
+  const [interviewDate, setInterviewDate] = useState("");
+  const [interviewTime, setInterviewTime] = useState("09:00");
+  const [interviewEndTime, setInterviewEndTime] = useState("10:00");
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  
+  // Image preview state
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+
+  // Helper function to check if file is an image
+  const isImageFile = (filename: string | undefined): boolean => {
+    if (!filename) return false;
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+    const lowerFilename = filename.toLowerCase();
+    return imageExtensions.some(ext => lowerFilename.endsWith(ext));
+  };
+
+  // Handle preview document (for images)
+  const handlePreviewDocument = async (docType: string, filePath: string, originalName?: string) => {
+    const filename = originalName || filePath;
+    if (!isImageFile(filename)) {
+      toast({
+        title: "Preview Not Available",
+        description: "Preview is only available for image files. Use Download instead.",
+      });
+      return;
+    }
+
+    try {
+      const cleanFilePath = filePath.replace(/^files\//, '');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/files/${cleanFilePath}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load image');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      setPreviewImage({ url, name: originalName || docType });
+    } catch (error) {
+      toast({
+        title: "Preview Failed",
+        description: `Failed to preview ${docType}: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Close preview and cleanup
+  const closePreview = () => {
+    if (previewImage?.url) {
+      window.URL.revokeObjectURL(previewImage.url);
+    }
+    setPreviewImage(null);
+    setZoomLevel(1);
+    setImagePosition({ x: 0, y: 0 });
+  };
+
+  // Zoom handlers
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => {
+      const newZoom = Math.max(prev - 0.25, 0.5);
+      if (newZoom <= 1) {
+        setImagePosition({ x: 0, y: 0 });
+      }
+      return newZoom;
+    });
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setImagePosition({ x: 0, y: 0 });
+  };
+
+  // Pan handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1) {
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoomLevel > 1) {
+      e.preventDefault();
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setImagePosition({ x: newX, y: newY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Function to fetch application details
   const fetchApplicationDetails = async (applicantId: string) => {
     try {
       console.log('🔍 Fetching application details for:', applicantId);
       
-      // First, get the assigned applicants to find the real application data
-      const applicants = await departmentHeadService.getAssignedApplicants();
-      const applicant = applicants.find((app: any) => (app.id || app._id) === applicantId);
+      // Use the already fetched scholars data instead of making another API call
+      const applicant = scholars.find((app: any) => (app.id || app._id) === applicantId);
       
       if (applicant) {
         console.log('📋 Found applicant data:', applicant);
@@ -266,6 +404,230 @@ export default function DepartmentHeadDashboardPage() {
     }
   };
 
+  // Fetch documents for selected application
+  const fetchDocuments = async (applicationId: string, userId?: string, idNumber?: string) => {
+    setDocumentsLoading(true);
+    setDocuments(null);
+    try {
+      let response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents`,
+        { credentials: 'include' }
+      );
+
+      if (!response.ok && idNumber) {
+        response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document/${idNumber}`,
+          { credentials: 'include' }
+        );
+      }
+
+      if (!response.ok && userId) {
+        response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/user/${userId}`,
+          { credentials: 'include' }
+        );
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success !== undefined) {
+          setDocuments(data);
+        } else if (data.data) {
+          setDocuments({
+            success: true,
+            documents: data.data,
+            gradeAverages: data.data.gradeAverages,
+            incomeTaxInfo: data.data.incomeTaxInfo,
+            userId: data.data.user
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  // Fetch personality test data
+  const fetchPersonalityTestData = async (userId: string) => {
+    if (!userId) return;
+    setPersonalityTestLoading(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/user/${userId}`,
+        { credentials: 'include' }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setPersonalityTestData(data);
+      } else if (response.status === 404) {
+        setPersonalityTestData(null);
+      }
+    } catch (error) {
+      console.error('Error fetching personality test:', error);
+      setPersonalityTestData(null);
+    } finally {
+      setPersonalityTestLoading(false);
+    }
+  };
+
+  // Fetch interview data for application
+  const fetchInterviewData = async (applicationId: string) => {
+    setInterviewLoading(true);
+    setInterviewData(null);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/application/${applicationId}`,
+        { credentials: 'include' }
+      );
+      
+      if (response.ok) {
+        const result = await response.json();
+        setInterviewData(result);
+      } else {
+        setInterviewData({ interview: null, isScheduled: false });
+      }
+    } catch (error) {
+      console.error('Error fetching interview data:', error);
+      setInterviewData({ interview: null, isScheduled: false });
+    } finally {
+      setInterviewLoading(false);
+    }
+  };
+
+  // Fetch interviewers
+  const fetchInterviewers = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/users/interviewers`,
+        { credentials: 'include' }
+      );
+      
+      if (response.ok) {
+        const result = await response.json();
+        setInterviewers(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching interviewers:', error);
+    }
+  };
+
+  // Fetch interviewers on mount
+  useEffect(() => {
+    fetchInterviewers();
+  }, []);
+
+  // Handle scheduling interview with new format - Department head is always the interviewer
+  const handleScheduleInterviewNew = async (app: any) => {
+    if (!interviewDate || !interviewTime || !interviewEndTime) {
+      toast({
+        title: "Error",
+        description: "Please fill in all interview details",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (interviewEndTime <= interviewTime) {
+      toast({
+        title: "Error",
+        description: "End time must be after start time",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // No need to check selectedInterviewer - department head is always the interviewer
+
+    const applicationId = app?.applicationId || applicationDetails?.applicationId || applicationDetails?._id;
+    if (!applicationId) {
+      toast({
+        title: "Error",
+        description: "No application selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const startDateTime = `${interviewDate}T${interviewTime}:00`;
+      const endDateTime = `${interviewDate}T${interviewEndTime}:00`;
+
+      // Use department-head specific endpoint - interviewer is automatically set to the department head
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/interview/schedule`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId,
+          startTime: startDateTime,
+          endTime: endDateTime,
+          notes: 'Scheduled by Department Head'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      toast({
+        title: "Interview Scheduled",
+        description: `Interview scheduled for ${new Date(startDateTime).toLocaleString()}. You are assigned as the interviewer.`,
+      });
+
+      // Reset form and refresh
+      setInterviewDate('');
+      setInterviewTime('09:00');
+      setInterviewEndTime('10:00');
+      setIsRescheduling(false);
+      
+      // Refresh interview data
+      fetchInterviewData(applicationId);
+
+    } catch (error) {
+      console.error('Error scheduling interview:', error);
+      toast({
+        title: "Error",
+        description: `Failed to schedule interview: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle download document
+  const handleDownloadDocument = async (docType: string, filePath: string, originalName?: string) => {
+    try {
+      const cleanFilePath = filePath.replace(/^files\//, '');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/files/${cleanFilePath}`,
+        { credentials: 'include' }
+      );
+
+      if (!response.ok) throw new Error('Failed to download document');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = originalName || filePath;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({ title: "Document Downloaded", description: `${docType} has been downloaded.` });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: `Failed to download ${docType}`,
+        variant: "destructive"
+      });
+    }
+  };
+
   // Function to handle interview scheduling
   const handleScheduleInterview = async () => {
     try {
@@ -312,7 +674,7 @@ export default function DepartmentHeadDashboardPage() {
               hour: '2-digit',
               minute: '2-digit'
             }),
-            status: 'pending' as const
+            status: 'pending interview' as const
           };
         }
         return interview;
@@ -320,17 +682,19 @@ export default function DepartmentHeadDashboardPage() {
 
       setInterviews(updatedInterviews);
 
-      // Update stats after scheduling (count both scheduled and pending as scheduled interviews)
+      // Update stats after scheduling
       setStats({
-        scheduledInterviews: updatedInterviews.filter(i => i.status === 'pending').length,
-        completedInterviews: updatedInterviews.filter(i => i.status === 'complete').length,
-        pendingRecommendations: 0 // For now, set to 0 as there's no separate status for pending recommendations
+        scheduledInterviews: updatedInterviews.filter(i => i.status === 'pending interview').length,
+        completedInterviews: updatedInterviews.filter(i => 
+          i.status === 'pending evaluation' || i.status === 'evaluated' || i.status === 'approved'
+        ).length,
+        pendingRecommendations: updatedInterviews.filter(i => i.status === 'pending evaluation').length
       });
 
       console.log('📊 Updated stats after scheduling:', {
         notYetScheduled: updatedInterviews.filter(i => i.status === 'not yet scheduled').length,
-        complete: updatedInterviews.filter(i => i.status === 'complete').length,
-        pending: updatedInterviews.filter(i => i.status === 'pending').length
+        pendingInterview: updatedInterviews.filter(i => i.status === 'pending interview').length,
+        pendingEvaluation: updatedInterviews.filter(i => i.status === 'pending evaluation').length
       });
 
       toast({
@@ -401,91 +765,129 @@ export default function DepartmentHeadDashboardPage() {
     }
   }, [applicationDetails?.idNumber]);
 
-  // Fetch real data from backend
-  useEffect(() => {
-    const fetchData = async () => {
+  // Fetch real data from backend with pagination
+  const fetchApplicants = async (page: number = 1, append: boolean = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
       setLoading(true);
-      try {
-        console.log('🔍 Department Head Dashboard: Making API call using departmentHeadService');
-        
-        // Fetch applicants assigned to this department head using the service
-        const applicants = await departmentHeadService.getAssignedApplicants();
-        console.log('🔍 Department Head Dashboard: API response data:', applicants);
+    }
+    
+    try {
+      console.log('🔍 Department Head Dashboard: Fetching page', page);
+      
+      // Fetch applicants with pagination
+      const response = await departmentHeadService.getAssignedApplicants(page, PAGE_SIZE, debouncedSearch);
+      console.log('🔍 Department Head Dashboard: API response data:', response);
+      
+      const { applicants = [], pagination = {} } = response;
+      
+      // Update pagination state
+      setCurrentPage(pagination.page || page);
+      setTotalPages(pagination.totalPages || 1);
+      setTotalApplicants(pagination.total || 0);
+      setHasMore(pagination.hasNext || false);
+      
+      // Update scholars - append or replace
+      if (append) {
+        setScholars(prev => [...prev, ...applicants]);
+      } else {
         setScholars(applicants);
-        
-        // Transform applicants data to interview format and fetch interview data for each
-        const interviewsData: InterviewData[] = await Promise.all(
-          applicants.map(async (applicant: any, index: number) => {
-            let interviewData = null;
-            let schedule = 'To be scheduled';
-            let status: 'not yet scheduled' | 'pending' | 'complete' = 'not yet scheduled';
-            
-            // Try to fetch interview data for this applicant
-            try {
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/user/${applicant._id || applicant.id}`, {
-                credentials: 'include'
-              });
-              
-              if (response.ok) {
-                const interviewResponse = await response.json();
-                interviewData = interviewResponse.interview;
-                console.log(`📅 Found interview data for ${applicant.name}:`, interviewData);
-                
-                if (interviewData && interviewData.startTime) {
-                  schedule = new Date(interviewData.startTime).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'short', 
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  });
-                  status = 'pending';
-                }
-              } else {
-                console.log(`📅 No interview found for ${applicant.name}`);
-              }
-            } catch (error) {
-              console.log(`📅 Error fetching interview for ${applicant.name}:`, error);
-            }
-            
-            return {
-              _id: applicant.id || applicant._id,
-              interviewId: `INT-${new Date().getFullYear()}-${String(index + 1).padStart(3, '0')}`,
-              applicantName: applicant.name || `${applicant.firstName || ''} ${applicant.lastName || ''}`.trim(),
-              course: applicant.programOfStudyAndYear || 'Not specified',
-              schedule,
-              status
-            };
-          })
-        );
-        
-        setInterviews(interviewsData);
-        setStats({
-          scheduledInterviews: interviewsData.filter(i => i.status === 'pending').length,
-          completedInterviews: interviewsData.filter(i => i.status === 'complete').length,
-          pendingRecommendations: 0 // For now, set to 0 as there's no separate status for pending recommendations
-        });
-        
-        console.log('📊 Interview stats:', {
-          total: interviewsData.length,
-          notYetScheduled: interviewsData.filter(i => i.status === 'not yet scheduled').length,
-          complete: interviewsData.filter(i => i.status === 'complete').length,
-          pending: interviewsData.filter(i => i.status === 'pending').length
-        });
-      } catch (error) {
-        console.error('Error fetching department applicants:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load applicants data",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
       }
-    };
+      
+      // Transform applicants data to interview format
+      // Interview data is now included from backend to avoid N+1 queries
+      const newInterviewsData: InterviewData[] = applicants.map((applicant: any, index: number) => {
+        let schedule = 'To be scheduled';
+        let status: InterviewData['status'] = 'not yet scheduled';
+        
+        // Determine status based on the application process stage
+        // Check application status first (approved/rejected takes priority)
+        if (applicant.applicationStatus === 'approved') {
+          status = 'approved';
+        } else if (applicant.applicationStatus === 'rejected') {
+          status = 'rejected';
+        } else if (applicant.evaluation) {
+          // Has evaluation
+          status = 'evaluated';
+        } else if (applicant.interview && applicant.interview.is_finished === true) {
+          // Interview completed but no evaluation yet
+          status = 'pending evaluation';
+        } else if (applicant.interview && applicant.interview.startTime) {
+          // Interview scheduled but not completed
+          status = 'pending interview';
+        }
+        // else: not yet scheduled (default)
+        
+        // Set schedule if interview exists
+        if (applicant.interview && applicant.interview.startTime) {
+          schedule = new Date(applicant.interview.startTime).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        }
+        
+        return {
+          _id: applicant.id || applicant._id,
+          interviewId: `INT-${new Date().getFullYear()}-${String((page - 1) * PAGE_SIZE + index + 1).padStart(3, '0')}`,
+          applicantName: applicant.name || `${applicant.firstName || ''} ${applicant.lastName || ''}`.trim(),
+          course: applicant.course || applicant.programOfStudyAndYear || 'Not specified',
+          courseId: applicant.courseId,
+          department: applicant.department,
+          departmentCode: applicant.departmentCode,
+          schedule,
+          status
+        };
+      });
+      
+      // Update interviews - append or replace
+      if (append) {
+        setInterviews(prev => [...prev, ...newInterviewsData]);
+      } else {
+        setInterviews(newInterviewsData);
+      }
+      
+      // Update stats from first page data
+      if (!append) {
+        const allData = newInterviewsData;
+        setStats({
+          scheduledInterviews: allData.filter((i: InterviewData) => i.status === 'pending interview').length,
+          completedInterviews: allData.filter((i: InterviewData) => 
+            i.status === 'pending evaluation' || i.status === 'evaluated' || i.status === 'approved'
+          ).length,
+          pendingRecommendations: allData.filter((i: InterviewData) => i.status === 'pending evaluation').length
+        });
+      }
+      
+      console.log('📊 Loaded', applicants.length, 'applicants. Total:', pagination.total);
+    } catch (error) {
+      console.error('Error fetching department applicants:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load applicants data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
 
-    fetchData();
-  }, [toast]);
+  // Load more function for lazy loading
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchApplicants(currentPage + 1, true);
+    }
+  };
+
+  // Initial fetch and search effect
+  useEffect(() => {
+    setCurrentPage(1);
+    fetchApplicants(1, false);
+  }, [debouncedSearch]);
 
   return (
     <DashboardLayout allowedRoles={["department_head"]}>
@@ -504,28 +906,6 @@ export default function DepartmentHeadDashboardPage() {
               )}
               <p className="text-gray-600 mt-3 text-lg">Review and evaluate applications assigned to your department.</p>
             </div>
-            {evaluationPeriod?.isOpen && (
-              <Button
-                onClick={() => {
-                  if (scholars.length === 0) {
-                    toast({
-                      title: "No Scholars",
-                      description: "No scholars assigned to evaluate",
-                      variant: "destructive"
-                    });
-                    return;
-                  }
-                  // Show first scholar for evaluation (you can add a selection dialog later)
-                  setSelectedScholar(scholars[0]);
-                  setShowEvaluationForm(true);
-                }}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg shadow-lg"
-              >
-                <ClipboardCheck className="mr-2 h-5 w-5" />
-                Evaluate Scholars
-                <Bell className="ml-2 h-4 w-4 animate-pulse" />
-              </Button>
-            )}
           </div>
           {evaluationPeriod?.isOpen && (
             <div className="mt-4 bg-green-50 border-2 border-green-500 rounded-lg p-4">
@@ -536,14 +916,28 @@ export default function DepartmentHeadDashboardPage() {
                 </p>
               </div>
               <p className="text-sm text-green-700 mt-1">
-                You can now evaluate your assigned scholars. Click the "Evaluate Scholars" button above to begin.
+                You can now evaluate your assigned scholars. Use the evaluate button in the Actions column of the Assigned Applicants table.
               </p>
             </div>
           )}
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+          <Card className="card-hover border-0 shadow-soft bg-white">
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-[#800000]/10 rounded-xl">
+                  <Users className="h-8 w-8 text-[#800000]" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{totalApplicants}</p>
+                  <p className="text-sm text-[#800000] mt-1 font-medium">total applicants</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="card-hover border-0 shadow-soft bg-white">
             <CardContent className="flex items-center p-6">
               <div className="flex items-center gap-4">
@@ -602,8 +996,15 @@ export default function DepartmentHeadDashboardPage() {
 
         {/* Interviews Table */}
         <Card className="border-0 shadow-soft bg-white">
-          <CardHeader className="border-b bg-gray-50">
-            <CardTitle className="text-xl font-bold text-gray-800">Assigned Applicants</CardTitle>
+          <CardHeader className="border-b bg-gray-50 flex flex-row items-center justify-between">
+            <CardTitle className="text-xl font-bold text-gray-800">
+              Assigned Applicants
+              {totalApplicants > 0 && (
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  ({totalApplicants} total)
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
@@ -619,40 +1020,44 @@ export default function DepartmentHeadDashboardPage() {
                       <th className="text-left p-4 font-medium">Interview ID</th>
                       <th className="text-left p-4 font-medium">Applicant Name</th>
                       <th className="text-left p-4 font-medium">Course</th>
+                      <th className="text-left p-4 font-medium">Department</th>
                       <th className="text-left p-4 font-medium">Schedule</th>
                       <th className="text-left p-4 font-medium">Status</th>
                       <th className="text-left p-4 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {interviews
-                      .filter(interview => 
-                        interview.applicantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        interview.course.toLowerCase().includes(searchTerm.toLowerCase())
-                      )
-                      .map((interview) => (
+                    {interviews.map((interview) => (
                         <tr key={interview._id} className="border-b hover:bg-gray-50">
                           <td className="p-4">{interview.interviewId}</td>
                           <td className="p-4 font-medium">{interview.applicantName}</td>
                           <td className="p-4">{interview.course}</td>
+                          <td className="p-4">
+                            <Badge variant="outline" className="text-xs">
+                              {interview.department || interview.departmentCode || userDepartment?.name || '-'}
+                            </Badge>
+                          </td>
                           <td className="p-4">{interview.schedule}</td>
                           <td className="p-4">
                             <Badge 
                               variant={
-                                interview.status === 'complete' ? 'default' : 
-                                interview.status === 'pending' ? 'secondary' : 
+                                interview.status === 'approved' ? 'default' :
+                                interview.status === 'rejected' ? 'destructive' :
+                                interview.status === 'evaluated' ? 'default' : 
+                                interview.status === 'pending evaluation' ? 'secondary' :
+                                interview.status === 'pending interview' ? 'secondary' : 
                                 'outline'
                               }
                               className={
-                                interview.status === 'complete' ? 'bg-green-100 text-green-800' :
-                                interview.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                interview.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                interview.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                interview.status === 'evaluated' ? 'bg-blue-100 text-blue-800' :
+                                interview.status === 'pending evaluation' ? 'bg-orange-100 text-orange-800' :
+                                interview.status === 'pending interview' ? 'bg-yellow-100 text-yellow-800' :
                                 'bg-gray-100 text-gray-800'
                               }
                             >
-                              {interview.status === 'not yet scheduled' ? 'not yet scheduled' :
-                               interview.status === 'pending' ? 'pending interview' : 
-                               interview.status === 'complete' ? 'complete' : 
-                               interview.status}
+                              {interview.status}
                             </Badge>
                           </td>
                           <td className="p-4">
@@ -665,127 +1070,104 @@ export default function DepartmentHeadDashboardPage() {
                                     size="sm"
                                     onClick={() => {
                                       setSelectedApplication(interview);
-                                      setSelectedEvaluation(null); // Reset selected evaluation
-                                      // Fetch application details and evaluations when eye is clicked
+                                      setSelectedEvaluation(null);
                                       fetchApplicationDetails(interview._id);
+                                      // Fetch additional data
+                                      const appId = applicationDetails?.applicationId || interview._id;
+                                      const userId = applicationDetails?.userId || interview._id;
+                                      const idNumber = applicationDetails?.idNumber;
+                                      fetchDocuments(appId, userId, idNumber);
+                                      fetchPersonalityTestData(userId);
+                                      fetchInterviewData(appId);
                                     }}
                                   >
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                <DialogContent className="max-w-6xl w-[95vw] h-[95vh] overflow-hidden flex flex-col">
                                   <DialogHeader>
-                                    <DialogTitle>Application Details - {selectedApplication?.applicantName}</DialogTitle>
+                                    <DialogTitle>Application Details</DialogTitle>
+                                    <DialogDescription>
+                                      Review application for {selectedApplication?.applicantName}
+                                    </DialogDescription>
                                   </DialogHeader>
                                   
-                                  <Tabs defaultValue="details" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-5">
-                                      <TabsTrigger value="details">Application Details</TabsTrigger>
-                                      <TabsTrigger value="documents">Documents</TabsTrigger>
-                                      <TabsTrigger value="personality">Personality Test</TabsTrigger>
-                                      <TabsTrigger value="evaluation">Evaluation</TabsTrigger>
-                                      <TabsTrigger value="reschedule">Reschedule</TabsTrigger>
+                                  <Tabs defaultValue="details" className="w-full flex-1 flex flex-col overflow-hidden">
+                                    <TabsList className="grid w-full grid-cols-4">
+                                      <TabsTrigger value="details">Details</TabsTrigger>
+                                      <TabsTrigger value="documents" onClick={() => {
+                                        if (applicationDetails) {
+                                          fetchDocuments(applicationDetails.applicationId || applicationDetails._id, applicationDetails.userId, applicationDetails.idNumber);
+                                        }
+                                      }}>Documents</TabsTrigger>
+                                      <TabsTrigger value="personality" onClick={() => {
+                                        if (applicationDetails?.userId) {
+                                          fetchPersonalityTestData(applicationDetails.userId);
+                                        }
+                                      }}>Personality Test</TabsTrigger>
+                                      <TabsTrigger value="interview" onClick={() => {
+                                        if (applicationDetails) {
+                                          fetchInterviewData(applicationDetails.applicationId || applicationDetails._id);
+                                        }
+                                      }}>Interview</TabsTrigger>
                                     </TabsList>
-                                    
-                                    <TabsContent value="details" className="space-y-4">
+
+                                    {/* Details Tab */}
+                                    <TabsContent value="details" className="space-y-4 py-4 overflow-y-auto flex-1">
                                       {applicationDetails ? (
-                                        <div className="space-y-6">
-                                          {/* Action Buttons */}
-                                          <div className="flex gap-2 mb-4">
-                                            <Button 
+                                        <div className="space-y-4">
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Full Name</p>
+                                              <p>{applicationDetails.firstName} {applicationDetails.lastName}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Student ID</p>
+                                              <p>{applicationDetails.idNumber}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Email Address</p>
+                                              <p>{applicationDetails.email}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Contact Number</p>
+                                              <p>{applicationDetails.contactNumber || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Date of Birth</p>
+                                              <p>{applicationDetails.dateOfBirth || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Gender</p>
+                                              <p>{applicationDetails.gender || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Program/Year</p>
+                                              <p>{applicationDetails.programOfStudyAndYear}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">GPA</p>
+                                              <p>{applicationDetails.gpa || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Family Income</p>
+                                              <p>{applicationDetails.familyIncome || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-500">Address</p>
+                                              <p>{applicationDetails.address || 'N/A'}</p>
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Download Button */}
+                                          <div className="pt-4 border-t">
+                                            <Button
+                                              variant="outline"
                                               onClick={() => handleDownloadPDF(selectedApplication)}
-                                              className="bg-[#800000] hover:bg-[#600000]"
                                             >
-                                              Download PDF
+                                              <Download className="mr-2 h-4 w-4" />
+                                              Download Application PDF
                                             </Button>
-                                          </div>
-
-                                          {/* Personal Information */}
-                                          <div className="bg-gray-50 p-4 rounded-lg">
-                                            <h3 className="font-semibold text-lg mb-3 text-[#800000]">Personal Information</h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                              <div>
-                                                <Label className="font-medium">Full Name</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.firstName} {applicationDetails.lastName}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">ID Number</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.idNumber}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">Email</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.email}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">Contact Number</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.contactNumber || 'N/A'}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">Date of Birth</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.dateOfBirth || 'N/A'}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">Gender</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.gender || 'N/A'}</p>
-                                              </div>
-                                            </div>
-                                          </div>
-
-                                          {/* Academic Information */}
-                                          <div className="bg-blue-50 p-4 rounded-lg">
-                                            <h3 className="font-semibold text-lg mb-3 text-blue-800">Academic Information</h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                              <div>
-                                                <Label className="font-medium">Program of Study</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.programOfStudyAndYear}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">GPA</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.gpa || 'N/A'}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">Year Level</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.yearLevel || 'N/A'}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">School</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.school || 'CIT-University'}</p>
-                                              </div>
-                                            </div>
-                                          </div>
-
-                                          {/* Family Information */}
-                                          <div className="bg-green-50 p-4 rounded-lg">
-                                            <h3 className="font-semibold text-lg mb-3 text-green-800">Family Information</h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                              <div>
-                                                <Label className="font-medium">Father's Name</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.fatherName || 'N/A'}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">Mother's Name</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.motherName || 'N/A'}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">Family Income</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.familyIncome || 'N/A'}</p>
-                                              </div>
-                                              <div>
-                                                <Label className="font-medium">Number of Siblings</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.numberOfSiblings || 'N/A'}</p>
-                                              </div>
-                                            </div>
-                                          </div>
-
-                                          {/* Address Information */}
-                                          <div className="bg-purple-50 p-4 rounded-lg">
-                                            <h3 className="font-semibold text-lg mb-3 text-purple-800">Address Information</h3>
-                                            <div className="space-y-2">
-                                              <div>
-                                                <Label className="font-medium">Complete Address</Label>
-                                                <p className="text-sm text-gray-600">{applicationDetails.address || 'N/A'}</p>
-                                              </div>
-                                            </div>
                                           </div>
                                         </div>
                                       ) : (
@@ -796,388 +1178,540 @@ export default function DepartmentHeadDashboardPage() {
                                       )}
                                     </TabsContent>
 
-                                    <TabsContent value="documents" className="space-y-4">
-                                      <div className="space-y-4">
-                                        <h3 className="font-semibold text-lg text-[#800000]">Document Submission Status</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                          {[
-                                            { key: 'studentPicture', label: 'Student Picture', required: true },
-                                            { key: 'nbiClearance', label: 'NBI Clearance', required: true },
-                                            { key: 'gradeReport', label: 'Grade Report', required: true },
-                                            { key: 'incomeTaxReturn', label: 'Income Tax Return', required: true },
-                                            { key: 'goodMoralCertificate', label: 'Good Moral Certificate', required: true },
-                                            { key: 'physicalCheckup', label: 'Physical Checkup', required: true },
-                                            { key: 'homeLocationSketch', label: 'Home Location Sketch', required: true }
-                                          ].map(({ key, label, required }) => (
-                                            <div key={key} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                                              <div className="flex items-center space-x-3">
-                                                <div className="flex items-center space-x-2">
-                                                  {Math.random() > 0.3 ? ( // Simulate document status
-                                                    <CheckCircle className="h-5 w-5 text-green-600" />
-                                                  ) : (
-                                                    <div className="h-5 w-5 rounded-full border-2 border-red-300"></div>
-                                                  )}
-                                                  <span className="text-sm font-medium">{label}</span>
-                                                  {required && <span className="text-red-500 text-xs">*</span>}
-                                                </div>
-                                              </div>
+                                    {/* Documents Tab */}
+                                    <TabsContent value="documents" className="py-4 overflow-y-auto flex-1">
+                                      {documentsLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                                          <span className="ml-2 text-sm text-gray-600">Loading documents...</span>
+                                        </div>
+                                      ) : documents ? (
+                                        <div className="space-y-4">
+                                          {/* Document Summary */}
+                                          <div className="bg-gray-50 border rounded-lg p-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <h3 className="font-medium">Document Status Summary</h3>
                                               <Badge 
-                                                variant={Math.random() > 0.3 ? "default" : "secondary"}
-                                                className={Math.random() > 0.3 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                                                variant={documents?.summary?.isComplete ? "default" : "secondary"}
+                                                className={documents?.summary?.isComplete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
                                               >
-                                                {Math.random() > 0.3 ? "Submitted" : "Missing"}
+                                                {documents?.summary?.totalUploaded || 0}/{documents?.summary?.totalRequired || 7} Complete
                                               </Badge>
                                             </div>
-                                          ))}
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                              <div 
+                                                className="bg-[#800000] h-2 rounded-full transition-all duration-300" 
+                                                style={{ width: `${documents?.summary?.completionRate || 0}%` }}
+                                              ></div>
+                                            </div>
+                                          </div>
+
+                                          {/* Document List */}
+                                          <div className="space-y-3">
+                                            {[
+                                              { key: 'studentPicture', label: 'Student Picture' },
+                                              { key: 'nbiClearance', label: 'NBI Clearance' },
+                                              { key: 'gradeReport', label: 'Grade Report' },
+                                              { key: 'incomeTaxReturn', label: 'Income Tax Return' },
+                                              { key: 'goodMoralCertificate', label: 'Good Moral Certificate' },
+                                              { key: 'physicalCheckup', label: 'Physical Checkup' },
+                                              { key: 'homeLocationSketch', label: 'Home Location Sketch' }
+                                            ].map(({ key, label }) => {
+                                              const doc = documents?.documents?.[key];
+                                              const isArray = Array.isArray(doc);
+                                              const docList = isArray ? doc : (doc ? [doc] : []);
+                                              const hasDocuments = isArray ? doc?.length > 0 : doc?.uploaded;
+                                              const singleDocCanPreview = !isArray && doc?.uploaded && isImageFile(doc.originalName || doc.filePath || doc.filename);
+                                              
+                                              return (
+                                                <div 
+                                                  key={key} 
+                                                  className={`p-3 border rounded-lg hover:bg-gray-50 ${singleDocCanPreview ? 'cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all' : ''}`}
+                                                  onClick={() => {
+                                                    if (singleDocCanPreview && !isArray) {
+                                                      const filePath = doc.filePath || doc.filename;
+                                                      if (filePath) {
+                                                        handlePreviewDocument(label, filePath, doc.originalName);
+                                                      }
+                                                    }
+                                                  }}
+                                                >
+                                                  <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                      {hasDocuments ? (
+                                                        <CheckCircle className="h-5 w-5 text-green-600" />
+                                                      ) : (
+                                                        <XCircle className="h-5 w-5 text-red-600" />
+                                                      )}
+                                                      <div>
+                                                        <p className="font-medium text-sm">
+                                                          {label}
+                                                          {singleDocCanPreview && !isArray && <span className="text-blue-500 ml-2 text-xs">(Click to preview)</span>}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                          {hasDocuments ? (
+                                                            isArray && docList.length > 1 ? (
+                                                              `${docList.length} files uploaded`
+                                                            ) : (
+                                                              <>
+                                                                Uploaded: {(docList[0]?.uploadedAt || doc?.uploadedAt) ? new Date(docList[0]?.uploadedAt || doc?.uploadedAt).toLocaleDateString() : 'Unknown'}
+                                                                {(docList[0]?.originalName || doc?.originalName) && <span className="ml-2">({String(docList[0]?.originalName || doc?.originalName)})</span>}
+                                                              </>
+                                                            )
+                                                          ) : (
+                                                            'Not submitted'
+                                                          )}
+                                                        </p>
+                                                        
+                                                        {/* Show Grade Averages for Grade Report */}
+                                                        {key === 'gradeReport' && documents?.gradeAverages && (
+                                                          <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                                                            <p className="font-semibold text-blue-900 mb-1">Grade Averages:</p>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                              {documents.gradeAverages.elementary && (
+                                                                <span>Elementary: {documents.gradeAverages.elementary}%</span>
+                                                              )}
+                                                              {documents.gradeAverages.juniorHighSchool && (
+                                                                <span>Junior HS: {documents.gradeAverages.juniorHighSchool}%</span>
+                                                              )}
+                                                              {documents.gradeAverages.seniorHighSchool && (
+                                                                <span>Senior HS: {documents.gradeAverages.seniorHighSchool}%</span>
+                                                              )}
+                                                              {documents.gradeAverages.college && (
+                                                                <span>College: {documents.gradeAverages.college}%</span>
+                                                              )}
+                                                            </div>
+                                                          </div>
+                                                        )}
+                                                        
+                                                        {/* Show Income Tax Info for ITR */}
+                                                        {key === 'incomeTaxReturn' && documents?.incomeTaxInfo && (
+                                                          <div className="mt-2 p-2 bg-green-50 rounded text-xs">
+                                                            <p className="font-semibold text-green-900 mb-1">Income Tax Information:</p>
+                                                            <div className="space-y-1">
+                                                              {documents.incomeTaxInfo.annualIncome && (
+                                                                <p>Annual Income: ₱{documents.incomeTaxInfo.annualIncome.toLocaleString()}</p>
+                                                              )}
+                                                              {documents.incomeTaxInfo.taxableIncome && (
+                                                                <p>Taxable Income: ₱{documents.incomeTaxInfo.taxableIncome.toLocaleString()}</p>
+                                                              )}
+                                                              {documents.incomeTaxInfo.taxYear && (
+                                                                <p>Tax Year: {documents.incomeTaxInfo.taxYear}</p>
+                                                              )}
+                                                              {documents.incomeTaxInfo.employerName && (
+                                                                <p>Employer: {documents.incomeTaxInfo.employerName}</p>
+                                                              )}
+                                                              {documents.incomeTaxInfo.tin && (
+                                                                <p>TIN: {documents.incomeTaxInfo.tin}</p>
+                                                              )}
+                                                            </div>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                      <Badge 
+                                                        variant={hasDocuments ? "default" : "secondary"}
+                                                        className={hasDocuments ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                                                      >
+                                                        {hasDocuments ? 'Submitted' : 'Missing'}
+                                                      </Badge>
+                                                    </div>
+                                                  </div>
+                                                  
+                                                  {/* Individual file list for documents with multiple files */}
+                                                  {hasDocuments && (
+                                                    <div className="mt-3 space-y-2 border-t pt-3">
+                                                      {docList.map((fileDoc: any, index: number) => {
+                                                        const filePath = fileDoc?.filePath || fileDoc?.filename;
+                                                        const originalName = fileDoc?.originalName || filePath;
+                                                        const canPreviewFile = isImageFile(originalName);
+                                                        
+                                                        return (
+                                                          <div key={index} className="flex items-center justify-between pl-8 py-1 text-sm bg-gray-50 rounded px-3">
+                                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                              <span className="text-gray-500 text-xs">{index + 1}.</span>
+                                                              <span className="truncate text-gray-700" title={originalName}>
+                                                                {originalName || `File ${index + 1}`}
+                                                              </span>
+                                                              {canPreviewFile && (
+                                                                <span className="text-blue-500 text-xs flex-shrink-0">(image)</span>
+                                                              )}
+                                                            </div>
+                                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                              {canPreviewFile && (
+                                                                <Button 
+                                                                  variant="ghost" 
+                                                                  size="sm"
+                                                                  className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                  onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (filePath) {
+                                                                      handlePreviewDocument(`${label} (${index + 1})`, filePath, originalName);
+                                                                    }
+                                                                  }}
+                                                                >
+                                                                  <Eye className="h-3 w-3 mr-1" />
+                                                                  Preview
+                                                                </Button>
+                                                              )}
+                                                              <Button 
+                                                                variant="ghost" 
+                                                                size="sm"
+                                                                className="h-7 px-2"
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  if (filePath) {
+                                                                    handleDownloadDocument(`${label} (${index + 1})`, filePath, originalName);
+                                                                  }
+                                                                }}
+                                                              >
+                                                                <Download className="h-3 w-3 mr-1" />
+                                                                Download
+                                                              </Button>
+                                                            </div>
+                                                          </div>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+
+                                          {/* Verification Status */}
+                                          {documents?.documentsVerified && (
+                                            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                                              <CheckCircle className="h-5 w-5 text-green-600" />
+                                              <p className="text-sm text-green-800">Documents have been verified by OAS Staff</p>
+                                            </div>
+                                          )}
                                         </div>
-                                      </div>
+                                      ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                          <p>No document data available</p>
+                                        </div>
+                                      )}
                                     </TabsContent>
 
-                                    <TabsContent value="personality" className="space-y-4">
-                                      <div className="space-y-4">
-                                        {/* Assessment Completed Header */}
-                                        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-                                          <div className="flex justify-center mb-4">
-                                            <CheckCircle className="h-12 w-12 text-green-600" />
-                                          </div>
-                                          <h2 className="text-xl font-semibold text-gray-900 mb-2">Assessment Completed</h2>
-                                          <p className="text-green-700 mb-4">Applicant is done taking the personality test.</p>
-                                          <p className="text-sm text-gray-600 mb-4">
-                                            Thank you for completing the personality assessment. Your responses have been recorded and will be reviewed by the scholarship committee.
-                                          </p>
-                                          <p className="text-sm text-gray-500">You answered 0 out of 0 questions.</p>
+                                    {/* Personality Test Tab */}
+                                    <TabsContent value="personality" className="py-4 overflow-y-auto flex-1">
+                                      {personalityTestLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                                          <span className="ml-2 text-sm text-gray-600">Loading personality test data...</span>
                                         </div>
+                                      ) : personalityTestData ? (
+                                        <div className="max-w-xl mx-auto">
+                                          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                                            <div className="flex justify-center mb-2">
+                                              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                                <CheckCircle className="w-5 h-5 text-green-600" />
+                                              </div>
+                                            </div>
+                                            <h2 className="text-lg font-bold text-green-800 mb-1">Assessment Completed</h2>
+                                            <div className="flex items-center justify-center gap-4 mb-3 text-sm">
+                                              <span className="text-gray-600">
+                                                {personalityTestData.answers?.length || 0}/{personalityTestData.questions?.length || personalityTestData.answers?.length || 0} questions
+                                              </span>
+                                              <span className="text-gray-400">•</span>
+                                              <span className={`font-semibold ${
+                                                personalityTestData.riskLevelIndicator === 'Low' ? 'text-green-600' :
+                                                personalityTestData.riskLevelIndicator === 'Medium' ? 'text-yellow-600' : 'text-red-600'
+                                              }`}>
+                                                {personalityTestData.riskLevelIndicator || 'Unknown'} Risk
+                                              </span>
+                                            </div>
+                                            <div className="bg-white/50 rounded-lg p-3 text-left">
+                                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div>
+                                                  <span className="text-gray-500">Completed:</span>
+                                                  <span className="ml-1 font-medium text-gray-700">
+                                                    {personalityTestData.endTime ? new Date(personalityTestData.endTime).toLocaleDateString() : 'N/A'}
+                                                  </span>
+                                                </div>
+                                                <div>
+                                                  <span className="text-gray-500">Duration:</span>
+                                                  <span className="ml-1 font-medium text-gray-700">
+                                                    {personalityTestData.startTime && personalityTestData.endTime
+                                                      ? `${Math.round((new Date(personalityTestData.endTime).getTime() - new Date(personalityTestData.startTime).getTime()) / (1000 * 60))} min`
+                                                      : 'N/A'}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            {personalityTestData.reviewed && (
+                                              <div className="mt-3 p-2 bg-blue-50 rounded text-xs text-blue-700">
+                                                ✓ Reviewed by OAS Staff
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                                          <div className="flex">
+                                            <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                                            <div className="ml-3">
+                                              <p className="text-sm text-yellow-700">
+                                                <strong>Pending:</strong> Applicant has not completed the personality test yet.
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </TabsContent>
 
-                                        {/* Test Results */}
-                                        <div className="bg-white border rounded-lg p-6">
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                            <div>
-                                              <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Level: <span className="text-green-600">Low</span></h3>
-                                              <div className="mb-4">
-                                                <Label className="font-medium text-gray-700">Guidance:</Label>
-                                                <p className="text-sm text-gray-600 mt-1">
-                                                  Excellent! Your responses demonstrate strong personal qualities that align well with our scholarship values.
+                                    {/* Interview Tab */}
+                                    <TabsContent value="interview" className="py-4 overflow-y-auto flex-1">
+                                      {interviewLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                                          <span className="ml-2 text-sm text-gray-600">Loading interview data...</span>
+                                        </div>
+                                      ) : interviewData?.isScheduled && interviewData?.interview ? (
+                                        <div className="space-y-4">
+                                          {/* Interview Scheduled Banner */}
+                                          <div className={`${interviewData.interview.is_finished ? 'bg-green-50 border-green-400' : 'bg-blue-50 border-blue-400'} border-l-4 p-4`}>
+                                            <div className="flex items-start">
+                                              <div className="flex-shrink-0">
+                                                {interviewData.interview.is_finished ? (
+                                                  <CheckCircle className="h-5 w-5 text-green-500" />
+                                                ) : (
+                                                  <Calendar className="h-5 w-5 text-blue-400" />
+                                                )}
+                                              </div>
+                                              <div className="ml-3 flex-1">
+                                                <p className={`text-sm ${interviewData.interview.is_finished ? 'text-green-700' : 'text-blue-700'} font-semibold mb-1`}>
+                                                  {interviewData.interview.is_finished ? 'Interview Completed' : 'Interview Scheduled'}
+                                                </p>
+                                                <div className="space-y-1">
+                                                  <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                    <strong>Date:</strong> {new Date(interviewData.interview.startTime).toLocaleDateString('en-US', {
+                                                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                                                    })}
+                                                  </p>
+                                                  <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                    <strong>Time:</strong> {new Date(interviewData.interview.startTime).toLocaleTimeString('en-US', {
+                                                      hour: 'numeric', minute: '2-digit', hour12: true
+                                                    })} - {new Date(interviewData.interview.endTime).toLocaleTimeString('en-US', {
+                                                      hour: 'numeric', minute: '2-digit', hour12: true
+                                                    })}
+                                                  </p>
+                                                  {interviewData.interview.interviewer && (
+                                                    <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                      <strong>Interviewer:</strong> {interviewData.interview.interviewer.name || interviewData.interview.interviewer.email}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* Reschedule Form */}
+                                          {!isRescheduling ? (
+                                            <Button
+                                              variant="outline"
+                                              className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                              onClick={() => {
+                                                setIsRescheduling(true);
+                                                if (interviewData.interview.startTime) {
+                                                  const existingDate = new Date(interviewData.interview.startTime);
+                                                  setInterviewDate(existingDate.toISOString().split('T')[0]);
+                                                  setInterviewTime(existingDate.toTimeString().slice(0, 5));
+                                                }
+                                                if (interviewData.interview.endTime) {
+                                                  const existingEndDate = new Date(interviewData.interview.endTime);
+                                                  setInterviewEndTime(existingEndDate.toTimeString().slice(0, 5));
+                                                }
+                                                // Department head is always the interviewer, no need to set
+                                              }}
+                                            >
+                                              <Calendar className="mr-2 h-4 w-4" />
+                                              Reschedule Interview
+                                            </Button>
+                                          ) : (
+                                            <div className="space-y-4 p-4 border rounded-lg">
+                                              <h4 className="font-medium">Reschedule Interview</h4>
+                                              <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
+                                                <p className="text-sm text-blue-700">
+                                                  <strong>Note:</strong> You will be assigned as the interviewer for this applicant.
+                                                </p>
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label>Date</Label>
+                                                <Input
+                                                  type="date"
+                                                  value={interviewDate}
+                                                  onChange={(e) => setInterviewDate(e.target.value)}
+                                                  min={new Date().toISOString().split('T')[0]}
+                                                />
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                  <Label>Start Time</Label>
+                                                  <Input
+                                                    type="time"
+                                                    value={interviewTime}
+                                                    onChange={(e) => {
+                                                      setInterviewTime(e.target.value);
+                                                      const [hours, minutes] = e.target.value.split(':').map(Number);
+                                                      const endHours = (hours + 1) % 24;
+                                                      setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+                                                    }}
+                                                  />
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label>End Time</Label>
+                                                  <Input
+                                                    type="time"
+                                                    value={interviewEndTime}
+                                                    onChange={(e) => setInterviewEndTime(e.target.value)}
+                                                  />
+                                                </div>
+                                              </div>
+                                              <div className="flex gap-2">
+                                                <Button
+                                                  className="bg-[#800000] hover:bg-[#600000]"
+                                                  onClick={() => handleScheduleInterviewNew(selectedApplication)}
+                                                  disabled={!interviewDate}
+                                                >
+                                                  Confirm Reschedule
+                                                </Button>
+                                                <Button variant="outline" onClick={() => setIsRescheduling(false)}>
+                                                  Cancel
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-4">
+                                          <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                                            <div className="flex">
+                                              <Calendar className="h-5 w-5 text-blue-400" />
+                                              <div className="ml-3">
+                                                <p className="text-sm text-blue-700">
+                                                  <strong>Interview Status:</strong> Not Scheduled
                                                 </p>
                                               </div>
                                             </div>
-                                            <div>
-                                              <h3 className="text-lg font-semibold text-gray-900 mb-4">Test Summary</h3>
-                                              <div className="space-y-2 text-sm">
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-600">Completion Date:</span>
-                                                  <span className="font-medium">7/20/2025</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-600">Time Taken:</span>
-                                                  <span className="font-medium">15 minutes</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-600">Test ID:</span>
-                                                  <span className="font-medium">cddadefd</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-600">Status:</span>
-                                                  <Badge className="bg-green-100 text-green-800">Completed</Badge>
-                                                </div>
+                                          </div>
+
+                                          {/* Schedule Form */}
+                                          <div className="space-y-4 pt-4">
+                                            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-2">
+                                              <p className="text-sm text-blue-700">
+                                                <strong>Note:</strong> You will be assigned as the interviewer for this applicant.
+                                              </p>
+                                            </div>
+                                            <div className="space-y-2">
+                                              <Label>Schedule Interview Date</Label>
+                                              <Input
+                                                type="date"
+                                                value={interviewDate}
+                                                onChange={(e) => setInterviewDate(e.target.value)}
+                                                min={new Date().toISOString().split('T')[0]}
+                                              />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                              <div className="space-y-2">
+                                                <Label>Start Time</Label>
+                                                <Input
+                                                  type="time"
+                                                  value={interviewTime}
+                                                  onChange={(e) => {
+                                                    setInterviewTime(e.target.value);
+                                                    const [hours, minutes] = e.target.value.split(':').map(Number);
+                                                    const endHours = (hours + 1) % 24;
+                                                    setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+                                                  }}
+                                                />
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label>End Time</Label>
+                                                <Input
+                                                  type="time"
+                                                  value={interviewEndTime}
+                                                  onChange={(e) => setInterviewEndTime(e.target.value)}
+                                                />
                                               </div>
                                             </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </TabsContent>
-                                    
-                                    <TabsContent value="evaluation" className="space-y-4">
-                                      <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                          <h3 className="font-semibold text-lg text-[#800000]">Scholar Evaluations</h3>
-                                          {evaluationPeriod?.isOpen && scholarEvaluations.length === 0 && applicationDetails?.idNumber && applicationDetails.idNumber !== 'N/A' && (
-                                            <Button 
-                                              onClick={() => {
-                                                // Set scholar data for evaluation form
-                                                setSelectedScholar({
-                                                  ...applicationDetails,
-                                                  userId: applicationDetails?.userId || selectedApplication?._id,
-                                                  _id: applicationDetails?.userId || selectedApplication?._id,
-                                                  department: userDepartment?.name || userDepartment?.departmentName || user?.department || 'N/A'
-                                                });
-                                                setSelectedEvaluation(null);
-                                                setIsViewingEvaluation(false);
-                                                setShowEvaluationForm(true);
-                                              }}
+
+                                            <Button
                                               className="bg-[#800000] hover:bg-[#600000]"
+                                              onClick={() => handleScheduleInterviewNew(selectedApplication)}
+                                              disabled={!interviewDate}
                                             >
-                                              <ClipboardCheck className="mr-2 h-4 w-4" />
-                                              Create Evaluation
+                                              <Calendar className="mr-2 h-4 w-4" />
+                                              Schedule Interview
                                             </Button>
-                                          )}
-                                        </div>
-
-                                        {loadingEvaluations ? (
-                                          <div className="flex items-center justify-center py-8">
-                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
-                                            <span className="ml-2 text-sm text-gray-600">Loading evaluations...</span>
-                                          </div>
-                                        ) : scholarEvaluations.length > 0 ? (
-                                          <div className="space-y-4">
-                                            {/* Evaluation Selector */}
-                                            <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
-                                              <span className="text-sm text-gray-600 mr-2 self-center">Select Evaluation:</span>
-                                              {scholarEvaluations.map((evaluation, index) => (
-                                                <Button
-                                                  key={evaluation._id}
-                                                  variant={selectedEvaluation?._id === evaluation._id ? "default" : "outline"}
-                                                  size="sm"
-                                                  onClick={() => setSelectedEvaluation(evaluation)}
-                                                  className={selectedEvaluation?._id === evaluation._id ? "bg-[#800000] hover:bg-[#600000]" : ""}
-                                                >
-                                                  {evaluation.semester === 'First Semester' ? '1st' : '2nd'} Sem ({evaluation.schoolYear || 'N/A'})
-                                                </Button>
-                                              ))}
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="border-green-500 text-green-600 hover:bg-green-50"
-                                                onClick={() => {
-                                                  setSelectedScholar({
-                                                    ...applicationDetails,
-                                                    userId: applicationDetails?.userId || selectedApplication?._id,
-                                                    _id: applicationDetails?.userId || selectedApplication?._id,
-                                                    department: userDepartment?.name || userDepartment?.departmentName || user?.department || 'N/A'
-                                                  });
-                                                  setSelectedEvaluation(null);
-                                                  setIsViewingEvaluation(false);
-                                                  setShowEvaluationForm(true);
-                                                }}
-                                              >
-                                                <Plus className="h-4 w-4 mr-1" />
-                                                New Evaluation
-                                              </Button>
-                                            </div>
-
-                                            {/* Selected Evaluation Details (Read-Only) */}
-                                            {selectedEvaluation && (
-                                              <div className="border-2 border-gray-200 rounded-lg p-4 space-y-4">
-                                                <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg">
-                                                  <p className="text-amber-800 text-sm font-medium">
-                                                    📋 This evaluation is read-only. Department heads cannot edit submitted evaluations.
-                                                  </p>
-                                                </div>
-
-                                                {/* Header */}
-                                                <div className="flex justify-between items-start">
-                                                  <div>
-                                                    <h4 className="font-semibold text-lg">{selectedEvaluation.semester} - S.Y. {selectedEvaluation.schoolYear}</h4>
-                                                    <p className="text-sm text-gray-500">
-                                                      Submitted: {new Date(selectedEvaluation.createdAt).toLocaleDateString()}
-                                                      {selectedEvaluation.updatedAt && selectedEvaluation.updatedAt !== selectedEvaluation.createdAt && 
-                                                        ` | Updated: ${new Date(selectedEvaluation.updatedAt).toLocaleDateString()}`
-                                                      }
-                                                    </p>
-                                                  </div>
-                                                  <Badge className={`text-lg px-4 py-2 ${
-                                                    getNumericValue(selectedEvaluation.overallRating) >= 3.0 ? 'bg-green-500' : 'bg-red-500'
-                                                  }`}>
-                                                    {getNumericValue(selectedEvaluation.overallRating).toFixed(2)}
-                                                  </Badge>
-                                                </div>
-
-                                                {/* Rating Categories */}
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                  {/* Attendance */}
-                                                  <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
-                                                    <h5 className="font-medium text-red-900 mb-2">A. Attendance & Punctuality (20%)</h5>
-                                                    <div className="space-y-1 text-sm">
-                                                      <div className="flex justify-between">
-                                                        <span>Regularity of Attendance:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attendanceAndPunctuality?.regularAttendance)}/5</span>
-                                                      </div>
-                                                      <div className="flex justify-between">
-                                                        <span>Promptness in Reporting:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attendanceAndPunctuality?.promptnessInReportingForDuty)}/5</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Quality */}
-                                                  <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg">
-                                                    <h5 className="font-medium text-orange-900 mb-2">B. Quality of Work (25%)</h5>
-                                                    <div className="space-y-1 text-sm">
-                                                      <div className="flex justify-between">
-                                                        <span>Accuracy & Thoroughness:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.qualityOfWorkOutput?.accuracyAndThoroughnessOfWork)}/5</span>
-                                                      </div>
-                                                      <div className="flex justify-between">
-                                                        <span>Organization & Presentation:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.qualityOfWorkOutput?.organizationAndOrPresentationNeatnessOfWork)}/5</span>
-                                                      </div>
-                                                      <div className="flex justify-between">
-                                                        <span>Effectiveness:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.qualityOfWorkOutput?.effectiveness)}/5</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Quantity */}
-                                                  <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-                                                    <h5 className="font-medium text-yellow-900 mb-2">C. Quantity of Work (15%)</h5>
-                                                    <div className="space-y-1 text-sm">
-                                                      <div className="flex justify-between">
-                                                        <span>Accomplishes More Work:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.quantityOfWorkOutput?.accomplishesMoreWorkOnTheGivenTime)}/5</span>
-                                                      </div>
-                                                      <div className="flex justify-between">
-                                                        <span>Timeliness in Accomplishing:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.quantityOfWorkOutput?.timelinessInAccomplishingTaskDuties)}/5</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Personal Qualities */}
-                                                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
-                                                    <h5 className="font-medium text-green-900 mb-2">D. Personal Qualities (25%)</h5>
-                                                    <div className="space-y-1 text-sm">
-                                                      <div className="flex justify-between">
-                                                        <span>Responsibility & Urgency:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.senseOfResponsibilityAndUrgency)}/5</span>
-                                                      </div>
-                                                      <div className="flex justify-between">
-                                                        <span>Dependability & Reliability:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.dependabilityAndReliability)}/5</span>
-                                                      </div>
-                                                      <div className="flex justify-between">
-                                                        <span>Industry & Resourcefulness:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.industryAndResourcefulness)}/5</span>
-                                                      </div>
-                                                      <div className="flex justify-between">
-                                                        <span>Alertness & Initiative:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.alertnessAndInitiative)}/5</span>
-                                                      </div>
-                                                      <div className="flex justify-between">
-                                                        <span>Sociability & Disposition:</span>
-                                                        <span className="font-medium">{getNumericValue(selectedEvaluation.attitudeAndWorkBehavior?.sociabilityAndPleasantDisposition)}/5</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </div>
-
-                                                {/* Remarks */}
-                                                {(selectedEvaluation.remarksAndRecommendationByImmediateSupervisor || selectedEvaluation.remarksCommentsByTheNAS) && (
-                                                  <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg">
-                                                    <h5 className="font-medium text-gray-900 mb-2">Remarks</h5>
-                                                    {selectedEvaluation.remarksAndRecommendationByImmediateSupervisor && (
-                                                      <div className="mb-2">
-                                                        <p className="text-xs text-gray-500">Supervisor Remarks:</p>
-                                                        <p className="text-sm">{selectedEvaluation.remarksAndRecommendationByImmediateSupervisor}</p>
-                                                      </div>
-                                                    )}
-                                                    {selectedEvaluation.remarksCommentsByTheNAS && (
-                                                      <div>
-                                                        <p className="text-xs text-gray-500">NAS Comments:</p>
-                                                        <p className="text-sm">{selectedEvaluation.remarksCommentsByTheNAS}</p>
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-
-                                            {!selectedEvaluation && (
-                                              <p className="text-sm text-gray-500 text-center py-4">
-                                                👆 Click on an evaluation above to view its details.
-                                              </p>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <div className="text-center py-8 bg-gray-50 rounded-lg">
-                                            <ClipboardCheck className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                                            <p className="text-gray-500 mb-2">No evaluations submitted yet</p>
-                                            {!applicationDetails?.idNumber || applicationDetails.idNumber === 'N/A' ? (
-                                              <p className="text-sm text-amber-600">
-                                                ⚠️ Scholar does not have an ID number assigned yet.
-                                              </p>
-                                            ) : evaluationPeriod?.isOpen ? (
-                                              <p className="text-sm text-green-600">
-                                                ✓ Evaluation period is open. You can create an evaluation.
-                                              </p>
-                                            ) : (
-                                              <p className="text-sm text-amber-600">
-                                                ⚠️ Evaluation period is currently closed.
-                                              </p>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </TabsContent>
-                                    
-                                    <TabsContent value="reschedule" className="space-y-4">
-                                      <div className="space-y-4">
-                                        <h3 className="font-medium text-lg text-[#800000]">Schedule Interview</h3>
-                                        
-                                        {/* Current Status */}
-                                        <div className={`border rounded-lg p-4 ${
-                                          selectedApplication?.schedule === 'To be scheduled' 
-                                            ? 'bg-yellow-50 border-yellow-200' 
-                                            : 'bg-blue-50 border-blue-200'
-                                        }`}>
-                                          <div className="flex items-center space-x-2">
-                                            <Clock className={`h-5 w-5 ${
-                                              selectedApplication?.schedule === 'To be scheduled' 
-                                                ? 'text-yellow-600' 
-                                                : 'text-blue-600'
-                                            }`} />
-                                            <span className={`font-medium ${
-                                              selectedApplication?.schedule === 'To be scheduled' 
-                                                ? 'text-yellow-800' 
-                                                : 'text-blue-800'
-                                            }`}>
-                                              {selectedApplication?.schedule === 'To be scheduled' ? 'Pending:' : 'Scheduled:'}
-                                            </span>
-                                            <span className={`${
-                                              selectedApplication?.schedule === 'To be scheduled' 
-                                                ? 'text-yellow-700' 
-                                                : 'text-blue-700'
-                                            }`}>
-                                              {selectedApplication?.schedule === 'To be scheduled' 
-                                                ? 'No interview has been scheduled yet.' 
-                                                : `Interview scheduled for ${selectedApplication?.schedule}`
-                                              }
-                                            </span>
                                           </div>
                                         </div>
-
-                                        {/* Schedule form */}
-                                        <div className="space-y-4">
-                                          <div>
-                                            <Label className="font-medium">Schedule Interview Date</Label>
-                                            <Input 
-                                              type="datetime-local" 
-                                              value={interviewSchedule}
-                                              onChange={(e) => setInterviewSchedule(e.target.value)}
-                                              className="mt-1"
-                                              placeholder="mm/dd/yyyy"
-                                            />
-                                          </div>
-                                          <div>
-                                            <Label className="font-medium">Reason (Optional)</Label>
-                                            <Textarea 
-                                              placeholder="Reason for scheduling/rescheduling..."
-                                              value={scheduleReason}
-                                              onChange={(e) => setScheduleReason(e.target.value)}
-                                              className="mt-1"
-                                            />
-                                          </div>
-                                          <Button 
-                                            onClick={handleScheduleInterview}
-                                            className="bg-[#800000] hover:bg-[#600000]"
-                                          >
-                                            Schedule Interview
-                                          </Button>
-                                        </div>
-                                      </div>
+                                      )}
                                     </TabsContent>
                                   </Tabs>
+
+                                  <DialogFooter>
+                                    <DialogClose asChild>
+                                      <Button variant="outline" onClick={() => {
+                                        setSelectedApplication(null);
+                                        setIsRescheduling(false);
+                                        setInterviewData(null);
+                                        setDocuments(null);
+                                        setPersonalityTestData(null);
+                                      }}>
+                                        Close
+                                      </Button>
+                                    </DialogClose>
+                                  </DialogFooter>
                                 </DialogContent>
                               </Dialog>
+                              
+                              {/* Evaluate Button */}
+                              {evaluationPeriod?.isOpen && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  title="Evaluate Scholar"
+                                  onClick={() => {
+                                    // Find the scholar data for this applicant
+                                    const scholar = scholars.find((s: any) => 
+                                      s._id === interview._id || 
+                                      s.id === interview._id ||
+                                      s.applicationId === interview._id ||
+                                      s.userId === interview._id
+                                    );
+                                    if (scholar) {
+                                      // Ensure firstName/lastName are set for the form
+                                      const scholarData = {
+                                        ...scholar,
+                                        firstName: scholar.firstName || scholar.name?.split(' ')[0] || interview.applicantName?.split(' ')[0] || '',
+                                        lastName: scholar.lastName || scholar.name?.split(' ').slice(1).join(' ') || interview.applicantName?.split(' ').slice(1).join(' ') || '',
+                                        idNumber: scholar.idNumber || applicationDetails?.idNumber
+                                      };
+                                      setSelectedScholar(scholarData);
+                                      setShowEvaluationForm(true);
+                                    } else {
+                                      // Use the interview data as scholar - parse name into first/last
+                                      const nameParts = interview.applicantName?.split(' ') || [];
+                                      setSelectedScholar({
+                                        _id: interview._id,
+                                        name: interview.applicantName,
+                                        firstName: nameParts[0] || '',
+                                        lastName: nameParts.slice(1).join(' ') || '',
+                                        idNumber: interview.idNumber || applicationDetails?.idNumber,
+                                        course: interview.course,
+                                        department: interview.department
+                                      });
+                                      setShowEvaluationForm(true);
+                                    }
+                                  }}
+                                >
+                                  <ClipboardCheck className="h-4 w-4" />
+                                </Button>
+                              )}
                               
                               {/* Message Button */}
                               <MessageButton
@@ -1198,6 +1732,35 @@ export default function DepartmentHeadDashboardPage() {
                 {interviews.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     No applicants assigned to your department yet.
+                  </div>
+                )}
+                
+                {/* Load More Button */}
+                {hasMore && interviews.length > 0 && (
+                  <div className="flex justify-center py-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => fetchApplicants(currentPage + 1)}
+                      disabled={loadingMore}
+                      className="min-w-[200px]"
+                    >
+                      {loadingMore ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#800000] mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>Load More ({interviews.length} of {totalApplicants})</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+                
+                {/* Pagination Info */}
+                {interviews.length > 0 && (
+                  <div className="text-center py-2 text-sm text-gray-500 border-t">
+                    Showing {interviews.length} of {totalApplicants} applicants
+                    {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
                   </div>
                 )}
               </div>
@@ -1236,6 +1799,87 @@ export default function DepartmentHeadDashboardPage() {
             hideTimekeeping={true}
             useDepartmentHeadEndpoint={true}
           />
+        )}
+
+        {/* Image Preview Dialog with Zoom and Pan */}
+        {previewImage && (
+          <Dialog open={!!previewImage} onOpenChange={(open) => !open && closePreview()}>
+            <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+              <DialogHeader className="p-4 pb-2">
+                <DialogTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-5 w-5" />
+                    {previewImage.name}
+                  </div>
+                  {/* Zoom Controls */}
+                  <div className="flex items-center gap-1 mr-8">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleZoomOut}
+                      disabled={zoomLevel <= 0.5}
+                      className="h-8 w-8 p-0"
+                      title="Zoom Out"
+                    >
+                      <ZoomOut className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium w-14 text-center">
+                      {Math.round(zoomLevel * 100)}%
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleZoomIn}
+                      disabled={zoomLevel >= 3}
+                      className="h-8 w-8 p-0"
+                      title="Zoom In"
+                    >
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResetZoom}
+                      className="h-8 w-8 p-0 ml-1"
+                      title="Reset Zoom"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </DialogTitle>
+              </DialogHeader>
+              <div 
+                className="px-4 pb-4 overflow-hidden max-h-[75vh] flex items-center justify-center"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                style={{ cursor: zoomLevel > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+              >
+                <img 
+                  src={previewImage.url} 
+                  alt={previewImage.name}
+                  draggable={false}
+                  className="object-contain rounded-lg select-none"
+                  style={{ 
+                    transform: `scale(${zoomLevel}) translate(${imagePosition.x / zoomLevel}px, ${imagePosition.y / zoomLevel}px)`,
+                    transformOrigin: 'center center',
+                    maxWidth: zoomLevel <= 1 ? '100%' : 'none',
+                    maxHeight: zoomLevel <= 1 ? '70vh' : 'none',
+                    transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+                  }}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                      handleZoomIn();
+                    } else {
+                      handleZoomOut();
+                    }
+                  }}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </DashboardLayout>

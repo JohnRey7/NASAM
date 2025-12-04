@@ -2,10 +2,17 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
+export interface Department {
+  _id: string;
+  departmentCode: string;
+  name: string;
+}
+
 export interface Course {
   _id: string;
   courseId: string;
   name: string;
+  departmentId?: Department | string | null;
   isDeleted?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -14,11 +21,13 @@ export interface Course {
 export interface CreateCourseData {
   courseId: string;
   name: string;
+  departmentId?: string;
 }
 
 export interface UpdateCourseData {
   courseId?: string;
   name?: string;
+  departmentId?: string | null;
 }
 
 export interface CourseListResponse {
@@ -134,6 +143,31 @@ const courseService = {
       headers: { 'Content-Type': 'application/json' },
     });
     return response.data.course || response.data;
+  },
+
+  // Get courses by department
+  async getCoursesByDepartment(departmentId: string, page: number = 1, limit: number = 25): Promise<CourseListResponse> {
+    console.log('📚 Fetching courses by department:', { departmentId, page, limit });
+    
+    try {
+      const response = await axios.get(`${API_URL}/course/department/${departmentId}`, {
+        params: { page, limit },
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      console.log('📚 Courses by department response:', response.data);
+      const { courses = [], pagination = {} } = response.data || {};
+      return {
+        courses,
+        total: pagination.totalCourses || 0,
+        page: pagination.currentPage || page,
+        pages: pagination.totalPages || 1
+      };
+    } catch (error) {
+      console.error('📚 Error fetching courses by department:', error);
+      throw error;
+    }
   },
 };
 

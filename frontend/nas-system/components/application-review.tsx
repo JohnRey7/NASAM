@@ -28,7 +28,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Trash2
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw
 } from "lucide-react"
 import { AdminEditApplication } from "@/components/admin-edit-application"
 import { MessageButton } from "@/components/message-button"
@@ -53,6 +56,15 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  
+  // Document sub-tabs state (similar to interview tabs)
+  const [documentSubTab, setDocumentSubTab] = useState<'current' | 'deleted'>('current');
+  const [deletedDocuments, setDeletedDocuments] = useState<any[]>([]);
+  const [deletedDocumentsLoading, setDeletedDocumentsLoading] = useState(false);
 
   // Check if file is an image based on extension or mime type
   const isImageFile = (filename: string | undefined): boolean => {
@@ -102,6 +114,50 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
       window.URL.revokeObjectURL(previewImage.url);
     }
     setPreviewImage(null);
+    setZoomLevel(1);
+    setImagePosition({ x: 0, y: 0 });
+  };
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => {
+      const newZoom = Math.max(prev - 0.25, 0.5);
+      // Reset position if zooming back to 1 or below
+      if (newZoom <= 1) {
+        setImagePosition({ x: 0, y: 0 });
+      }
+      return newZoom;
+    });
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setImagePosition({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1) {
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoomLevel > 1) {
+      e.preventDefault();
+      // Free panning - no constraints
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setImagePosition({ x: newX, y: newY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
 
   useEffect(() => {
@@ -369,6 +425,8 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
 
       // Refresh documents to show empty state
       fetchDocuments();
+      // Also refresh deleted documents list
+      fetchDeletedDocuments();
 
     } catch (error) {
       console.error('❌ Delete documents failed:', error);
@@ -378,6 +436,101 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
         description: `Failed to delete documents: ${error instanceof Error ? error.message : String(error)}`,
         variant: "destructive",
         duration: 5000
+      });
+    }
+  };
+
+  // Fetch deleted documents
+  const fetchDeletedDocuments = async () => {
+    setDeletedDocumentsLoading(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/deleted`,
+        { credentials: 'include' }
+      );
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🗑️ Deleted documents fetched:', result);
+        // Handle both array and { documents: [...] } formats
+        const docs = Array.isArray(result) ? result : (result.documents || []);
+        setDeletedDocuments(docs);
+      } else {
+        console.log('🗑️ No deleted documents found or error fetching');
+        setDeletedDocuments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching deleted documents:', error);
+      setDeletedDocuments([]);
+    } finally {
+      setDeletedDocumentsLoading(false);
+    }
+  };
+
+  // Restore a deleted document
+  const handleRestoreDocument = async (documentUserId: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/${documentUserId}/restore`,
+        {
+          method: 'PUT',
+          credentials: 'include'
+        }
+      );
+      
+      if (response.ok) {
+        toast({
+          title: "Documents Restored",
+          description: "The documents have been restored successfully.",
+        });
+        // Refresh deleted documents list
+        fetchDeletedDocuments();
+        // Refresh current documents if this was for the current user
+        if (documentUserId === userId) {
+          fetchDocuments();
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to restore documents');
+      }
+    } catch (error) {
+      console.error('Error restoring documents:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to restore documents",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Permanently delete a document
+  const handlePermanentDeleteDocument = async (documentUserId: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/${documentUserId}/permanent`,
+        {
+          method: 'DELETE',
+          credentials: 'include'
+        }
+      );
+      
+      if (response.ok) {
+        toast({
+          title: "Documents Permanently Deleted",
+          description: "The documents have been permanently removed.",
+        });
+        // Refresh deleted documents list
+        fetchDeletedDocuments();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to permanently delete documents');
+      }
+    } catch (error) {
+      console.error('Error permanently deleting documents:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to permanently delete documents",
+        variant: "destructive"
       });
     }
   };
@@ -420,40 +573,70 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
 
   return (
     <div className="space-y-4">
-      {/* Document Summary */}
-      <div className="bg-gray-50 border rounded-lg p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-medium">Document Status Summary</h3>
-          <Badge 
-            variant={documents?.summary?.isComplete ? "default" : "secondary"}
-            className={documents?.summary?.isComplete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
+      {/* Sub-tabs for Current and Deleted Documents */}
+      <div className="mb-4">
+        <div className="flex border-b">
+          <button
+            className={`px-4 py-2 text-sm font-medium ${documentSubTab === 'current' ? 'border-b-2 border-[#800000] text-[#800000]' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setDocumentSubTab('current')}
           >
-            {documents?.summary?.totalUploaded || 0}/{documents?.summary?.totalRequired || 7} Complete
-          </Badge>
+            Current Documents
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium ${documentSubTab === 'deleted' ? 'border-b-2 border-[#800000] text-[#800000]' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => {
+              setDocumentSubTab('deleted')
+              fetchDeletedDocuments()
+            }}
+          >
+            Deleted Documents
+          </button>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className="bg-[#800000] h-2 rounded-full transition-all duration-300" 
-            style={{ width: `${documents?.summary?.completionRate || 0}%` }}
-          ></div>
-        </div>
-        <p className="text-sm text-gray-600 mt-1">
-          {documents?.summary?.completionRate || 0}% Complete
-        </p>
       </div>
 
-      {/* Document List */}
-      <div className="space-y-3">
+      {documentSubTab === 'current' ? (
+        <>
+          {/* Document Summary */}
+          <div className="bg-gray-50 border rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium">Document Status Summary</h3>
+              <Badge 
+                variant={documents?.summary?.isComplete ? "default" : "secondary"}
+                className={documents?.summary?.isComplete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
+              >
+                {documents?.summary?.totalUploaded || 0}/{documents?.summary?.totalRequired || 7} Complete
+              </Badge>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-[#800000] h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${documents?.summary?.completionRate || 0}%` }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              {documents?.summary?.completionRate || 0}% Complete
+            </p>
+          </div>
+
+          {/* Document List */}
+          <div className="space-y-3">
         {documentTypes.map(({ key, label, required }) => {
           const doc = documents?.documents?.[key];
-          const canPreview = doc?.uploaded && isImageFile(doc.originalName || doc.filePath || doc.filename);
+          // Handle both single objects (studentPicture) and arrays
+          const isArray = Array.isArray(doc);
+          const docList = isArray ? doc : (doc ? [doc] : []);
+          const hasDocuments = isArray ? doc?.length > 0 : doc?.uploaded;
+          
+          // For single docs (studentPicture), check if it's an image
+          const singleDocCanPreview = !isArray && doc?.uploaded && isImageFile(doc.originalName || doc.filePath || doc.filename);
           
           return (
             <div 
               key={key} 
-              className={`flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 ${canPreview ? 'cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all' : ''}`}
+              className={`p-3 border rounded-lg hover:bg-gray-50 ${singleDocCanPreview ? 'cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all' : ''}`}
               onClick={() => {
-                if (canPreview) {
+                // Only auto-preview for single documents (like studentPicture)
+                if (singleDocCanPreview && !isArray) {
                   const filePath = doc.filePath || doc.filename;
                   if (filePath) {
                     handlePreviewDocument(label, filePath, doc.originalName);
@@ -461,104 +644,149 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
                 }
               }}
             >
-              <div className="flex items-center gap-3">
-                {getDocumentIcon(doc?.uploaded)}
-                <div>
-                  <p className="font-medium text-sm">
-                    {label}
-                    {required && <span className="text-red-500 ml-1">*</span>}
-                    {canPreview && <span className="text-blue-500 ml-2 text-xs">(Click to preview)</span>}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {doc?.uploaded ? (
-                      <>
-                        Uploaded: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Unknown'}
-                        {doc.originalName && <span className="ml-2">({String(doc.originalName)})</span>}
-                      </>
-                    ) : (
-                      'Not submitted'
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {getDocumentIcon(hasDocuments)}
+                  <div>
+                    <p className="font-medium text-sm">
+                      {label}
+                      {required && <span className="text-red-500 ml-1">*</span>}
+                      {singleDocCanPreview && !isArray && <span className="text-blue-500 ml-2 text-xs">(Click to preview)</span>}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {hasDocuments ? (
+                        isArray && docList.length > 1 ? (
+                          `${docList.length} files uploaded`
+                        ) : (
+                          <>
+                            Uploaded: {(docList[0]?.uploadedAt || doc?.uploadedAt) ? new Date(docList[0]?.uploadedAt || doc?.uploadedAt).toLocaleDateString() : 'Unknown'}
+                            {(docList[0]?.originalName || doc?.originalName) && <span className="ml-2">({String(docList[0]?.originalName || doc?.originalName)})</span>}
+                          </>
+                        )
+                      ) : (
+                        'Not submitted'
+                      )}
+                    </p>
+                    
+                    {/* Show Grade Averages for Grade Report */}
+                    {key === 'gradeReport' && documents?.gradeAverages && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                        <p className="font-semibold text-blue-900 mb-1">Grade Averages:</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {documents.gradeAverages.elementary && (
+                            <span>Elementary: {documents.gradeAverages.elementary}%</span>
+                          )}
+                          {documents.gradeAverages.juniorHighSchool && (
+                            <span>Junior HS: {documents.gradeAverages.juniorHighSchool}%</span>
+                          )}
+                          {documents.gradeAverages.seniorHighSchool && (
+                            <span>Senior HS: {documents.gradeAverages.seniorHighSchool}%</span>
+                          )}
+                          {documents.gradeAverages.college && (
+                            <span>College: {documents.gradeAverages.college}%</span>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </p>
-                  
-                  {/* Show Grade Averages for Grade Report */}
-                  {key === 'gradeReport' && documents?.gradeAverages && (
-                    <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
-                      <p className="font-semibold text-blue-900 mb-1">Grade Averages:</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {documents.gradeAverages.elementary && (
-                          <span>Elementary: {documents.gradeAverages.elementary}%</span>
-                        )}
-                        {documents.gradeAverages.juniorHighSchool && (
-                          <span>Junior HS: {documents.gradeAverages.juniorHighSchool}%</span>
-                        )}
-                        {documents.gradeAverages.seniorHighSchool && (
-                          <span>Senior HS: {documents.gradeAverages.seniorHighSchool}%</span>
-                        )}
-                        {documents.gradeAverages.college && (
-                          <span>College: {documents.gradeAverages.college}%</span>
-                        )}
+                    
+                    {/* Show Income Tax Info for ITR */}
+                    {key === 'incomeTaxReturn' && documents?.incomeTaxInfo && (
+                      <div className="mt-2 p-2 bg-green-50 rounded text-xs">
+                        <p className="font-semibold text-green-900 mb-1">Income Tax Information:</p>
+                        <div className="space-y-1">
+                          {documents.incomeTaxInfo.annualIncome && (
+                            <p>Annual Income: ₱{documents.incomeTaxInfo.annualIncome.toLocaleString()}</p>
+                          )}
+                          {documents.incomeTaxInfo.taxableIncome && (
+                            <p>Taxable Income: ₱{documents.incomeTaxInfo.taxableIncome.toLocaleString()}</p>
+                          )}
+                          {documents.incomeTaxInfo.taxYear && (
+                            <p>Tax Year: {documents.incomeTaxInfo.taxYear}</p>
+                          )}
+                          {documents.incomeTaxInfo.employerName && (
+                            <p>Employer: {documents.incomeTaxInfo.employerName}</p>
+                          )}
+                          {documents.incomeTaxInfo.tin && (
+                            <p>TIN: {documents.incomeTaxInfo.tin}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Show Income Tax Info for ITR */}
-                  {key === 'incomeTaxReturn' && documents?.incomeTaxInfo && (
-                    <div className="mt-2 p-2 bg-green-50 rounded text-xs">
-                      <p className="font-semibold text-green-900 mb-1">Income Tax Information:</p>
-                      <div className="space-y-1">
-                        {documents.incomeTaxInfo.annualIncome && (
-                          <p>Annual Income: ₱{documents.incomeTaxInfo.annualIncome.toLocaleString()}</p>
-                        )}
-                        {documents.incomeTaxInfo.taxableIncome && (
-                          <p>Taxable Income: ₱{documents.incomeTaxInfo.taxableIncome.toLocaleString()}</p>
-                        )}
-                        {documents.incomeTaxInfo.taxYear && (
-                          <p>Tax Year: {documents.incomeTaxInfo.taxYear}</p>
-                        )}
-                        {documents.incomeTaxInfo.employerName && (
-                          <p>Employer: {documents.incomeTaxInfo.employerName}</p>
-                        )}
-                        {documents.incomeTaxInfo.tin && (
-                          <p>TIN: {documents.incomeTaxInfo.tin}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={hasDocuments ? "default" : "secondary"}
+                    className={hasDocuments ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                  >
+                    {hasDocuments ? 'Submitted' : 'Missing'}
+                  </Badge>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                {doc?.uploaded && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering image preview
-                      const downloadPath = doc.filePath || doc.filename;
-                      const downloadName = doc.originalName || doc.filename;
-                      if (downloadPath) {
-                        handleDownloadDocument(label, downloadPath, downloadName);
-                      } else {
-                        toast({
-                          title: "Download Failed",
-                          description: "File path not found",
-                          variant: "destructive"
-                        });
-                      }
-                    }}
-                  >
-                    <Download className="mr-1 h-3 w-3" />
-                    Download
-                  </Button>
-                )}
-                
-                <Badge 
-                  variant={doc?.uploaded ? "default" : "secondary"}
-                  className={doc?.uploaded ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
-                >
-                  {doc?.uploaded ? 'Submitted' : 'Missing'}
-                </Badge>
-              </div>
+              {/* Individual file list for documents with multiple files */}
+              {hasDocuments && (
+                <div className="mt-3 space-y-2 border-t pt-3">
+                  {docList.map((fileDoc: any, index: number) => {
+                    const filePath = fileDoc?.filePath || fileDoc?.filename;
+                    const originalName = fileDoc?.originalName || filePath;
+                    const canPreviewFile = isImageFile(originalName);
+                    
+                    return (
+                      <div key={index} className="flex items-center justify-between pl-8 py-1 text-sm bg-gray-50 rounded px-3">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="text-gray-500 text-xs">{index + 1}.</span>
+                          <span className="truncate text-gray-700" title={originalName}>
+                            {originalName || `File ${index + 1}`}
+                          </span>
+                          {canPreviewFile && (
+                            <span className="text-blue-500 text-xs flex-shrink-0">(image)</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {canPreviewFile && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (filePath) {
+                                  handlePreviewDocument(`${label} (${index + 1})`, filePath, originalName);
+                                }
+                              }}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Preview
+                            </Button>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (filePath) {
+                                handleDownloadDocument(`${label} (${index + 1})`, filePath, originalName);
+                              } else {
+                                toast({
+                                  title: "Download Failed",
+                                  description: "File path not found",
+                                  variant: "destructive"
+                                });
+                              }
+                            }}
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Download
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
@@ -628,22 +856,163 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
           </Button>
         </div>
       </div>
+        </>
+      ) : (
+        /* Deleted Documents Tab */
+        <div className="space-y-4">
+          {deletedDocumentsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+              <span className="ml-2 text-sm text-gray-600">Loading deleted documents...</span>
+            </div>
+          ) : deletedDocuments.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Trash2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>No deleted documents found.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {deletedDocuments.map((doc: any) => (
+                <div key={doc._id} className="bg-gray-50 border rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">
+                        User: {doc.user?.name || doc.user?.email || 'Unknown User'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>ID Number:</strong> {doc.user?.idNumber || 'N/A'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Documents:</strong> {
+                          [
+                            doc.studentPicture?.filePath ? 'Student Picture' : null,
+                            doc.nbiClearance?.length > 0 ? 'NBI Clearance' : null,
+                            doc.gradeReport?.length > 0 ? 'Grade Report' : null,
+                            doc.incomeTaxReturn?.length > 0 ? 'Income Tax Return' : null,
+                            doc.goodMoralCertificate?.length > 0 ? 'Good Moral' : null,
+                            doc.physicalCheckup?.length > 0 ? 'Physical Checkup' : null,
+                            doc.homeLocationSketch?.length > 0 ? 'Home Sketch' : null,
+                          ].filter(Boolean).join(', ') || 'No documents'
+                        }
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Deleted: {new Date(doc.updatedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-green-300 text-green-600 hover:bg-green-50"
+                        onClick={() => handleRestoreDocument(doc.user?._id || doc._id)}
+                      >
+                        <RefreshCw className="mr-1 h-3 w-3" />
+                        Restore
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                        onClick={async () => {
+                          const confirmed = await confirm({
+                            title: "Permanently Delete Documents",
+                            description: "This action cannot be undone. All documents will be permanently removed from the system.",
+                            confirmText: "Delete Permanently",
+                            cancelText: "Cancel",
+                            type: "danger"
+                          });
+                          if (confirmed) {
+                            handlePermanentDeleteDocument(doc.user?._id || doc._id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="mr-1 h-3 w-3" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Image Preview Dialog */}
+      {/* Image Preview Dialog with Zoom */}
       {previewImage && (
         <Dialog open={!!previewImage} onOpenChange={(open) => !open && closePreview()}>
           <DialogContent className="max-w-4xl max-h-[90vh] p-0">
             <DialogHeader className="p-4 pb-2">
-              <DialogTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                {previewImage.name}
+              <DialogTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  {previewImage.name}
+                </div>
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-1 mr-8">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleZoomOut}
+                    disabled={zoomLevel <= 0.5}
+                    className="h-8 w-8 p-0"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium w-14 text-center">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleZoomIn}
+                    disabled={zoomLevel >= 3}
+                    className="h-8 w-8 p-0"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetZoom}
+                    className="h-8 w-8 p-0 ml-1"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
               </DialogTitle>
             </DialogHeader>
-            <div className="px-4 pb-4 flex items-center justify-center overflow-auto">
+            <div 
+              className="px-4 pb-4 overflow-hidden max-h-[75vh] flex items-center justify-center"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              style={{ cursor: zoomLevel > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+            >
               <img 
                 src={previewImage.url} 
                 alt={previewImage.name}
-                className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                draggable={false}
+                className="object-contain rounded-lg select-none"
+                style={{ 
+                  transform: `scale(${zoomLevel}) translate(${imagePosition.x / zoomLevel}px, ${imagePosition.y / zoomLevel}px)`,
+                  transformOrigin: 'center center',
+                  maxWidth: zoomLevel <= 1 ? '100%' : 'none',
+                  maxHeight: zoomLevel <= 1 ? '70vh' : 'none',
+                  transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+                }}
+                onWheel={(e) => {
+                  e.preventDefault();
+                  if (e.deltaY < 0) {
+                    handleZoomIn();
+                  } else {
+                    handleZoomOut();
+                  }
+                }}
               />
             </div>
           </DialogContent>
@@ -662,6 +1031,7 @@ export function ApplicationReview() {
   const [selectedApplication, setSelectedApplication] = useState<any>(null)
   const [interviewDate, setInterviewDate] = useState("")
   const [interviewTime, setInterviewTime] = useState("09:00")
+  const [interviewEndTime, setInterviewEndTime] = useState("10:00")
   const [isRescheduling, setIsRescheduling] = useState(false)
   const [personalityTestData, setPersonalityTestData] = useState<any>(null);
   const [personalityTestLoading, setPersonalityTestLoading] = useState(false);
@@ -675,6 +1045,15 @@ export function ApplicationReview() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [applicationToEdit, setApplicationToEdit] = useState<any>(null)
   const [personalityTestReviewed, setPersonalityTestReviewed] = useState(false)
+  
+  // Interview state - from Interview model
+  const [interviewData, setInterviewData] = useState<any>(null)
+  const [interviewLoading, setInterviewLoading] = useState(false)
+  const [deletedInterviews, setDeletedInterviews] = useState<any[]>([])
+  const [deletedInterviewsLoading, setDeletedInterviewsLoading] = useState(false)
+  const [interviewSubTab, setInterviewSubTab] = useState<'active' | 'deleted'>('active')
+  const [interviewers, setInterviewers] = useState<any[]>([])
+  const [selectedInterviewer, setSelectedInterviewer] = useState<string>("")
   
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -729,6 +1108,190 @@ export function ApplicationReview() {
   useEffect(() => {
     fetchApplications(1, sortOrder, debouncedSearch, filter)
   }, [debouncedSearch, filter, sortOrder, fetchApplications])
+
+  // Fetch interview data for an application
+  const fetchInterviewData = async (applicationId: string) => {
+    setInterviewLoading(true)
+    setInterviewData(null)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/application/${applicationId}`,
+        { credentials: 'include' }
+      )
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('📅 Interview data fetched:', result)
+        setInterviewData(result)
+      } else {
+        console.log('📅 No interview found or error fetching')
+        setInterviewData({ interview: null, isScheduled: false })
+      }
+    } catch (error) {
+      console.error('Error fetching interview data:', error)
+      setInterviewData({ interview: null, isScheduled: false })
+    } finally {
+      setInterviewLoading(false)
+    }
+  }
+
+  // Fetch deleted interviews
+  const fetchDeletedInterviews = async () => {
+    setDeletedInterviewsLoading(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interviews/deleted`,
+        { credentials: 'include' }
+      )
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('🗑️ Deleted interviews fetched:', result)
+        // Handle both array and { data: [...] } formats
+        const interviews = Array.isArray(result) ? result : (result.data || [])
+        setDeletedInterviews(interviews)
+      } else {
+        console.log('🗑️ No deleted interviews found or error fetching')
+        setDeletedInterviews([])
+      }
+    } catch (error) {
+      console.error('Error fetching deleted interviews:', error)
+      setDeletedInterviews([])
+    } finally {
+      setDeletedInterviewsLoading(false)
+    }
+  }
+
+  // Fetch interviewers (oas_staff and department_head users)
+  const fetchInterviewers = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/users/interviewers`,
+        { credentials: 'include' }
+      )
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('👥 Interviewers fetched:', result)
+        setInterviewers(result.data || [])
+      } else {
+        console.log('👥 No interviewers found or error fetching')
+        setInterviewers([])
+      }
+    } catch (error) {
+      console.error('Error fetching interviewers:', error)
+      setInterviewers([])
+    }
+  }
+
+  // Fetch interviewers on component mount
+  useEffect(() => {
+    fetchInterviewers()
+  }, [])
+
+  // Delete (soft delete) an interview
+  const handleDeleteInterview = async (interviewId: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${interviewId}/soft`,
+        {
+          method: 'DELETE',
+          credentials: 'include'
+        }
+      )
+      
+      if (response.ok) {
+        toast({
+          title: "Interview Deleted",
+          description: "The interview has been moved to trash. You can restore it from the Deleted tab.",
+        })
+        // Refresh interview data
+        if (selectedApplication?._id) {
+          fetchInterviewData(selectedApplication._id)
+        }
+        // Refresh deleted interviews list
+        fetchDeletedInterviews()
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to delete interview')
+      }
+    } catch (error) {
+      console.error('Error deleting interview:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete interview",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Restore a deleted interview
+  const handleRestoreInterview = async (interviewId: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${interviewId}/restore`,
+        {
+          method: 'PUT',
+          credentials: 'include'
+        }
+      )
+      
+      if (response.ok) {
+        toast({
+          title: "Interview Restored",
+          description: "The interview schedule has been restored.",
+        })
+        // Refresh deleted interviews list
+        fetchDeletedInterviews()
+        // Refresh current interview data if we're viewing the same application
+        if (selectedApplication?._id) {
+          fetchInterviewData(selectedApplication._id)
+        }
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to restore interview')
+      }
+    } catch (error) {
+      console.error('Error restoring interview:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to restore interview",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Permanently delete an interview
+  const handlePermanentDeleteInterview = async (interviewId: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${interviewId}/permanent`,
+        {
+          method: 'DELETE',
+          credentials: 'include'
+        }
+      )
+      
+      if (response.ok) {
+        toast({
+          title: "Interview Permanently Deleted",
+          description: "The interview has been permanently removed.",
+        })
+        // Refresh deleted interviews list
+        fetchDeletedInterviews()
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to permanently delete interview')
+      }
+    } catch (error) {
+      console.error('Error permanently deleting interview:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to permanently delete interview",
+        variant: "destructive"
+      })
+    }
+  }
 
   const goToPage = (page: number) => {
     if (page < 1 || page > pagination.totalPages) return
@@ -831,6 +1394,7 @@ export function ApplicationReview() {
     console.log('🔥 handleScheduleInterview called');
     console.log('📅 interviewDate:', interviewDate);
     console.log('⏰ interviewTime:', interviewTime);
+    console.log('⏰ interviewEndTime:', interviewEndTime);
     console.log('📋 targetApplication:', targetApplication);
     
     if (!interviewDate) {
@@ -845,7 +1409,26 @@ export function ApplicationReview() {
     if (!interviewTime) {
       toast({
         title: "Error",
-        description: "Please select an interview time",
+        description: "Please select a start time",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!interviewEndTime) {
+      toast({
+        title: "Error",
+        description: "Please select an end time",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate end time is after start time
+    if (interviewEndTime <= interviewTime) {
+      toast({
+        title: "Error",
+        description: "End time must be after start time",
         variant: "destructive",
       })
       return
@@ -860,10 +1443,20 @@ export function ApplicationReview() {
       return
     }
 
+    if (!selectedInterviewer) {
+      toast({
+        title: "Error",
+        description: "Please select an interviewer",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
-      // Combine date and time into a full datetime string
-      const interviewDateTime = `${interviewDate}T${interviewTime}:00`;
-      console.log('Scheduling interview for application:', targetApplication._id, 'at', interviewDateTime);
+      // Combine date and time into full datetime strings
+      const startDateTime = `${interviewDate}T${interviewTime}:00`;
+      const endDateTime = `${interviewDate}T${interviewEndTime}:00`;
+      console.log('Scheduling interview for application:', targetApplication._id, 'from', startDateTime, 'to', endDateTime, 'interviewer:', selectedInterviewer);
       
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/admin/interview/schedule`, {
         method: 'POST',
@@ -873,7 +1466,9 @@ export function ApplicationReview() {
         },
         body: JSON.stringify({
           applicationId: targetApplication._id,
-          interviewDate: interviewDateTime,
+          startTime: startDateTime,
+          endTime: endDateTime,
+          interviewerId: selectedInterviewer,
           notes: 'Scheduled via OAS Staff Dashboard'
         })
       });
@@ -921,7 +1516,7 @@ export function ApplicationReview() {
         }
       } else {
         // New interview scheduled
-        const scheduledDateTime = formatDateTime(interviewDateTime);
+        const scheduledDateTime = formatDateTime(startDateTime);
         toast({
           title: "Interview Scheduled",
           description: `Interview scheduled for ${targetApplication.firstName} ${targetApplication.lastName} on ${scheduledDateTime}. Interview ID: ${result.interviewId}`,
@@ -936,6 +1531,7 @@ export function ApplicationReview() {
       setSelectedApplication(null)
       setInterviewDate("")
       setInterviewTime("09:00")
+      setInterviewEndTime("10:00")
       setIsRescheduling(false)
       
       // Refresh the applications list to show updated status
@@ -946,6 +1542,116 @@ export function ApplicationReview() {
       toast({
         title: "Error",
         description: `Failed to schedule interview: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSendReminder = async () => {
+    if (!selectedApplication || !interviewData?.interview) {
+      toast({
+        title: "Error",
+        description: "No interview data available",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const userId = selectedApplication.user?._id
+      if (!userId) {
+        toast({
+          title: "Error",
+          description: "Could not find applicant user ID",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const interviewDate = new Date(interviewData.interview.startTime)
+      const formattedDate = interviewDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+      const formattedTime = interviewDate.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: userId,
+          type: 'interview_reminder',
+          title: 'Interview Reminder',
+          message: `This is a reminder for your upcoming interview scheduled on ${formattedDate} at ${formattedTime}. Please make sure to be available on time.`,
+          priority: 'high',
+          metadata: {
+            interviewId: interviewData.interview._id,
+            applicationId: selectedApplication._id,
+            scheduledDate: interviewData.interview.startTime
+          }
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Reminder Sent",
+          description: "Interview reminder has been sent to the applicant.",
+        })
+      } else {
+        throw new Error(result.message || 'Failed to send reminder')
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error)
+      toast({
+        title: "Error",
+        description: `Failed to send reminder: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleFinishInterview = async (interviewId: string, isCurrentlyFinished: boolean) => {
+    try {
+      const endpoint = isCurrentlyFinished ? 'revert-finish' : 'finish'
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${interviewId}/${endpoint}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: isCurrentlyFinished ? "Interview Reverted" : "Interview Finished",
+          description: isCurrentlyFinished 
+            ? "Interview has been marked as not finished." 
+            : "Interview has been marked as finished.",
+        })
+        // Refresh interview data
+        if (selectedApplication) {
+          fetchInterviewData(selectedApplication._id)
+        }
+      } else {
+        throw new Error(result.message || 'Failed to update interview status')
+      }
+    } catch (error) {
+      console.error('Error updating interview status:', error)
+      toast({
+        title: "Error",
+        description: `Failed to update interview status: ${error instanceof Error ? error.message : String(error)}`,
         variant: "destructive",
       })
     }
@@ -1418,7 +2124,7 @@ export function ApplicationReview() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-3xl">
+                          <DialogContent className="max-w-6xl w-[95vw] h-[95vh] overflow-hidden flex flex-col">
                             <DialogHeader>
                               <DialogTitle>Application Details</DialogTitle>
                               <DialogDescription>
@@ -1426,16 +2132,21 @@ export function ApplicationReview() {
                               </DialogDescription>
                             </DialogHeader>
 
-                            <Tabs defaultValue="details" className="w-full">
+                            <Tabs defaultValue="details" className="w-full flex-1 flex flex-col overflow-hidden">
                               <TabsList className="grid w-full grid-cols-4">
                                 <TabsTrigger value="details">Details</TabsTrigger>
                                 <TabsTrigger value="documents">Documents</TabsTrigger>
                                 <TabsTrigger value="personality">Personality Test</TabsTrigger>
-                                <TabsTrigger value="interview">Interview</TabsTrigger>
+                                <TabsTrigger 
+                                  value="interview"
+                                  onClick={() => fetchInterviewData(application._id)}
+                                >
+                                  Interview
+                                </TabsTrigger>
                               </TabsList>
 
-                              <TabsContent value="details" className="space-y-4 py-4">
-                                <div className="grid grid-cols-2 gap-4 max-h-80 overflow-y-auto pr-2">
+                              <TabsContent value="details" className="space-y-4 py-4 overflow-y-auto">
+                                <div className="grid grid-cols-2 gap-4">
                                   <div>
                                     <p className="text-sm font-medium text-gray-500">Full Name</p>
                                     <p>{application.firstName} {application.middleName} {application.lastName} {application.suffix}</p>
@@ -1531,7 +2242,7 @@ export function ApplicationReview() {
                                 </div>
                               </TabsContent>
 
-                              <TabsContent value="documents" className="space-y-4 py-4">
+                              <TabsContent value="documents" className="py-4 overflow-y-auto pr-2">
                                 <DocumentChecker 
                                   applicationId={application._id} 
                                   userId={application.user?._id || application.userId} 
@@ -1539,125 +2250,75 @@ export function ApplicationReview() {
                                 />
                               </TabsContent>
 
-                              <TabsContent value="personality" className="space-y-4 py-4">
+                              <TabsContent value="personality" className="py-4 overflow-y-auto pr-2">
                                 {personalityTestLoading ? (
                                   <div className="flex items-center justify-center py-8">
                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
                                     <span className="ml-2 text-sm text-gray-600">Loading personality test data...</span>
                                   </div>
                                 ) : personalityTestData ? (
-                                  <div className="max-w-2xl mx-auto">
-                                    {/* Assessment Completed Card - Matching Applicant View */}
-                                    <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+                                  <div className="max-w-xl mx-auto">
+                                    {/* Assessment Completed Card - Compact Version */}
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                                       {/* Checkmark Icon */}
-                                      <div className="flex justify-center mb-4">
-                                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                                          <CheckCircle className="w-8 h-8 text-green-600" />
+                                      <div className="flex justify-center mb-2">
+                                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                          <CheckCircle className="w-5 h-5 text-green-600" />
                                         </div>
                                       </div>
 
                                       {/* Title */}
-                                      <h2 className="text-2xl font-bold text-green-800 mb-2">
+                                      <h2 className="text-lg font-bold text-green-800 mb-1">
                                         Assessment Completed
                                       </h2>
                                       
-                                      {/* Subtitle */}
-                                      <p className="text-green-700 mb-4">
-                                        Applicant is done taking the personality test.
-                                      </p>
-
-                                      {/* Status Message */}
-                                      <p className="text-sm text-green-600 mb-6">
-                                        Please proceed to the{' '}
-                                        <span className="font-semibold underline cursor-pointer"
-                                              onClick={() => {
-                                                // Switch to interview tab if available
-                                                const interviewTab = document.querySelector('[value="interview"]') as HTMLElement;
-                                                if (interviewTab) interviewTab.click();
-                                              }}>
-                                          Application Status
-                                        </span>{' '}
-                                        tab and wait for the approval.
-                                      </p>
-
-                                      {/* Completion Message */}
-                                      <div className="bg-white/50 rounded-lg p-4 mb-6">
-                                        <p className="text-sm text-gray-700 mb-4">
-                                          Thank you for completing the personality assessment. Your responses have been recorded
-                                          and will be reviewed by the scholarship committee.
-                                        </p>
-                                        
-                                        <p className="text-sm text-gray-600 mb-4">
-                                          You answered {personalityTestData.answers?.length || 0} out of {personalityTestData.questions?.length || personalityTestData.answers?.length || 0} questions.
-                                        </p>
-
-                                        {/* Risk Level Display */}
-                                        <div className="space-y-2">
-                                          <p className="text-lg font-semibold text-gray-800">
-                                            Risk Level: <span className={`${
-                                              personalityTestData.riskLevelIndicator === 'Low' 
-                                                ? 'text-green-600'
-                                                : personalityTestData.riskLevelIndicator === 'Medium'
-                                                ? 'text-yellow-600'
-                                                : 'text-red-600'
-                                            }`}>
-                                              {personalityTestData.riskLevelIndicator || 'Unknown'}
-                                            </span>
-                                          </p>
-                                        </div>
-
-                                        {/* Guidance Message */}
-                                        <p className="text-sm text-gray-600 mt-4">
-                                          <strong>Guidance:</strong> {' '}
-                                          {personalityTestData.riskLevelIndicator === 'Low' && 'Excellent! Your responses demonstrate strong personal qualities that align well with our scholarship values.'}
-                                          {personalityTestData.riskLevelIndicator === 'Medium' && 'Your responses show a balanced profile. Continue demonstrating your commitment to academic excellence.'}
-                                          {personalityTestData.riskLevelIndicator === 'High' && 'Your responses indicate areas that may need attention. The scholarship committee will review your application carefully.'}
-                                          {!personalityTestData.riskLevelIndicator && 'Your responses show a balanced profile. Continue demonstrating your commitment to academic excellence.'}
-                                        </p>
+                                      {/* Risk Level & Questions - Inline */}
+                                      <div className="flex items-center justify-center gap-4 mb-3 text-sm">
+                                        <span className="text-gray-600">
+                                          {personalityTestData.answers?.length || 0}/{personalityTestData.questions?.length || personalityTestData.answers?.length || 0} questions
+                                        </span>
+                                        <span className="text-gray-400">•</span>
+                                        <span className={`font-semibold ${
+                                          personalityTestData.riskLevelIndicator === 'Low' 
+                                            ? 'text-green-600'
+                                            : personalityTestData.riskLevelIndicator === 'Medium'
+                                            ? 'text-yellow-600'
+                                            : 'text-red-600'
+                                        }`}>
+                                          {personalityTestData.riskLevelIndicator || 'Unknown'} Risk
+                                        </span>
                                       </div>
 
-                                      {/* Additional Test Details */}
-                                      <div className="bg-white/30 rounded-lg p-4 text-left">
-                                        <h4 className="font-semibold text-gray-700 mb-3 text-center">Test Summary</h4>
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                      {/* Test Summary - Compact Grid */}
+                                      <div className="bg-white/50 rounded-lg p-3 text-left">
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
                                           <div>
-                                            <span className="text-gray-600">Completion Date:</span>
-                                            <p className="font-medium text-gray-800">
+                                            <span className="text-gray-500">Completed:</span>
+                                            <span className="ml-1 font-medium text-gray-700">
                                               {personalityTestData.endTime 
                                                 ? new Date(personalityTestData.endTime).toLocaleDateString()
                                                 : 'N/A'
                                               }
-                                            </p>
+                                            </span>
                                           </div>
                                           <div>
-                                            <span className="text-gray-600">Time Taken:</span>
-                                            <p className="font-medium text-gray-800">
+                                            <span className="text-gray-500">Duration:</span>
+                                            <span className="ml-1 font-medium text-gray-700">
                                               {personalityTestData.startTime && personalityTestData.endTime
-                                                ? `${Math.round((new Date(personalityTestData.endTime).getTime() - new Date(personalityTestData.startTime).getTime()) / (1000 * 60))} minutes`
+                                                ? `${Math.round((new Date(personalityTestData.endTime).getTime() - new Date(personalityTestData.startTime).getTime()) / (1000 * 60))} min`
                                                 : 'N/A'
                                               }
-                                            </p>
-                                          </div>
-                                          <div>
-                                            <span className="text-gray-600">Test ID:</span>
-                                            <p className="font-medium text-gray-800 text-xs">
-                                              {personalityTestData._id?.slice(-8) || 'N/A'}
-                                            </p>
-                                          </div>
-                                          <div>
-                                            <span className="text-gray-600">Status:</span>
-                                            <p className="font-medium text-green-700">
-                                              Completed
-                                            </p>
+                                            </span>
                                           </div>
                                         </div>
                                       </div>
 
                                       {/* Action Buttons - Only show one button based on review status */}
-                                      <div className="mt-6 flex gap-3">
+                                      <div className="mt-4 flex justify-center gap-3">
                                         {!personalityTestReviewed ? (
                                           <Button 
-                                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
+                                            size="sm"
+                                            className="bg-green-600 hover:bg-green-700 text-white"
                                             onClick={async () => {
                                               try {
                                                 const userId = selectedApplication?.user?._id || selectedApplication?.userId;
@@ -1778,142 +2439,177 @@ export function ApplicationReview() {
                                 )}
                               </TabsContent>
 
-                              <TabsContent value="interview" className="space-y-4 py-4">
-                                {application.interviewScheduled ? (
-                                  <div className="space-y-4">
-                                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                                      <div className="flex items-start">
-                                        <div className="flex-shrink-0">
-                                          <Calendar className="h-5 w-5 text-blue-400" />
-                                        </div>
-                                        <div className="ml-3 flex-1">
-                                          <p className="text-sm text-blue-700 font-semibold mb-1">
-                                            Interview Scheduled
-                                          </p>
-                                          {application.interviewDate ? (
-                                            <div className="space-y-1">
-                                              <p className="text-sm font-medium text-blue-800">
-                                                {new Date(application.interviewDate).toLocaleDateString('en-US', {
-                                                  weekday: 'long',
-                                                  year: 'numeric',
-                                                  month: 'long',
-                                                  day: 'numeric'
-                                                })}
-                                              </p>
-                                              <p className="text-sm font-medium text-blue-800">
-                                                <strong>Time:</strong> {new Date(application.interviewDate).toLocaleTimeString('en-US', {
-                                                  hour: 'numeric',
-                                                  minute: '2-digit',
-                                                  hour12: true
-                                                })}
-                                              </p>
-                                            </div>
-                                          ) : (
-                                            <p className="text-sm text-gray-500">Date not available</p>
-                                          )}
-                                        </div>
+                              <TabsContent value="interview" className="py-4 overflow-y-auto pr-2">
+                                {/* Sub-tabs for Active and Deleted Interviews */}
+                                <div className="mb-4">
+                                  <div className="flex border-b">
+                                    <button
+                                      className={`px-4 py-2 text-sm font-medium ${interviewSubTab === 'active' ? 'border-b-2 border-[#800000] text-[#800000]' : 'text-gray-500 hover:text-gray-700'}`}
+                                      onClick={() => setInterviewSubTab('active')}
+                                    >
+                                      Active Interview
+                                    </button>
+                                    <button
+                                      className={`px-4 py-2 text-sm font-medium ${interviewSubTab === 'deleted' ? 'border-b-2 border-[#800000] text-[#800000]' : 'text-gray-500 hover:text-gray-700'}`}
+                                      onClick={() => {
+                                        setInterviewSubTab('deleted')
+                                        fetchDeletedInterviews()
+                                      }}
+                                    >
+                                      Deleted Interviews
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {interviewSubTab === 'active' ? (
+                                  <>
+                                    {interviewLoading ? (
+                                      <div className="flex items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                                        <span className="ml-2 text-sm text-gray-600">Loading interview data...</span>
                                       </div>
-                                    </div>
-
-                                    {application.interviewCompleted ? (
-                                      <div>
-                                        <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-4">
-                                          <div className="flex">
+                                    ) : interviewData?.isScheduled && interviewData?.interview ? (
+                                      <div className="space-y-4">
+                                        {/* Interview Scheduled Banner */}
+                                        <div className={`${interviewData.interview.is_finished ? 'bg-green-50 border-green-400' : 'bg-blue-50 border-blue-400'} border-l-4 p-4`}>
+                                          <div className="flex items-start">
                                             <div className="flex-shrink-0">
-                                              <CheckCircle className="h-5 w-5 text-green-400" />
-                                            </div>
-                                            <div className="ml-3">
-                                              <p className="text-sm text-green-700">
-                                                <strong>Interview Completed</strong>
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        <div className="space-y-4">
-                                          <div>
-                                            <h3 className="text-sm font-medium text-gray-500">Interviewer Remarks</h3>
-                                            <p className="mt-1 p-3 bg-gray-50 rounded-md">
-                                              The applicant demonstrated excellent communication skills and a clear
-                                              understanding of their academic goals. Their responses aligned well with
-                                              the scholarship's objectives.
-                                            </p>
-                                          </div>
-
-                                          <div>
-                                            <h3 className="text-sm font-medium text-gray-500">Final Recommendation</h3>
-                                            <div className="mt-1">
-                                              {application.status === "approved" ? (
-                                                <Badge className="bg-green-500">Recommended for Approval</Badge>
+                                              {interviewData.interview.is_finished ? (
+                                                <CheckCircle className="h-5 w-5 text-green-500" />
                                               ) : (
-                                                <Badge className="bg-red-500">Not Recommended</Badge>
+                                                <Calendar className="h-5 w-5 text-blue-400" />
                                               )}
                                             </div>
+                                            <div className="ml-3 flex-1">
+                                              <p className={`text-sm ${interviewData.interview.is_finished ? 'text-green-700' : 'text-blue-700'} font-semibold mb-1`}>
+                                                {interviewData.interview.is_finished ? 'Interview Completed' : 'Interview Scheduled'}
+                                              </p>
+                                              <div className="space-y-1">
+                                                <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                  <strong>Interview ID:</strong> {interviewData.interview.interviewId}
+                                                </p>
+                                                <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                  <strong>Date:</strong> {new Date(interviewData.interview.startTime).toLocaleDateString('en-US', {
+                                                    weekday: 'long',
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric'
+                                                  })}
+                                                </p>
+                                                <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                  <strong>Time:</strong> {new Date(interviewData.interview.startTime).toLocaleTimeString('en-US', {
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                    hour12: true
+                                                  })} - {new Date(interviewData.interview.endTime).toLocaleTimeString('en-US', {
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                    hour12: true
+                                                  })}
+                                                </p>
+                                                {interviewData.interview.interviewer && (
+                                                  <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                    <strong>Interviewer:</strong> {interviewData.interview.interviewer.name || interviewData.interview.interviewer.email}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </div>
                                           </div>
                                         </div>
 
-                                        <div className="pt-4 flex gap-2">
-                                          <Button
-                                            className="bg-green-600 hover:bg-green-700"
-                                            onClick={() => handleUpdateStatus("approved")}
-                                          >
-                                            <CheckCircle className="mr-2 h-4 w-4" />
-                                            Approve Application
-                                          </Button>
+                                        {/* Actions */}
+                                        <div className="pt-4">
+                                          {!isRescheduling ? (
+                                            <div className="flex gap-3 flex-wrap">
+                                              <Button
+                                                variant="outline"
+                                                onClick={handleSendReminder}
+                                              >
+                                                <MessageSquare className="mr-2 h-4 w-4" />
+                                                Send Reminder
+                                              </Button>
 
-                                          <Button
-                                            className="bg-red-600 hover:bg-red-700"
-                                            onClick={() => handleUpdateStatus("rejected")}
-                                          >
-                                            <XCircle className="mr-2 h-4 w-4" />
-                                            Reject Application
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="pt-4">
-                                        <p className="text-sm text-gray-500 mb-4">
-                                          The interview has been scheduled but not yet completed.
-                                        </p>
+                                              <Button
+                                                variant="outline"
+                                                className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                                onClick={() => {
+                                                  setIsRescheduling(true)
+                                                  if (interviewData.interview.startTime) {
+                                                    const existingStartDate = new Date(interviewData.interview.startTime);
+                                                    setInterviewDate(existingStartDate.toISOString().split('T')[0]);
+                                                    setInterviewTime(existingStartDate.toTimeString().slice(0, 5));
+                                                  } else {
+                                                    setInterviewDate('');
+                                                    setInterviewTime('09:00');
+                                                  }
+                                                  if (interviewData.interview.endTime) {
+                                                    const existingEndDate = new Date(interviewData.interview.endTime);
+                                                    setInterviewEndTime(existingEndDate.toTimeString().slice(0, 5));
+                                                  } else {
+                                                    setInterviewEndTime('10:00');
+                                                  }
+                                                  // Set current interviewer
+                                                  if (interviewData.interview.interviewer?._id) {
+                                                    setSelectedInterviewer(interviewData.interview.interviewer._id);
+                                                  }
+                                                }}
+                                              >
+                                                <Calendar className="mr-2 h-4 w-4" />
+                                                Reschedule
+                                              </Button>
 
-                                        {!isRescheduling ? (
-                                          <div className="flex gap-3">
-                                            <Button
-                                              variant="outline"
-                                              onClick={() => {
-                                                toast({
-                                                  title: "Reminder Sent",
-                                                  description:
-                                                    "Interview reminder has been sent to the applicant and panelists.",
-                                                })
-                                              }}
-                                            >
-                                              <MessageSquare className="mr-2 h-4 w-4" />
-                                              Send Reminder
-                                            </Button>
+                                              <Button
+                                                variant="outline"
+                                                className="border-red-300 text-red-600 hover:bg-red-50"
+                                                onClick={async () => {
+                                                  const confirmed = await confirm({
+                                                    title: "Delete Interview",
+                                                    description: `Are you sure you want to delete the interview for ${application.firstName} ${application.lastName}? You can restore it later from the Deleted tab.`,
+                                                    confirmText: "Delete",
+                                                    cancelText: "Cancel",
+                                                    type: "danger"
+                                                  });
+                                                  if (confirmed) {
+                                                    handleDeleteInterview(interviewData.interview._id);
+                                                  }
+                                                }}
+                                              >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Delete Interview
+                                              </Button>
 
-                                            <Button
-                                              variant="outline"
-                                              className="border-orange-300 text-orange-600 hover:bg-orange-50"
-                                              onClick={() => {
-                                                setIsRescheduling(true)
-                                                if (application.interviewDate) {
-                                                  const existingDate = new Date(application.interviewDate);
-                                                  setInterviewDate(existingDate.toISOString().split('T')[0]);
-                                                  setInterviewTime(existingDate.toTimeString().slice(0, 5));
-                                                } else {
-                                                  setInterviewDate('');
-                                                  setInterviewTime('09:00');
+                                              <Button
+                                                variant={interviewData.interview.is_finished ? "destructive" : "outline"}
+                                                className={interviewData.interview.is_finished 
+                                                  ? "" 
+                                                  : "border-green-300 text-green-600 hover:bg-green-50"
                                                 }
-                                              }}
-                                            >
-                                              <Calendar className="mr-2 h-4 w-4" />
-                                              Reschedule
-                                            </Button>
-                                          </div>
-                                        ) : (
-                                          <div className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-4">
+                                                onClick={() => handleFinishInterview(interviewData.interview._id, interviewData.interview.is_finished)}
+                                              >
+                                                <CheckCircle className="mr-2 h-4 w-4" />
+                                                {interviewData.interview.is_finished ? "Revert" : "Finish Interview"}
+                                              </Button>
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-4">
+                                              <div className="space-y-2">
+                                                <Label htmlFor="reschedule-interviewer">Interviewer</Label>
+                                                <Select
+                                                  value={selectedInterviewer}
+                                                  onValueChange={setSelectedInterviewer}
+                                                >
+                                                  <SelectTrigger id="reschedule-interviewer">
+                                                    <SelectValue placeholder="Select an interviewer" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {interviewers.map((interviewer: any) => (
+                                                      <SelectItem key={interviewer._id} value={interviewer._id}>
+                                                        {interviewer.name} ({interviewer.role?.name === 'oas_staff' ? 'OAS Staff' : (interviewer.department?.name || 'Department Head')})
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
                                               <div className="space-y-2">
                                                 <Label htmlFor="reschedule-date">New Interview Date</Label>
                                                 <Input
@@ -1924,69 +2620,98 @@ export function ApplicationReview() {
                                                   min={new Date().toISOString().split('T')[0]}
                                                 />
                                               </div>
-                                              <div className="space-y-2">
-                                                <Label htmlFor="reschedule-time">New Interview Time</Label>
-                                                <Input
-                                                  id="reschedule-time"
-                                                  type="time"
-                                                  value={interviewTime}
-                                                  onChange={(e) => setInterviewTime(e.target.value)}
-                                                />
+                                              <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                  <Label htmlFor="reschedule-start-time">Start Time</Label>
+                                                  <Input
+                                                    id="reschedule-start-time"
+                                                    type="time"
+                                                    value={interviewTime}
+                                                    onChange={(e) => {
+                                                      setInterviewTime(e.target.value);
+                                                      // Auto-set end time to 1 hour after start time
+                                                      const [hours, minutes] = e.target.value.split(':').map(Number);
+                                                      const endHours = (hours + 1) % 24;
+                                                      setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+                                                    }}
+                                                  />
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label htmlFor="reschedule-end-time">End Time</Label>
+                                                  <Input
+                                                    id="reschedule-end-time"
+                                                    type="time"
+                                                    value={interviewEndTime}
+                                                    onChange={(e) => setInterviewEndTime(e.target.value)}
+                                                  />
+                                                </div>
+                                              </div>
+
+                                              <div className="flex gap-2">
+                                                <Button
+                                                  className="bg-[#800000] hover:bg-[#600000]"
+                                                  onClick={async () => {
+                                                    await handleScheduleInterview(application);
+                                                    fetchInterviewData(application._id);
+                                                  }}
+                                                  disabled={!selectedInterviewer || !interviewDate}
+                                                >
+                                                  <Calendar className="mr-2 h-4 w-4" />
+                                                  Confirm Reschedule
+                                                </Button>
+                                                
+                                                <Button
+                                                  variant="outline"
+                                                  onClick={() => {
+                                                    setIsRescheduling(false)
+                                                    setInterviewTime("09:00")
+                                                    setInterviewEndTime("10:00")
+                                                    setSelectedInterviewer("")
+                                                  }}
+                                                >
+                                                  Cancel
+                                                </Button>
                                               </div>
                                             </div>
-
-                                            <div className="flex gap-2">
-                                              <Button
-                                                className="bg-[#800000] hover:bg-[#600000]"
-                                                onClick={() => handleScheduleInterview(application)}
-                                              >
-                                                <Calendar className="mr-2 h-4 w-4" />
-                                                Confirm Reschedule
-                                              </Button>
-                                              
-                                              <Button
-                                                variant="outline"
-                                                onClick={() => {
-                                                  setIsRescheduling(false)
-                                                  setInterviewTime("09:00")
-                                                }}
-                                              >
-                                                Cancel
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="space-y-4">
-                                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                                      <div className="flex">
-                                        <div className="flex-shrink-0">
-                                          <Calendar className="h-5 w-5 text-blue-400" />
-                                        </div>
-                                        <div className="ml-3">
-                                          <p className="text-sm text-blue-700">
-                                            <strong>Interview Status:</strong> {application.interviewScheduled ? 'Scheduled' : 'Not Scheduled'}
-                                          </p>
-                                          {application.interviewDate && (
-                                            <p className="text-sm text-blue-700 mt-1">
-                                              <strong>Date:</strong> {new Date(application.interviewDate).toLocaleDateString('en-US', { 
-                                                weekday: 'long', 
-                                                year: 'numeric', 
-                                                month: 'long', 
-                                                day: 'numeric' 
-                                              })}
-                                            </p>
                                           )}
                                         </div>
                                       </div>
-                                    </div>
+                                    ) : (
+                                      <div className="space-y-4">
+                                        {/* Not Scheduled Banner */}
+                                        <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                                          <div className="flex">
+                                            <div className="flex-shrink-0">
+                                              <Calendar className="h-5 w-5 text-blue-400" />
+                                            </div>
+                                            <div className="ml-3">
+                                              <p className="text-sm text-blue-700">
+                                                <strong>Interview Status:</strong> Not Scheduled
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
 
-                                    {!application.interviewScheduled && (
-                                      <div className="space-y-4 pt-4">
-                                        <div className="grid grid-cols-2 gap-4">
+                                        {/* Schedule Form */}
+                                        <div className="space-y-4 pt-4">
+                                          <div className="space-y-2">
+                                            <Label htmlFor="interview-interviewer">Interviewer</Label>
+                                            <Select
+                                              value={selectedInterviewer}
+                                              onValueChange={setSelectedInterviewer}
+                                            >
+                                              <SelectTrigger id="interview-interviewer">
+                                                <SelectValue placeholder="Select an interviewer" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {interviewers.map((interviewer: any) => (
+                                                  <SelectItem key={interviewer._id} value={interviewer._id}>
+                                                    {interviewer.name} ({interviewer.role?.name === 'oas_staff' ? 'OAS Staff' : (interviewer.department?.name || 'Department Head')})
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
                                           <div className="space-y-2">
                                             <Label htmlFor="interview-date">Schedule Interview Date</Label>
                                             <Input
@@ -1997,44 +2722,123 @@ export function ApplicationReview() {
                                               min={new Date().toISOString().split('T')[0]}
                                             />
                                           </div>
-                                          <div className="space-y-2">
-                                            <Label htmlFor="interview-time">Interview Time</Label>
-                                            <Input
-                                              id="interview-time"
-                                              type="time"
-                                              value={interviewTime}
-                                              onChange={(e) => setInterviewTime(e.target.value)}
-                                            />
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                              <Label htmlFor="interview-start-time">Start Time</Label>
+                                              <Input
+                                                id="interview-start-time"
+                                                type="time"
+                                                value={interviewTime}
+                                                onChange={(e) => {
+                                                  setInterviewTime(e.target.value);
+                                                  // Auto-set end time to 1 hour after start time
+                                                  const [hours, minutes] = e.target.value.split(':').map(Number);
+                                                  const endHours = (hours + 1) % 24;
+                                                  setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+                                                }}
+                                              />
+                                            </div>
+                                            <div className="space-y-2">
+                                              <Label htmlFor="interview-end-time">End Time</Label>
+                                              <Input
+                                                id="interview-end-time"
+                                                type="time"
+                                                value={interviewEndTime}
+                                                onChange={(e) => setInterviewEndTime(e.target.value)}
+                                              />
+                                            </div>
                                           </div>
-                                        </div>
 
-                                        <Button
-                                          className="bg-[#800000] hover:bg-[#600000]"
-                                          onClick={() => handleScheduleInterview(application)}
-                                        >
-                                          <Calendar className="mr-2 h-4 w-4" />
-                                          Schedule Interview
-                                        </Button>
+                                          <Button
+                                            className="bg-[#800000] hover:bg-[#600000]"
+                                            onClick={async () => {
+                                              await handleScheduleInterview(application);
+                                              fetchInterviewData(application._id);
+                                            }}
+                                            disabled={!selectedInterviewer || !interviewDate}
+                                          >
+                                            <Calendar className="mr-2 h-4 w-4" />
+                                            Schedule Interview
+                                          </Button>
+                                        </div>
                                       </div>
                                     )}
-                                    
-                                    {application.interviewScheduled && (
-                                      <div className="pt-4">
-                                        <p className="text-sm text-gray-600 mb-3">
-                                          Interview has been scheduled. You can send a reminder to the applicant.
-                                        </p>
-                                        <Button
-                                          variant="outline"
-                                          onClick={() => {
-                                            toast({
-                                              title: "Reminder Sent",
-                                              description: "Interview reminder has been sent to the applicant.",
-                                            })
-                                          }}
-                                        >
-                                          <MessageSquare className="mr-2 h-4 w-4" />
-                                          Send Reminder
-                                        </Button>
+                                  </>
+                                ) : (
+                                  /* Deleted Interviews Tab */
+                                  <div className="space-y-4">
+                                    {deletedInterviewsLoading ? (
+                                      <div className="flex items-center justify-center py-8">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+                                        <span className="ml-2 text-sm text-gray-600">Loading deleted interviews...</span>
+                                      </div>
+                                    ) : deletedInterviews.length === 0 ? (
+                                      <div className="text-center py-8 text-gray-500">
+                                        <Trash2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                        <p>No deleted interviews found.</p>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {deletedInterviews.map((interview: any) => (
+                                          <div key={interview._id} className="bg-gray-50 border rounded-lg p-4">
+                                            <div className="flex justify-between items-start">
+                                              <div className="space-y-1">
+                                                <p className="text-sm font-medium">
+                                                  Interview ID: INT-{new Date(interview.createdAt).getFullYear()}-{String(interview._id).slice(-6).toUpperCase()}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                  <strong>Application:</strong> {interview.applicationId?.firstName} {interview.applicationId?.lastName}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                  <strong>Scheduled:</strong> {new Date(interview.startTime).toLocaleDateString('en-US', {
+                                                    weekday: 'short',
+                                                    year: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric'
+                                                  })} at {new Date(interview.startTime).toLocaleTimeString('en-US', {
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                    hour12: true
+                                                  })}
+                                                </p>
+                                                <p className="text-xs text-gray-400">
+                                                  Deleted: {new Date(interview.updatedAt).toLocaleDateString()}
+                                                </p>
+                                              </div>
+                                              <div className="flex gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="border-green-300 text-green-600 hover:bg-green-50"
+                                                  onClick={() => handleRestoreInterview(interview._id)}
+                                                >
+                                                  <RefreshCw className="mr-1 h-3 w-3" />
+                                                  Restore
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="border-red-300 text-red-600 hover:bg-red-50"
+                                                  onClick={async () => {
+                                                    const confirmed = await confirm({
+                                                      title: "Permanently Delete Interview",
+                                                      description: "This action cannot be undone. The interview will be permanently removed.",
+                                                      confirmText: "Delete Permanently",
+                                                      cancelText: "Cancel",
+                                                      type: "danger"
+                                                    });
+                                                    if (confirmed) {
+                                                      handlePermanentDeleteInterview(interview._id);
+                                                    }
+                                                  }}
+                                                >
+                                                  <Trash2 className="mr-1 h-3 w-3" />
+                                                  Delete
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
                                       </div>
                                     )}
                                   </div>
@@ -2043,15 +2847,18 @@ export function ApplicationReview() {
                             </Tabs>
 
                             <DialogFooter>
-                              <Button 
-                                variant="outline" 
-                                onClick={() => {
-                                  setSelectedApplication(null)
-                                  setIsRescheduling(false)
-                                }}
-                              >
-                                Close
-                              </Button>
+                              <DialogClose asChild>
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => {
+                                    setSelectedApplication(null)
+                                    setIsRescheduling(false)
+                                    setInterviewData(null)
+                                  }}
+                                >
+                                  Close
+                                </Button>
+                              </DialogClose>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>

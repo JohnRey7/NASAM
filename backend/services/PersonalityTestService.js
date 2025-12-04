@@ -233,17 +233,23 @@ class PersonalityTestService {
         delete historyData._id;
         const historyEntry = new ApplicationHistory(historyData);
         await historyEntry.save();
+
+
+        /**
+         * Ww still need the interview and evaluation parts before approving
+         * So commenting this out for now
+         */
         
-        // Update application status to approved
-        await ApplicationForm.findByIdAndUpdate(
-          application._id,
-          { 
-            status: 'approved',
-            updatedAt: new Date(),
-            personalityTestCompletedAt: new Date()
-          },
-          { new: true }
-        );
+        // // Update application status to approved
+        // await ApplicationForm.findByIdAndUpdate(
+        //   application._id,
+        //   { 
+        //     status: 'approved',
+        //     updatedAt: new Date(),
+        //     personalityTestCompletedAt: new Date()
+        //   },
+        //   { new: true }
+        // );
         
         console.log('Application auto-completed after personality test');
       } catch (updateError) {

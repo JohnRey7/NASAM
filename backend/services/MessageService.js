@@ -105,22 +105,39 @@ class MessageService {
   }
 
   /**
-   * Get all messages in a conversation
+   * Get all messages in a conversation with pagination
    */
-  static async getConversationMessages(conversationId, userId, limit = 50, skip = 0) {
+  static async getConversationMessages(conversationId, userId, limit = 30, skip = 0) {
     try {
-      const messages = await Message.find({
+      console.log('📨 Getting messages for conversation:', conversationId, 'user:', userId, 'limit:', limit, 'skip:', skip);
+      
+      const query = {
         conversationId,
-        deleted: false,
+        $or: [{ deleted: false }, { deleted: { $exists: false } }],
         deletedBy: { $ne: userId }
-      })
+      };
+      
+      // Get total count for pagination
+      const totalCount = await Message.countDocuments(query);
+      
+      const messages = await Message.find(query)
         .sort({ timestamp: -1 })
         .limit(limit)
         .skip(skip)
         .populate('senderId', 'name email idNumber role')
         .populate('receiverId', 'name email idNumber role');
 
-      return messages.reverse(); // Return in chronological order
+      console.log('📨 Found', messages.length, 'of', totalCount, 'messages');
+      
+      return {
+        messages: messages.reverse(), // Return in chronological order
+        pagination: {
+          total: totalCount,
+          limit,
+          skip,
+          hasMore: skip + messages.length < totalCount
+        }
+      };
     } catch (error) {
       console.error('❌ Error in getConversationMessages:', error);
       throw error;

@@ -209,6 +209,12 @@ const evaluationSchema = new mongoose.Schema({
     required: true,
     enum: ['First Semester', 'Second Semester', 'Third Semester']
   },
+  // Evaluation result status - determined by backend based on overall rating
+  evaluationStatus: {
+    type: String,
+    enum: ['passed', 'failed'],
+    default: 'passed'
+  },
   is_deleted: { type: Boolean, default: false }
 }, { 
   timestamps: true,

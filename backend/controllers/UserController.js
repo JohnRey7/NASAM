@@ -484,6 +484,25 @@ const UserController = {
       }
       return res.status(500).json({ message: 'Failed to update profile' });
     }
+  },
+
+  // Get users who can be interviewers (oas_staff and department_head)
+  async getInterviewers(req, res) {
+    try {
+      const interviewers = await UserService.getInterviewers();
+
+      return res.json({
+        success: true,
+        message: 'Interviewers retrieved successfully',
+        data: interviewers
+      });
+    } catch (error) {
+      console.error('Get interviewers error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve interviewers'
+      });
+    }
   }
 };
 

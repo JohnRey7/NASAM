@@ -57,22 +57,29 @@ class DocumentService {
       let oldFiles = [];
       
       if (document) {
-        // Collect old files for deletion
-        oldFiles = [
-          ...(document.studentPicture ? [document.studentPicture] : []),
-          ...document.nbiClearance,
-          ...document.gradeReport,
-          ...document.incomeTaxReturn,
-          ...document.goodMoralCertificate,
-          ...document.physicalCheckup,
-          ...document.certificates,
-          ...document.homeLocationSketch
-        ].map(doc => path.join(__dirname, '../', doc.filePath));
+        // For studentPicture (single field): collect old file for deletion if being replaced
+        if (documentData.studentPicture && document.studentPicture) {
+          oldFiles.push(path.join(__dirname, '../', document.studentPicture.filePath));
+        }
 
-        // Update document (only update fields with new data)
+        // Update document - APPEND to array fields, REPLACE single fields
         Object.keys(documentData).forEach(key => {
-          if (key !== 'user' && documentData[key] !== null && (Array.isArray(documentData[key]) ? documentData[key].length > 0 : true)) {
-            document[key] = documentData[key];
+          if (key === 'user') return; // Skip user field
+          
+          if (key === 'studentPicture') {
+            // Single field - replace if new data provided
+            if (documentData[key] !== null) {
+              document[key] = documentData[key];
+            }
+          } else if (Array.isArray(documentData[key]) && documentData[key].length > 0) {
+            // Array field - APPEND new documents to existing ones
+            if (!document[key]) document[key] = [];
+            document[key] = [...document[key], ...documentData[key]];
+          } else if (key === 'gradeAverages' || key === 'incomeTaxInfo') {
+            // Object fields - update if provided
+            if (documentData[key] !== undefined) {
+              document[key] = documentData[key];
+            }
           }
         });
       } else {
@@ -103,6 +110,8 @@ class DocumentService {
           physicalCheckup: document.physicalCheckup,
           certificates: document.certificates,
           homeLocationSketch: document.homeLocationSketch,
+          gradeAverages: document.gradeAverages,
+          incomeTaxInfo: document.incomeTaxInfo,
           createdAt: document.createdAt,
           updatedAt: document.updatedAt
         }
@@ -134,6 +143,8 @@ class DocumentService {
           physicalCheckup: document.physicalCheckup,
           certificates: document.certificates,
           homeLocationSketch: document.homeLocationSketch,
+          gradeAverages: document.gradeAverages,
+          incomeTaxInfo: document.incomeTaxInfo,
           createdAt: document.createdAt,
           updatedAt: document.updatedAt
         }

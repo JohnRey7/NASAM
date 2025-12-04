@@ -44,8 +44,9 @@ export const departmentHeadService = {
     return response.data;
   },
 
-  async getAssignedApplicants() {
+  async getAssignedApplicants(page: number = 1, limit: number = 10, search: string = '') {
     const response = await axios.get(`${API_URL}/department-head/applicants`, {
+      params: { page, limit, search },
       withCredentials: true,
       headers: { 'Content-Type': 'application/json' },
     });

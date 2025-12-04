@@ -2496,10 +2496,10 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
             ) : (
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || hasExistingApplication}
                 className="bg-[#800000] hover:bg-[#600000]"
               >
-                {isSubmitting ? "Submitting..." : "Submit Application"}
+                {hasExistingApplication ? "Already Submitted" : (isSubmitting ? "Submitting..." : "Submit Application")}
               </Button>
             )}
           </div>

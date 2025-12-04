@@ -302,6 +302,38 @@ async function getAvailableSemesters(req, res) {
   }
 }
 
+// Soft delete all evaluations for a specific period (Admin only - when evaluation period ends)
+async function softDeleteEvaluationsByPeriod(req, res) {
+  try {
+    const { semester, schoolYear } = req.body;
+    const result = await EvaluationService.softDeleteEvaluationsByPeriod(semester, schoolYear);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in softDeleteEvaluationsByPeriod:', error);
+    if (error.message.includes('required') || error.message.includes('Valid')) {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Restore all evaluations for a specific period (Admin only)
+async function restoreEvaluationsByPeriod(req, res) {
+  try {
+    const { semester, schoolYear } = req.body;
+    const result = await EvaluationService.restoreEvaluationsByPeriod(semester, schoolYear);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in restoreEvaluationsByPeriod:', error);
+    if (error.message.includes('required') || error.message.includes('Valid')) {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   createEvaluation,
   getAllEvaluations,
@@ -318,5 +350,7 @@ module.exports = {
   getMyEvaluationStatus,
   getMyEvaluations,
   getMyLastEvaluation,
-  getAvailableSemesters
+  getAvailableSemesters,
+  softDeleteEvaluationsByPeriod,
+  restoreEvaluationsByPeriod
 };

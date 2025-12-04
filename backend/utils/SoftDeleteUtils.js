@@ -12,7 +12,8 @@ class SoftDeleteUtils {
    */
   static addSoftDeleteFilter(query = {}, includeDeleted = false) {
     if (!includeDeleted) {
-      return { ...query, is_deleted: false };
+      // Use $ne: true to include both is_deleted: false and is_deleted: undefined
+      return { ...query, is_deleted: { $ne: true } };
     }
     return query;
   }

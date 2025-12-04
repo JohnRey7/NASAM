@@ -72,17 +72,19 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
   const [nasRemarks, setNasRemarks] = useState(existingEvaluation?.nasRemarks || '')
 
   const calculateOverallRating = () => {
+    // Weights: Attendance 20%, Quality 25%, Quantity 20%, Personal Qualities 35% = 100%
     const attendanceAvg = (attendance.regularityOfAttendance + attendance.promptnessInReporting) / 2
     const attendanceScore = attendanceAvg * 0.20
     const qualityAvg = (quality.accuracyAndThoroughness + quality.organizationAndPresentation + quality.effectiveness) / 3
     const qualityScore = qualityAvg * 0.25
     const quantityAvg = (quantity.accomplishesMoreWork + quantity.readinessInAccomplishing) / 2
-    const quantityScore = quantityAvg * 0.15
+    const quantityScore = quantityAvg * 0.20
     const personalAvg = (personal.responsibilityAndUrgency + personal.dependabilityAndReliability + personal.industryAndResourcefulness + personal.fairnessAndInitiative + personal.sociabilityAndDisposition) / 5
-    const personalScore = personalAvg * 0.25
+    const personalScore = personalAvg * 0.35
     const overall = attendanceScore + qualityScore + quantityScore + personalScore
     let interpretation = ''
-    if (overall > 3.5) interpretation = 'Good'
+    if (overall >= 4.5) interpretation = 'Excellent'
+    else if (overall >= 3.5) interpretation = 'Good'
     else if (overall >= 3.0) interpretation = 'Average'
     else interpretation = 'Fail'
     return { rating: overall.toFixed(2), interpretation }
@@ -91,12 +93,6 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
   const handleSubmit = async () => {
     if (!evaluatorPosition.trim()) {
       toast({ title: "Missing Information", description: "Please enter your position title", variant: "destructive" })
-      return
-    }
-    
-    // Validate semester for department head submissions
-    if (useDepartmentHeadEndpoint && !semester) {
-      toast({ title: "Missing Information", description: "Please select a semester", variant: "destructive" })
       return
     }
     
@@ -117,9 +113,9 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
           ? `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}`
           : schoolYear
         
+        // Note: semester is now determined by the backend from the current EvaluationPeriod
         const evaluationPayload = {
           idNumber,
-          semester,
           schoolYear: shortSchoolYear,
           attendanceAndPunctuality: {
             regularAttendance: attendance.regularityOfAttendance,
@@ -151,12 +147,20 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
           withCredentials: true
         })
         
-        toast({ title: "Evaluation Submitted", description: `Successfully submitted evaluation for ${scholar.firstName} ${scholar.lastName}`, duration: 3000 })
+        // Get scholar name - handle both firstName/lastName and name properties
+        const scholarName = scholar.firstName && scholar.lastName 
+          ? `${scholar.firstName} ${scholar.lastName}` 
+          : scholar.name || 'Scholar'
+        toast({ title: "Evaluation Submitted", description: `Successfully submitted evaluation for ${scholarName}`, duration: 3000 })
       } else {
         // Use original scholar-evaluation endpoint for OAS staff
+        // Get scholar name - handle both firstName/lastName and name properties
+        const oasScholarName = scholar.firstName && scholar.lastName 
+          ? `${scholar.firstName} ${scholar.lastName}` 
+          : scholar.name || 'Scholar'
         const evaluationData: ScholarEvaluationData = {
           scholar: scholar.userId || scholar._id,
-          scholarName: `${scholar.firstName} ${scholar.lastName}`,
+          scholarName: oasScholarName,
           studentId: scholar.idNumber || 'N/A',
           course: scholar.programOfStudyAndYear || scholar.course || 'N/A',
           department: scholar.department || 'N/A',
@@ -171,10 +175,10 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
         }
         if (existingEvaluation) {
           await scholarEvaluationService.updateEvaluation(existingEvaluation._id, evaluationData)
-          toast({ title: "Evaluation Updated", description: `Successfully updated evaluation for ${scholar.firstName} ${scholar.lastName}`, duration: 3000 })
+          toast({ title: "Evaluation Updated", description: `Successfully updated evaluation for ${oasScholarName}`, duration: 3000 })
         } else {
           await scholarEvaluationService.createEvaluation(evaluationData)
-          toast({ title: "Evaluation Submitted", description: `Successfully submitted evaluation for ${scholar.firstName} ${scholar.lastName}`, duration: 3000 })
+          toast({ title: "Evaluation Submitted", description: `Successfully submitted evaluation for ${oasScholarName}`, duration: 3000 })
         }
       }
       onSuccess()
@@ -264,7 +268,7 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
               </div>
               <div><Label htmlFor="evaluatorPosition">Your Position Title *</Label><Input id="evaluatorPosition" value={evaluatorPosition} onChange={(e) => setEvaluatorPosition(e.target.value)} placeholder="e.g., Circulation in-charge" className="mt-1" disabled={readOnly} /></div>
               {useDepartmentHeadEndpoint && !readOnly && (
-                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t">
+                <div className="mt-4 pt-4 border-t">
                   <div>
                     <Label>School Year *</Label>
                     <Select value={schoolYear} onValueChange={setSchoolYear}>
@@ -278,22 +282,10 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label>Semester *</Label>
-                    <Select value={semester} onValueChange={setSemester}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select semester" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="First Semester">First Semester</SelectItem>
-                        <SelectItem value="Second Semester">Second Semester</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
               )}
             </div>
-            <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg"><div className="flex justify-between items-center"><div><Label className="text-sm text-blue-700">Overall Rating Preview</Label><p className="text-3xl font-bold text-blue-900">{overallPreview.rating}</p></div><Badge className={`text-lg px-4 py-2 ${overallPreview.interpretation === 'Good' ? 'bg-green-500' : overallPreview.interpretation === 'Average' ? 'bg-yellow-500' : 'bg-red-500'}`}>{overallPreview.interpretation}</Badge></div></div>
+            <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg"><div className="flex justify-between items-center"><div><Label className="text-sm text-blue-700">Overall Rating Preview</Label><p className="text-3xl font-bold text-blue-900">{overallPreview.rating}</p></div><Badge className={`text-lg px-4 py-2 ${overallPreview.interpretation === 'Excellent' || overallPreview.interpretation === 'Good' ? 'bg-green-500' : overallPreview.interpretation === 'Average' ? 'bg-yellow-500' : 'bg-red-500'}`}>{overallPreview.interpretation}</Badge></div></div>
             <div className="border-2 border-red-200 bg-red-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-red-900">A. ATTENDANCE AND PUNCTUALITY (20%)</h3><RatingInput label="Regularity of Attendance" value={attendance.regularityOfAttendance} onChange={(v) => setAttendance({...attendance, regularityOfAttendance: v})} disabled={readOnly} /><RatingInput label="Promptness in Reporting for Duty" value={attendance.promptnessInReporting} onChange={(v) => setAttendance({...attendance, promptnessInReporting: v})} disabled={readOnly} /></div>
             <div className="border-2 border-orange-200 bg-orange-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-orange-900">B. QUALITY OF WORK OUTPUT (25%)</h3><RatingInput label="Accuracy and Thoroughness of Work" value={quality.accuracyAndThoroughness} onChange={(v) => setQuality({...quality, accuracyAndThoroughness: v})} disabled={readOnly} /><RatingInput label="Organizes and/or Presentation/Evidence of Work" value={quality.organizationAndPresentation} onChange={(v) => setQuality({...quality, organizationAndPresentation: v})} disabled={readOnly} /><RatingInput label="Effectiveness (Completion of Clients' Needs and Constraints)" value={quality.effectiveness} onChange={(v) => setQuality({...quality, effectiveness: v})} disabled={readOnly} /></div>
             <div className="border-2 border-yellow-200 bg-yellow-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-yellow-900">C. QUANTITY OF WORK OUTPUT (15%)</h3><RatingInput label="Accomplishes More Work on the Given Time" value={quantity.accomplishesMoreWork} onChange={(v) => setQuantity({...quantity, accomplishesMoreWork: v})} disabled={readOnly} /><RatingInput label="Readiness in Accomplishing Tasks/Duties" value={quantity.readinessInAccomplishing} onChange={(v) => setQuantity({...quantity, readinessInAccomplishing: v})} disabled={readOnly} /></div>

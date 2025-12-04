@@ -27,6 +27,10 @@ const interviewSchema = new mongoose.Schema({
       message: 'End time must be after start time'
     }
   },
+  /**
+   * is_finished is added so that we can track if the interview has been conducted or not.  
+   */
+  is_finished: { type: Boolean, default: false },
   is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
 

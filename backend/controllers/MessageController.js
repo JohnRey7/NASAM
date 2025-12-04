@@ -90,23 +90,23 @@ class MessageController {
   }
 
   /**
-   * Get conversation messages
-   * GET /api/messages/conversation/:conversationId
+   * Get conversation messages with pagination
+   * GET /api/messages/conversation/:conversationId?limit=30&skip=0
    */
   static async getConversationMessages(req, res) {
     try {
       const { conversationId } = req.params;
       const userId = req.user.id;
-      const { limit = 50, skip = 0 } = req.query;
+      const { limit = 30, skip = 0 } = req.query;
 
-      const messages = await MessageService.getConversationMessages(
+      const result = await MessageService.getConversationMessages(
         conversationId,
         userId,
         parseInt(limit),
         parseInt(skip)
       );
 
-      res.status(200).json(messages);
+      res.status(200).json(result);
     } catch (error) {
       console.error('❌ Error getting conversation messages:', error);
       res.status(500).json({ error: error.message });

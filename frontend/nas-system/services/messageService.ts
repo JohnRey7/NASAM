@@ -187,13 +187,13 @@ class MessageService {
   }
 
   /**
-   * Get messages in a conversation
+   * Get messages in a conversation with pagination
    */
   static async getConversationMessages(
     conversationId: string,
-    limit: number = 50,
+    limit: number = 30,
     skip: number = 0
-  ): Promise<Message[]> {
+  ): Promise<{ messages: Message[]; pagination: { total: number; limit: number; skip: number; hasMore: boolean } }> {
     try {
       const response = await fetch(
         `${API_URL}/messages/conversation/${conversationId}?limit=${limit}&skip=${skip}`,

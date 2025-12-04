@@ -89,8 +89,29 @@ export function DocumentUpload() {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const fetchedDocuments = await documentService.getDocuments()
-        setDocuments(fetchedDocuments)
+        const result = await documentService.getDocumentsWithMetadata()
+        setDocuments(result.documents)
+        
+        // Load existing grade averages
+        if (result.gradeAverages) {
+          setGradeAverages({
+            elementary: result.gradeAverages.elementary?.toString() || '',
+            juniorHighSchool: result.gradeAverages.juniorHighSchool?.toString() || '',
+            seniorHighSchool: result.gradeAverages.seniorHighSchool?.toString() || '',
+            college: result.gradeAverages.college?.toString() || ''
+          })
+        }
+        
+        // Load existing income tax info
+        if (result.incomeTaxInfo) {
+          setIncomeTaxInfo({
+            annualIncome: result.incomeTaxInfo.annualIncome?.toString() || '',
+            taxableIncome: result.incomeTaxInfo.taxableIncome?.toString() || '',
+            taxYear: result.incomeTaxInfo.taxYear || '',
+            employerName: result.incomeTaxInfo.employerName || '',
+            tin: result.incomeTaxInfo.tin || ''
+          })
+        }
       } catch (err) {
         toast({
           title: "Error",

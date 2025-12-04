@@ -962,13 +962,26 @@ class ApplicationService {
       throw new Error('Application not found');
     }
 
-    // Create notification
+    // Create notification based on status
     try {
-      await NotificationService.createStatusChangeNotification(
-        application.user._id,
-        application._id,
-        status
-      );
+      if (status === 'approved') {
+        await NotificationService.createScholarshipApprovedNotification(
+          application.user._id,
+          application._id,
+          application.user.name || `${application.firstName} ${application.lastName}`
+        );
+      } else if (status === 'rejected') {
+        await NotificationService.createScholarshipRejectedNotification(
+          application.user._id,
+          application._id
+        );
+      } else {
+        await NotificationService.createStatusChangeNotification(
+          application.user._id,
+          application._id,
+          status
+        );
+      }
     } catch (notifError) {
       console.log('⚠️ Notification creation failed:', notifError.message);
     }
@@ -1028,10 +1041,11 @@ class ApplicationService {
     // Debug logging
     console.log('📄 Raw documents from DB:', {
       studentPicture: documents?.studentPicture,
-      nbiClearance: documents?.nbiClearance?.[0],
-      gradeReport: documents?.gradeReport?.[0]
+      nbiClearance: documents?.nbiClearance,
+      gradeReport: documents?.gradeReport
     });
 
+    // Return full arrays for document types that support multiple files
     const documentStatus = {
       studentPicture: {
         uploaded: !!(documents?.studentPicture),
@@ -1046,52 +1060,62 @@ class ApplicationService {
           : documents?.studentPicture?.originalName || null,
         uploadedAt: documents?.createdAt
       },
-      nbiClearance: {
-        uploaded: !!(documents?.nbiClearance),
-        filePath: documents?.nbiClearance?.[0]?.filePath || null,
-        originalName: documents?.nbiClearance?.[0]?.originalName || null,
-        filename: documents?.nbiClearance?.[0]?.originalName || null,
-        uploadedAt: documents?.createdAt
-      },
-      gradeReport: {
-        uploaded: !!(documents?.gradeReport),
-        filePath: documents?.gradeReport?.[0]?.filePath || null,
-        originalName: documents?.gradeReport?.[0]?.originalName || null,
-        filename: documents?.gradeReport?.[0]?.originalName || null,
-        uploadedAt: documents?.createdAt
-      },
-      incomeTaxReturn: {
-        uploaded: !!(documents?.incomeTaxReturn),
-        filePath: documents?.incomeTaxReturn?.[0]?.filePath || null,
-        originalName: documents?.incomeTaxReturn?.[0]?.originalName || null,
-        filename: documents?.incomeTaxReturn?.[0]?.originalName || null,
-        uploadedAt: documents?.createdAt
-      },
-      goodMoralCertificate: {
-        uploaded: !!(documents?.goodMoralCertificate),
-        filePath: documents?.goodMoralCertificate?.[0]?.filePath || null,
-        originalName: documents?.goodMoralCertificate?.[0]?.originalName || null,
-        filename: documents?.goodMoralCertificate?.[0]?.originalName || null,
-        uploadedAt: documents?.createdAt
-      },
-      physicalCheckup: {
-        uploaded: !!(documents?.physicalCheckup),
-        filePath: documents?.physicalCheckup?.[0]?.filePath || null,
-        originalName: documents?.physicalCheckup?.[0]?.originalName || null,
-        filename: documents?.physicalCheckup?.[0]?.originalName || null,
-        uploadedAt: documents?.createdAt
-      },
-      homeLocationSketch: {
-        uploaded: !!(documents?.homeLocationSketch),
-        filePath: documents?.homeLocationSketch?.[0]?.filePath || null,
-        originalName: documents?.homeLocationSketch?.[0]?.originalName || null,
-        filename: documents?.homeLocationSketch?.[0]?.originalName || null,
-        uploadedAt: documents?.createdAt
-      }
+      // Return full arrays for multi-file document types
+      nbiClearance: documents?.nbiClearance?.length > 0 
+        ? documents.nbiClearance.map(doc => ({
+            filePath: doc.filePath,
+            originalName: doc.originalName,
+            uploadedAt: doc.uploadedAt || documents?.createdAt
+          }))
+        : [],
+      gradeReport: documents?.gradeReport?.length > 0 
+        ? documents.gradeReport.map(doc => ({
+            filePath: doc.filePath,
+            originalName: doc.originalName,
+            uploadedAt: doc.uploadedAt || documents?.createdAt
+          }))
+        : [],
+      incomeTaxReturn: documents?.incomeTaxReturn?.length > 0 
+        ? documents.incomeTaxReturn.map(doc => ({
+            filePath: doc.filePath,
+            originalName: doc.originalName,
+            uploadedAt: doc.uploadedAt || documents?.createdAt
+          }))
+        : [],
+      goodMoralCertificate: documents?.goodMoralCertificate?.length > 0 
+        ? documents.goodMoralCertificate.map(doc => ({
+            filePath: doc.filePath,
+            originalName: doc.originalName,
+            uploadedAt: doc.uploadedAt || documents?.createdAt
+          }))
+        : [],
+      physicalCheckup: documents?.physicalCheckup?.length > 0 
+        ? documents.physicalCheckup.map(doc => ({
+            filePath: doc.filePath,
+            originalName: doc.originalName,
+            uploadedAt: doc.uploadedAt || documents?.createdAt
+          }))
+        : [],
+      homeLocationSketch: documents?.homeLocationSketch?.length > 0 
+        ? documents.homeLocationSketch.map(doc => ({
+            filePath: doc.filePath,
+            originalName: doc.originalName,
+            uploadedAt: doc.uploadedAt || documents?.createdAt
+          }))
+        : []
     };
 
     const totalRequired = 7;
-    const totalUploaded = Object.values(documentStatus).filter(doc => doc.uploaded).length;
+    // Check if each document type has at least one file
+    const totalUploaded = [
+      documentStatus.studentPicture.uploaded,
+      documentStatus.nbiClearance.length > 0,
+      documentStatus.gradeReport.length > 0,
+      documentStatus.incomeTaxReturn.length > 0,
+      documentStatus.goodMoralCertificate.length > 0,
+      documentStatus.physicalCheckup.length > 0,
+      documentStatus.homeLocationSketch.length > 0
+    ].filter(Boolean).length;
 
     const result = {
       documents: documentStatus,
@@ -1337,7 +1361,7 @@ class ApplicationService {
     };
   }
 
-  // Auto-complete application when personality test is completed
+  // Mark personality test as completed (does NOT auto-approve - interview and evaluation still required)
   static async autoCompleteApplication(userId, reason) {
     const application = await ApplicationForm.findOne({ user: userId });
     if (!application) {
@@ -1359,37 +1383,38 @@ class ApplicationService {
     });
 
     if (!existingTest) {
-      throw new Error('Cannot auto-complete: No personality test found');
+      throw new Error('Cannot update: No personality test found');
     }
 
     // Create history entry before updating
     await ApplicationService.createApplicationHistory(application);
 
-    // Update application status to approved
-    application.status = 'approved';
+    // Only update the personality test completion timestamp - DO NOT auto-approve
+    // The application still needs to go through interview and evaluation
     application.updatedAt = new Date();
     application.personalityTestCompletedAt = new Date();
     await application.save();
 
-    // Create notification
+    // Create notification - informing user that personality test is done, but more steps remain
     await NotificationService.createNotification({
       userId: userId,
       type: 'application_status_update',
-      title: 'Application Approved',
-      message: `Your application has been automatically approved upon completion of the personality test.`,
+      title: 'Personality Test Completed',
+      message: `Your personality test has been completed. Please wait for your interview to be scheduled.`,
       data: {
         applicationId: application._id,
-        newStatus: 'approved',
+        currentStatus: application.status,
         reason: reason || 'personality_test_completed'
       }
     });
 
-    console.log(`✅ Application ${application._id} auto-completed for user ${userId}`);
+    console.log(`✅ Personality test marked complete for application ${application._id}, user ${userId}. Awaiting interview and evaluation.`);
 
     return {
-      message: 'Application auto-completed successfully',
-      status: 'approved',
-      applicationId: application._id
+      message: 'Personality test completed. Awaiting interview scheduling.',
+      status: application.status,
+      applicationId: application._id,
+      personalityTestCompleted: true
     };
   }
 

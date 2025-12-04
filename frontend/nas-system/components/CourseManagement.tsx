@@ -9,9 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Trash2, Plus, Search, RotateCcw, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pencil, Trash2, Plus, Search, RotateCcw, AlertTriangle, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import courseService, { Course, CreateCourseData, UpdateCourseData } from "@/services/courseService";
+import courseService, { Course, CreateCourseData, UpdateCourseData, Department } from "@/services/courseService";
+import departmentService from "@/services/departmentService";
 
 interface CourseManagementProps {
   isExpanded: boolean;
@@ -21,6 +23,7 @@ interface CourseManagementProps {
 export default function CourseManagement({ isExpanded, onToggle }: CourseManagementProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [deletedCourses, setDeletedCourses] = useState<Course[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,10 +42,21 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
   
   const [formData, setFormData] = useState<CreateCourseData>({
     courseId: '',
-    name: ''
+    name: '',
+    departmentId: ''
   });
   
   const { toast } = useToast();
+
+  // Load departments
+  const loadDepartments = async () => {
+    try {
+      const response = await departmentService.getAllDepartments(1, 100);
+      setDepartments(response.data || []);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+    }
+  };
 
   // Load courses
   const loadCourses = async (page = 1, search = '') => {
@@ -91,6 +105,7 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
     if (isExpanded) {
       loadCourses();
       loadDeletedCourses();
+      loadDepartments();
     }
   }, [isExpanded]);
 
@@ -112,13 +127,23 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
     }
 
     try {
-      await courseService.createCourse(formData);
+      const createData: CreateCourseData = {
+        courseId: formData.courseId,
+        name: formData.name,
+      };
+      
+      // Only include departmentId if selected
+      if (formData.departmentId) {
+        createData.departmentId = formData.departmentId;
+      }
+
+      await courseService.createCourse(createData);
       toast({
         title: "Success",
         description: `Course "${formData.name}" created successfully`
       });
       setShowCreateDialog(false);
-      setFormData({ courseId: '', name: '' });
+      setFormData({ courseId: '', name: '', departmentId: '' });
       loadCourses(currentPage, searchTerm);
     } catch (error: any) {
       toast({
@@ -150,6 +175,15 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
         updateData.courseId = formData.courseId;
       }
 
+      // Handle department update
+      const currentDeptId = typeof selectedCourse.departmentId === 'object' 
+        ? selectedCourse.departmentId?._id 
+        : selectedCourse.departmentId;
+      
+      if (formData.departmentId !== currentDeptId) {
+        updateData.departmentId = formData.departmentId || null;
+      }
+
       await courseService.updateCourse(selectedCourse.courseId, updateData);
       toast({
         title: "Success",
@@ -157,7 +191,7 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
       });
       setShowEditDialog(false);
       setSelectedCourse(null);
-      setFormData({ courseId: '', name: '' });
+      setFormData({ courseId: '', name: '', departmentId: '' });
       loadCourses(currentPage, searchTerm);
     } catch (error: any) {
       toast({
@@ -239,9 +273,13 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
   // Open edit dialog
   const openEditDialog = (course: Course) => {
     setSelectedCourse(course);
+    const deptId = typeof course.departmentId === 'object' 
+      ? course.departmentId?._id 
+      : course.departmentId;
     setFormData({
       courseId: course.courseId,
-      name: course.name
+      name: course.name,
+      departmentId: deptId || ''
     });
     setShowEditDialog(true);
   };
@@ -267,6 +305,17 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
   if (!isExpanded) {
     return null;
   }
+
+  // Helper function to get department display name
+  const getDepartmentName = (course: Course): string => {
+    if (!course.departmentId) return '-';
+    if (typeof course.departmentId === 'object') {
+      return course.departmentId.name || course.departmentId.departmentCode || '-';
+    }
+    // If it's just an ID string, find the department
+    const dept = departments.find(d => d._id === course.departmentId);
+    return dept?.name || dept?.departmentCode || '-';
+  };
 
   return (
     <div className="mt-6 border-0 rounded-xl bg-white shadow-soft">
@@ -322,6 +371,7 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
                         <TableRow>
                           <TableHead>Course Code</TableHead>
                           <TableHead>Course Name</TableHead>
+                          <TableHead>Department</TableHead>
                           <TableHead>Created</TableHead>
                           <TableHead>Updated</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
@@ -334,6 +384,12 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
                               <Badge variant="secondary">{course.courseId}</Badge>
                             </TableCell>
                             <TableCell className="font-medium">{course.name}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Building2 className="h-3 w-3 text-gray-400" />
+                                <span className="text-sm text-gray-600">{getDepartmentName(course)}</span>
+                              </div>
+                            </TableCell>
                             <TableCell>{new Date(course.createdAt).toLocaleDateString()}</TableCell>
                             <TableCell>{new Date(course.updatedAt).toLocaleDateString()}</TableCell>
                             <TableCell className="text-right">
@@ -488,6 +544,26 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
                 placeholder="e.g., Bachelor of Science in Computer Science"
               />
             </div>
+            <div>
+              <Label htmlFor="departmentId">Department</Label>
+              <Select
+                value={formData.departmentId || "none"}
+                onValueChange={(value) => setFormData({ ...formData, departmentId: value === "none" ? "" : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Department</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.departmentCode} - {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">Optional: Assign this course to a department</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
@@ -528,6 +604,26 @@ export default function CourseManagement({ isExpanded, onToggle }: CourseManagem
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., Bachelor of Science in Computer Science"
               />
+            </div>
+            <div>
+              <Label htmlFor="editDepartmentId">Department</Label>
+              <Select
+                value={formData.departmentId || "none"}
+                onValueChange={(value) => setFormData({ ...formData, departmentId: value === "none" ? "" : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Department</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.departmentCode} - {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">Optional: Assign this course to a department</p>
             </div>
           </div>
           <DialogFooter>

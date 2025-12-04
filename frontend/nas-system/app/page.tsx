@@ -1,3 +1,7 @@
+"use client"
+
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -6,8 +10,49 @@ import { RegisterForm } from "@/components/register-form"
 import { ScholarshipInfo } from "@/components/scholarship-info"
 import { VerificationHandler } from "@/components/verification-handler"
 import { Suspense } from "react"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function Home() {
+  const { user, status } = useAuth()
+  const router = useRouter()
+
+  // Redirect authenticated users to their appropriate dashboard
+  useEffect(() => {
+    if (status === "authenticated" && user) {
+      if (user.role === "admin" || user.role === "oas_staff") {
+        router.replace("/oas-dashboard")
+      } else if (user.role === "department_head") {
+        router.replace("/department-head")
+      } else {
+        router.replace("/dashboard")
+      }
+    }
+  }, [status, user, router])
+
+  // Show loading state while checking auth
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If authenticated, show loading while redirecting
+  if (status === "authenticated" && user) {
+    return (
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen gradient-bg flex flex-col">
       <Suspense fallback={null}>

@@ -3,7 +3,9 @@ const Evaluation = require('../models/Evaluation');
 const User = require('../models/User');
 const Interview = require('../models/Interview');
 const ApplicationForm = require('../models/ApplicationForm');
+const EvaluationPeriod = require('../models/EvaluationPeriod');
 const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
+const NotificationService = require('./NotificationService');
 
 // Helper function to convert Decimal128 values to regular numbers
 const convertDecimal128ToNumber = (obj) => {
@@ -79,17 +81,40 @@ class EvaluationService {
         remarksCommentsByTheNAS,
         timeKeepingRecord,
         overallRating,
-        semester,
+        semester: providedSemester,
         schoolYear: providedSchoolYear
       } = evaluationData;
 
-      // Validate semester
-      if (!semester || !['First Semester', 'Second Semester', 'Third Semester'].includes(semester)) {
-        throw new Error('Valid semester is required (First Semester, Second Semester, or Third Semester)');
+      // Get current open evaluation period
+      const currentPeriod = await EvaluationPeriod.findOne({ isOpen: true });
+      
+      // Use semester from current evaluation period if not provided
+      let semester = providedSemester;
+      let schoolYear = providedSchoolYear;
+      
+      if (currentPeriod) {
+        // Use the current period's semester and school year if not explicitly provided
+        if (!semester) {
+          semester = currentPeriod.semester;
+        }
+        if (!schoolYear) {
+          // Convert school year format from "2025-2026" to "2526"
+          const yearParts = currentPeriod.schoolYear.split('-');
+          if (yearParts.length === 2) {
+            schoolYear = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}`;
+          }
+        }
+      }
+      
+      // If still no semester, use fallback or throw error
+      if (!semester || !['First Semester', 'Second Semester', 'Third Semester', 'Summer'].includes(semester)) {
+        throw new Error('No open evaluation period found. Please contact OAS to open an evaluation period.');
       }
 
-      // Validate schoolYear - must be 4 digits like '2526'
-      const schoolYear = providedSchoolYear || this.getCurrentSchoolYear();
+      // Validate/get schoolYear - must be 4 digits like '2526'
+      if (!schoolYear) {
+        schoolYear = this.getCurrentSchoolYear();
+      }
       if (!schoolYear || !/^\d{4}$/.test(schoolYear)) {
         throw new Error('Valid school year is required (e.g., 2526 for 2025-2026)');
       }
@@ -157,12 +182,44 @@ class EvaluationService {
         },
         overallRating,
         semester,
-        schoolYear
+        schoolYear,
+        // Determine evaluation status based on overall rating
+        // Passed: >= 3.0 (Average or above), Failed: < 3.0
+        evaluationStatus: parseFloat(overallRating) >= 3.0 ? 'passed' : 'failed'
       });
       await evaluation.save();
 
+      // If evaluation passed, update the application status to 'approved'
+      const evaluationPassed = parseFloat(overallRating) >= 3.0;
+      if (evaluationPassed) {
+        await ApplicationForm.findByIdAndUpdate(
+          application._id,
+          { status: 'approved' },
+          { new: true }
+        );
+        console.log('✅ Application status updated to approved for user:', evaluateeUser);
+      } else {
+        console.log('⚠️ Evaluation failed (rating < 3.0), application status unchanged for user:', evaluateeUser);
+      }
+
       const populatedEvaluation = await Evaluation.findById(evaluation._id)
         .populate('evaluateeUser', 'name email idNumber');
+
+      // Send notification to the scholar about their evaluation
+      try {
+        const ratingPeriod = `${semester} S.Y. ${this.schoolYearToLong(schoolYear)}`;
+        const statusMessage = evaluationPassed ? 'passed' : 'failed';
+        await NotificationService.createEvaluationSubmittedNotification(
+          evaluateeUser,
+          application._id,
+          'Your Department Head',
+          ratingPeriod,
+          statusMessage
+        );
+        console.log('✅ Evaluation notification sent to scholar:', evaluateeUser);
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send evaluation notification:', notificationError);
+      }
       
       return populatedEvaluation;
     } catch (error) {
@@ -578,6 +635,81 @@ class EvaluationService {
       };
     } catch (error) {
       console.error('Error getting evaluation status by user ID:', error);
+      throw error;
+    }
+  }
+
+  // Soft delete all evaluations for a specific evaluation period (semester + school year)
+  // This is called when an evaluation period ends
+  static async softDeleteEvaluationsByPeriod(semester, schoolYear) {
+    try {
+      if (!semester || !['First Semester', 'Second Semester', 'Third Semester'].includes(semester)) {
+        throw new Error('Valid semester is required');
+      }
+
+      if (!schoolYear || !/^\d{4}$/.test(schoolYear)) {
+        throw new Error('Valid school year is required (e.g., 2526 for 2025-2026)');
+      }
+
+      const result = await Evaluation.updateMany(
+        {
+          semester,
+          schoolYear,
+          is_deleted: false
+        },
+        {
+          is_deleted: true,
+          deletedAt: new Date()
+        }
+      );
+
+      console.log(`✅ Soft deleted ${result.modifiedCount} evaluations for ${semester} S.Y. ${this.schoolYearToLong(schoolYear)}`);
+      
+      return {
+        message: `Successfully archived ${result.modifiedCount} evaluations for ${semester} S.Y. ${this.schoolYearToLong(schoolYear)}`,
+        deletedCount: result.modifiedCount,
+        semester,
+        schoolYear: this.schoolYearToLong(schoolYear)
+      };
+    } catch (error) {
+      console.error('Error soft deleting evaluations by period:', error);
+      throw error;
+    }
+  }
+
+  // Restore all evaluations for a specific evaluation period
+  static async restoreEvaluationsByPeriod(semester, schoolYear) {
+    try {
+      if (!semester || !['First Semester', 'Second Semester', 'Third Semester'].includes(semester)) {
+        throw new Error('Valid semester is required');
+      }
+
+      if (!schoolYear || !/^\d{4}$/.test(schoolYear)) {
+        throw new Error('Valid school year is required (e.g., 2526 for 2025-2026)');
+      }
+
+      const result = await Evaluation.updateMany(
+        {
+          semester,
+          schoolYear,
+          is_deleted: true
+        },
+        {
+          is_deleted: false,
+          $unset: { deletedAt: 1 }
+        }
+      );
+
+      console.log(`✅ Restored ${result.modifiedCount} evaluations for ${semester} S.Y. ${this.schoolYearToLong(schoolYear)}`);
+      
+      return {
+        message: `Successfully restored ${result.modifiedCount} evaluations for ${semester} S.Y. ${this.schoolYearToLong(schoolYear)}`,
+        restoredCount: result.modifiedCount,
+        semester,
+        schoolYear: this.schoolYearToLong(schoolYear)
+      };
+    } catch (error) {
+      console.error('Error restoring evaluations by period:', error);
       throw error;
     }
   }

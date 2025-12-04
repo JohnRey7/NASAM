@@ -60,6 +60,27 @@ const InterviewController = {
     }
   },
 
+  // POST: Create/Schedule interview for department head (they are always the interviewer)
+  async scheduleInterviewForDepartmentHead(req, res) {
+    try {
+      // Force the interviewer to be the department head themselves
+      const departmentHeadId = req.user.id;
+      const result = await InterviewService.scheduleInterviewForDepartmentHead(departmentHeadId, req.body);
+      
+      const statusCode = result.isExisting ? 200 : 201;
+      res.status(statusCode).json(result);
+    } catch (error) {
+      console.error('Error in scheduleInterviewForDepartmentHead:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message.includes('required') || error.message.includes('Invalid')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: `Failed to schedule interview: ${error.message}` });
+    }
+  },
+
   // GET: Retrieve all interviews with pagination and filtering (admin)
   async getAllInterviews(req, res) {
     try {
@@ -86,6 +107,22 @@ const InterviewController = {
       }
       if (error.message.includes('not found')) {
         return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // GET: Retrieve interview by application ID (admin/staff)
+  async getInterviewByApplicationId(req, res) {
+    try {
+      const { applicationId } = req.params;
+      const result = await InterviewService.getInterviewByApplicationId(applicationId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getInterviewByApplicationId:', error);
+      if (error.message.includes('Invalid')) {
+        return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: 'Server error' });
     }
@@ -339,6 +376,44 @@ const InterviewController = {
     } catch (error) {
       console.error('Error in getSoftDeletedInterviews:', error);
       res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // Mark interview as finished
+  async finishInterview(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await InterviewService.finishInterview(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in finishInterview:', error);
+      if (error.message.includes('Invalid')) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  },
+
+  // Revert interview finished status
+  async revertFinishInterview(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await InterviewService.revertFinishInterview(id);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in revertFinishInterview:', error);
+      if (error.message.includes('Invalid')) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: 'Server error' });
     }
   }
 };

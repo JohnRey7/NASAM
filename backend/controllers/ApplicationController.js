@@ -547,6 +547,8 @@ const ApplicationController = {
       res.json({
         success: true,
         documents: result.documents,
+        gradeAverages: result.gradeAverages,
+        incomeTaxInfo: result.incomeTaxInfo,
         summary: result.summary,
         documentsVerified: result.documentsVerified,
         documentsVerifiedAt: result.documentsVerifiedAt,

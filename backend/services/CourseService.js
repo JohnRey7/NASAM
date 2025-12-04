@@ -4,12 +4,12 @@ const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 class CourseService {
   /**
    * Create a new course
-   * @param {Object} courseData - { courseId, name }
+   * @param {Object} courseData - { courseId, name, departmentId }
    * @returns {Object} Created course
    */
   static async createCourse(courseData) {
     try {
-      const { courseId, name } = courseData;
+      const { courseId, name, departmentId } = courseData;
 
       // Validate required fields
       if (!courseId || !name) {
@@ -36,10 +36,14 @@ class CourseService {
 
       const course = new Course({
         courseId,
-        name
+        name,
+        ...(departmentId && { departmentId })
       });
 
       await course.save();
+      
+      // Populate department before returning
+      await course.populate('departmentId');
       return course;
     } catch (error) {
       throw error;
@@ -75,6 +79,7 @@ class CourseService {
       const skip = (page - 1) * limit;
 
       const courses = await Course.find(filter)
+        .populate('departmentId')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit));
@@ -110,6 +115,7 @@ class CourseService {
       const skip = (page - 1) * limit;
 
       const courses = await Course.find(filter)
+        .populate('departmentId')
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(parseInt(limit));
@@ -142,7 +148,7 @@ class CourseService {
       const course = await Course.findOne({ 
         courseId, 
         $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] 
-      });
+      }).populate('departmentId');
 
       if (!course) {
         throw new Error('Course not found');
@@ -164,7 +170,7 @@ class CourseService {
       const course = await Course.findOne({ 
         name, 
         $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] 
-      });
+      }).populate('departmentId');
 
       if (!course) {
         throw new Error('Course not found');
@@ -220,10 +226,11 @@ class CourseService {
         course._id,
         {
           ...(updateData.courseId && { courseId: updateData.courseId }),
-          ...(updateData.name && { name: updateData.name })
+          ...(updateData.name && { name: updateData.name }),
+          ...(updateData.departmentId !== undefined && { departmentId: updateData.departmentId || null })
         },
         { new: true }
-      );
+      ).populate('departmentId');
 
       return updatedCourse;
     } catch (error) {
@@ -275,10 +282,11 @@ class CourseService {
         course._id,
         {
           ...(updateData.courseId && { courseId: updateData.courseId }),
-          ...(updateData.name && { name: updateData.name })
+          ...(updateData.name && { name: updateData.name }),
+          ...(updateData.departmentId !== undefined && { departmentId: updateData.departmentId || null })
         },
         { new: true }
-      );
+      ).populate('departmentId');
 
       return updatedCourse;
     } catch (error) {
@@ -426,9 +434,50 @@ class CourseService {
         course._id,
         { is_deleted: false },
         { new: true }
-      );
+      ).populate('departmentId');
 
       return restoredCourse;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Get courses by department ID
+   * @param {String} departmentId - The department ObjectId
+   * @param {Object} options - { page, limit }
+   * @returns {Object} Paginated courses for the department
+   */
+  static async getCoursesByDepartment(departmentId, options = {}) {
+    try {
+      const { page = 1, limit = 25 } = options;
+
+      const filter = { 
+        departmentId,
+        $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }]
+      };
+
+      const skip = (page - 1) * limit;
+
+      const courses = await Course.find(filter)
+        .populate('departmentId')
+        .sort({ name: 1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      const total = await Course.countDocuments(filter);
+
+      return {
+        courses,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          totalCourses: total,
+          hasNext: page < Math.ceil(total / limit),
+          hasPrev: page > 1,
+          limit: parseInt(limit)
+        }
+      };
     } catch (error) {
       throw error;
     }

@@ -450,11 +450,20 @@ class DepartmentService {
     }
   }
 
-  static async getApplicantsForDepartmentHead(userId) {
+  static async getApplicantsForDepartmentHead(userId, options = {}) {
     try {
       const ApplicationForm = require('../models/ApplicationForm');
+      const Course = require('../models/Course');
+      const Interview = require('../models/Interview');
+      const ScholarEvaluation = require('../models/ScholarEvaluation');
       
-      // Find the department head user
+      // Pagination options
+      const page = parseInt(options.page) || 1;
+      const limit = Math.min(parseInt(options.limit) || 10, 50); // Max 50 per page
+      const skip = (page - 1) * limit;
+      const search = options.search || '';
+      
+      // Find the department head user with their department
       const departmentHead = await User.findById(userId)
         .populate('department')
         .select('department');
@@ -467,31 +476,130 @@ class DepartmentService {
         throw new Error('Department head is not assigned to any department');
       }
 
+      const departmentId = departmentHead.department._id;
       const departmentCode = departmentHead.department.departmentCode;
-      console.log(`🔍 Finding applicants for department: ${departmentCode}`);
+      console.log(`🔍 Finding applicants for department: ${departmentCode} (ID: ${departmentId})`);
 
-      // Debug: Check all applications with assignedDepartment field
-      const allAssigned = await ApplicationForm.find({ 
-        assignedDepartment: { $exists: true } 
-      }).select('assignedDepartment firstName lastName');
-      console.log(`📊 Total applications with assignedDepartment field: ${allAssigned.length}`);
-      allAssigned.forEach(app => {
-        console.log(`  - ${app.firstName} ${app.lastName}: assignedDepartment = "${app.assignedDepartment}" (type: ${typeof app.assignedDepartment})`);
+      // Find all courses that belong to this department
+      const coursesInDepartment = await Course.find({
+        departmentId: departmentId,
+        is_deleted: { $ne: true }
+      }).select('_id courseId name');
+
+      console.log(`📚 Found ${coursesInDepartment.length} courses in department ${departmentCode}:`, 
+        coursesInDepartment.map(c => c.courseId));
+
+      if (coursesInDepartment.length === 0) {
+        console.log(`⚠️ No courses found for department ${departmentCode}`);
+        return {
+          applicants: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false
+          }
+        };
+      }
+
+      const courseIds = coursesInDepartment.map(c => c._id);
+
+      // Find all users whose course is in this department
+      const usersInDepartment = await User.find({
+        course: { $in: courseIds },
+        is_deleted: { $ne: true }
+      }).select('_id');
+
+      console.log(`👥 Found ${usersInDepartment.length} users with courses in department ${departmentCode}`);
+
+      if (usersInDepartment.length === 0) {
+        return {
+          applicants: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false
+          }
+        };
+      }
+
+      const userIds = usersInDepartment.map(u => u._id);
+
+      // Build the filter for applications
+      const filter = {
+        user: { $in: userIds },
+        is_deleted: { $ne: true }
+      };
+
+      // Get total count for pagination
+      const total = await ApplicationForm.countDocuments(filter);
+      const totalPages = Math.ceil(total / limit);
+
+      // Find applications with pagination
+      const applications = await ApplicationForm.find(filter)
+        .populate({
+          path: 'user',
+          select: 'name idNumber email course',
+          populate: {
+            path: 'course',
+            select: 'courseId name departmentId',
+            populate: {
+              path: 'departmentId',
+              select: 'departmentCode name'
+            }
+          }
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      console.log(`📋 Found ${applications.length} applicants for department ${departmentCode} (page ${page}/${totalPages})`);
+
+      // Get all application IDs from the applications to batch fetch interview data
+      const applicationIds = applications.map(app => app._id).filter(Boolean);
+      
+      // Batch fetch interview data for all applicants using applicationId
+      const interviews = await Interview.find({
+        applicationId: { $in: applicationIds },
+        is_deleted: { $ne: true }
+      }).select('applicationId startTime endTime is_finished');
+      
+      // Create a map for quick lookup by applicationId
+      const interviewMap = new Map();
+      interviews.forEach(interview => {
+        interviewMap.set(interview.applicationId.toString(), interview);
       });
 
-      // Find all applications assigned to this department
-      const applications = await ApplicationForm.find({
-        assignedDepartment: departmentCode,
-        is_deleted: false
-      })
-      .populate('user', 'name idNumber email')
-      .sort({ createdAt: -1 });
-
-      console.log(`📋 Found ${applications.length} applicants for department ${departmentCode}`);
+      // Get all user IDs to batch fetch evaluation data
+      const applicantUserIds = applications.map(app => app.user?._id).filter(Boolean);
+      
+      // Batch fetch evaluation data for all users
+      const evaluations = await ScholarEvaluation.find({
+        scholar: { $in: applicantUserIds },
+        is_deleted: { $ne: true }
+      }).select('scholar status createdAt');
+      
+      // Create a map for quick lookup by user id
+      const evaluationMap = new Map();
+      evaluations.forEach(evaluation => {
+        evaluationMap.set(evaluation.scholar.toString(), evaluation);
+      });
 
       // Transform the data to match frontend expectations
       const applicants = applications.map(app => {
         try {
+          const courseName = app.user?.course?.name || app.programOfStudyAndYear || 'Not specified';
+          const courseCode = app.user?.course?.courseId || '';
+          const applicationId = app._id?.toString();
+          const userIdStr = app.user?._id?.toString();
+          const interview = applicationId ? interviewMap.get(applicationId) : null;
+          const evaluation = userIdStr ? evaluationMap.get(userIdStr) : null;
+          
           return {
             _id: app.user?._id || app._id,
             id: app.user?._id || app._id,
@@ -503,10 +611,27 @@ class DepartmentService {
             idNumber: app.user?.idNumber || app.idNumber,
             email: app.user?.email || app.email,
             programOfStudyAndYear: app.programOfStudyAndYear || 'Not specified',
-            course: app.programOfStudyAndYear || 'Not specified',
-            status: app.status || 'pending',
+            course: courseCode ? `${courseCode} - ${courseName}` : courseName,
+            courseId: app.user?.course?.courseId,
+            courseName: courseName,
+            department: app.user?.course?.departmentId?.name || departmentCode,
+            departmentCode: app.user?.course?.departmentId?.departmentCode || departmentCode,
+            applicationStatus: app.status || 'pending',
             createdAt: app.createdAt,
-            assignedDepartment: app.assignedDepartment
+            assignedDepartment: app.assignedDepartment || departmentCode,
+            // Include interview data to avoid N+1 queries on frontend
+            interview: interview ? {
+              _id: interview._id,
+              startTime: interview.startTime,
+              endTime: interview.endTime,
+              is_finished: interview.is_finished
+            } : null,
+            // Include evaluation data
+            evaluation: evaluation ? {
+              _id: evaluation._id,
+              status: evaluation.status,
+              createdAt: evaluation.createdAt
+            } : null
           };
         } catch (err) {
           console.error('Error transforming application:', app._id, err);
@@ -514,7 +639,17 @@ class DepartmentService {
         }
       }).filter(app => app !== null);
 
-      return applicants;
+      return {
+        applicants,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      };
     } catch (error) {
       console.error('Error getting applicants for department head:', error);
       throw error;

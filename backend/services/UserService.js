@@ -547,6 +547,40 @@ class UserService {
       throw error;
     }
   }
+
+  // Get users who can be interviewers (oas_staff and department_head roles)
+  static async getInterviewers() {
+    try {
+      // Find roles for oas_staff and department_head
+      const interviewerRoles = await Role.find({
+        name: { $in: ['oas_staff', 'department_head'] }
+      });
+
+      if (!interviewerRoles || interviewerRoles.length === 0) {
+        return [];
+      }
+
+      const roleIds = interviewerRoles.map(role => role._id);
+
+      // Find all active users with these roles
+      const users = await User.find(
+        SoftDeleteUtils.addSoftDeleteFilter({
+          role: { $in: roleIds },
+          disabled: { $ne: true }
+        })
+      )
+        .populate('role', 'name')
+        .populate('department', 'name departmentCode')
+        .select('_id name email idNumber role department')
+        .sort({ name: 1 })
+        .lean();
+
+      return users;
+    } catch (error) {
+      console.error('Error getting interviewers:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = UserService;

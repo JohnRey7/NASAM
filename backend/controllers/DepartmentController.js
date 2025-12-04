@@ -219,9 +219,15 @@ async function assignApplicantToDepartment(req, res) {
 async function getApplicantsForDepartmentHead(req, res) {
   try {
     const userId = req.user.id; // From authenticate middleware
-    console.log('🔍 Getting applicants for department head:', userId);
+    const { page, limit, search } = req.query;
     
-    const result = await DepartmentService.getApplicantsForDepartmentHead(userId);
+    console.log('🔍 Getting applicants for department head:', userId, { page, limit, search });
+    
+    const result = await DepartmentService.getApplicantsForDepartmentHead(userId, {
+      page,
+      limit,
+      search
+    });
     
     res.status(200).json(result);
   } catch (error) {

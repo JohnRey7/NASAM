@@ -112,7 +112,7 @@ export function ConversationsList({ open, onOpenChange }: ConversationsListProps
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl h-[700px] flex flex-col p-0">
+        <DialogContent className="max-w-2xl h-[700px] flex flex-col p-0" hideCloseButton>
           {/* Header */}
           <DialogHeader className="px-6 py-4 border-b bg-[#800000]/5">
             <div className="flex items-center justify-between">
@@ -272,6 +272,7 @@ export function ConversationsList({ open, onOpenChange }: ConversationsListProps
               loadConversations() // Refresh conversations when closing message dialog
             }
           }}
+          conversationId={selectedConversation._id}
           receiverId={selectedConversation.otherParticipant._id}
           receiverName={
             selectedConversation.otherParticipant?.name ||

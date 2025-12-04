@@ -142,6 +142,7 @@ app.put('/api/auth/email', authenticate, AuthController.updateEmail);
 app.post('/api/user', authenticate, checkPermission('user.create'), UserController.createUser);
 app.get('/api/users/disabled', authenticate, checkPermission('user.read'), UserController.getDisabledUsers);
 app.get('/api/users/deleted', authenticate, checkPermission('user.read'), UserController.getSoftDeletedUsers);
+app.get('/api/users/interviewers', authenticate, UserController.getInterviewers);
 app.get('/api/users/idnumber/:idNumber', authenticate, checkPermission('user.read'), UserController.getUserByIdNumber);
 
 // User profile routes
@@ -281,6 +282,7 @@ app.get('/api/personality-test/deleted', authenticate, checkPermission('personal
 // Interview Routes
 app.post('/api/interview', authenticate, checkPermission('interview.create'), InterviewController.createInterview);
 app.get('/api/interview/all', authenticate, checkPermission('interview.readAll'), InterviewController.getAllInterviews);
+app.get('/api/interview/application/:applicationId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByApplicationId);
 app.get('/api/interview/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById);
 app.get('/api/interview/user/:userId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByUserId);
 app.get('/api/interview', authenticate, checkPermission('interview.readOwn'), InterviewController.getMyInterview);
@@ -296,6 +298,10 @@ app.delete('/api/interview/:id/soft', authenticate, checkPermission('interview.d
 app.put('/api/interview/:id/restore', authenticate, checkPermission('interview.delete'), InterviewController.restoreInterview);
 app.delete('/api/interview/:id/permanent', authenticate, checkPermission('interview.delete'), InterviewController.permanentDeleteInterview);
 app.get('/api/interviews/deleted', authenticate, checkPermission('interview.read'), InterviewController.getSoftDeletedInterviews);
+
+// Finish/Revert interview routes
+app.patch('/api/interview/:id/finish', authenticate, checkPermission('interview.update'), InterviewController.finishInterview);
+app.patch('/api/interview/:id/revert-finish', authenticate, checkPermission('interview.update'), InterviewController.revertFinishInterview);
 
 // Review Routes - Interview-based reviews with application and document data
 app.get('/api/review/:interviewId', authenticate, checkPermission('interview.readOwn'), InterviewController.getReviewByInterviewId);
@@ -326,6 +332,10 @@ app.delete('/api/evaluations/:evaluationId/soft', authenticate, checkPermission(
 app.put('/api/evaluations/:evaluationId/restore', authenticate, checkPermission('evaluation.delete'), EvaluationController.restoreEvaluation);
 app.delete('/api/evaluations/:evaluationId/permanent', authenticate, checkPermission('evaluation.delete'), EvaluationController.permanentDeleteEvaluation);
 app.get('/api/evaluations/deleted', authenticate, checkPermission('evaluation.read'), EvaluationController.getSoftDeletedEvaluations);
+
+// Soft delete/restore evaluations by period (schoolYear/semester)
+app.delete('/api/evaluations/period/:schoolYear/:semester/soft', authenticate, checkPermission('evaluation.delete'), EvaluationController.softDeleteEvaluationsByPeriod);
+app.put('/api/evaluations/period/:schoolYear/:semester/restore', authenticate, checkPermission('evaluation.delete'), EvaluationController.restoreEvaluationsByPeriod);
 
 // Timekeeping routes (by evaluationId)
 app.patch('/api/evaluations/:evaluationId/timekeeping', authenticate, checkPermission('evaluation.update_timekeeping'), EvaluationController.updateTimeKeepingRecord);
@@ -358,6 +368,7 @@ app.get('/api/department-head/applicants', authenticate, checkPermission('applic
 app.post('/api/course', authenticate, checkPermission('course.create'), CourseController.createCourse);
 app.get('/api/course/all', authenticate, checkPermission('course.read'), CourseController.getAllCourses);
 app.get('/api/course/all/deleted', authenticate, checkPermission('course.read.deleted'), CourseController.getDeletedCourses);
+app.get('/api/course/department/:departmentId', authenticate, checkPermission('course.read'), CourseController.getCoursesByDepartment);
 app.put('/api/course/:courseId', authenticate, checkPermission('course.update'), CourseController.updateCourseByCourseId);
 app.put('/api/course/name/:name', authenticate, checkPermission('course.update'), CourseController.updateCourseByName);
 app.put('/api/course/:courseId/restore', authenticate, checkPermission('course.delete.soft'), CourseController.restoreByCourseId);
@@ -461,7 +472,8 @@ app.get('/api/oas/analytics', authenticate, checkPermission('applicationForm.rea
 app.post('/api/admin/interview/schedule', authenticate, checkPermission('interview.create'), InterviewController.createInterviewForApplicant);
 
 // Department Head: Schedule interview with notification
-app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.createInterviewForApplicant);
+// Department head interview scheduling - they can only assign themselves as interviewer
+app.post('/api/department-head/interview/schedule', authenticate, checkPermission('application.readAll'), InterviewController.scheduleInterviewForDepartmentHead);
 app.patch('/api/department-head/interview/:interviewId/reschedule', authenticate, checkPermission('application.readAll'), InterviewController.rescheduleInterviewForDepartmentHead);
 
 // ==================== SCHOLAR EVALUATION ROUTES ====================

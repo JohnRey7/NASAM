@@ -66,14 +66,17 @@ class InterviewService {
 
   static async createInterviewForApplicant(staffUserId, interviewData) {
     try {
-      const { applicationId, interviewDate, notes } = interviewData;
+      const { applicationId, interviewDate, startTime, endTime, notes, interviewerId } = interviewData;
 
-      console.log('🔍 Creating interview for application:', { applicationId, interviewDate, staffUserId });
+      console.log('🔍 Creating interview for application:', { applicationId, interviewDate, startTime, endTime, interviewerId, staffUserId });
 
-      // Validate input
-      if (!applicationId || !interviewDate) {
-        throw new Error('Application ID and interview date are required');
+      // Validate input - support both old format (interviewDate) and new format (startTime/endTime)
+      if (!applicationId || (!interviewDate && !startTime)) {
+        throw new Error('Application ID and interview date/time are required');
       }
+
+      // Use provided interviewerId or fall back to staffUserId
+      const actualInterviewerId = interviewerId || staffUserId;
 
       // Find the application
       const application = await ApplicationForm.findById(applicationId);
@@ -81,32 +84,53 @@ class InterviewService {
         throw new Error('Application not found');
       }
 
-      // Check for existing interview
-      const existingInterview = await Interview.findOne({ applicationId: applicationId })
-        .populate('interviewer', 'name email');
+      // Check for existing non-deleted interview
+      const existingInterview = await Interview.findOne({ 
+        applicationId: applicationId,
+        is_deleted: { $ne: true }  // Exclude soft-deleted interviews
+      }).populate('interviewer', 'name email');
       
       if (existingInterview) {
         // Generate interview ID for existing interview
         const existingInterviewId = `INT-${new Date().getFullYear()}-${String(existingInterview._id).slice(-6).toUpperCase()}`;
         
-        // Parse the new interview date
-        const newInterviewStart = new Date(interviewDate);
+        // Parse the new interview dates - support both formats
+        let newInterviewStart, newInterviewEnd;
+        
+        if (startTime) {
+          newInterviewStart = new Date(startTime);
+          newInterviewEnd = endTime ? new Date(endTime) : new Date(newInterviewStart.getTime() + 60 * 60 * 1000);
+        } else {
+          newInterviewStart = new Date(interviewDate);
+          newInterviewEnd = new Date(newInterviewStart.getTime() + 60 * 60 * 1000);
+        }
+        
         if (isNaN(newInterviewStart.getTime())) {
           throw new Error('Invalid interview date format');
         }
         
-        // Check if the date is different (rescheduling)
-        const existingDate = new Date(existingInterview.startTime).toDateString();
-        const newDate = newInterviewStart.toDateString();
+        // Check if the date/time is different (rescheduling)
+        const existingStart = new Date(existingInterview.startTime).getTime();
+        const newStart = newInterviewStart.getTime();
+        const interviewerChanged = interviewerId && existingInterview.interviewer?._id?.toString() !== interviewerId;
         
-        if (existingDate !== newDate) {
-          console.log('📅 Rescheduling interview from', existingDate, 'to', newDate);
+        if (existingStart !== newStart || interviewerChanged) {
+          console.log('📅 Rescheduling interview from', new Date(existingStart), 'to', newInterviewStart);
+          if (interviewerChanged) {
+            console.log('👤 Interviewer changed to:', interviewerId);
+          }
           
-          // Update the interview date
-          const newInterviewEnd = new Date(newInterviewStart.getTime() + 60 * 60 * 1000);
+          // Update the interview
           existingInterview.startTime = newInterviewStart;
           existingInterview.endTime = newInterviewEnd;
+          if (interviewerId) {
+            existingInterview.interviewer = interviewerId;
+          }
           await existingInterview.save();
+          
+          // Re-populate after save
+          const updatedInterview = await Interview.findById(existingInterview._id)
+            .populate('interviewer', 'name email');
           
           // Send reschedule notification
           try {
@@ -123,11 +147,11 @@ class InterviewService {
           
           return { 
             message: 'Interview rescheduled successfully. Notification sent to applicant.',
-            interview: existingInterview,
+            interview: updatedInterview,
             interviewId: existingInterviewId,
             isExisting: true,
             isRescheduled: true,
-            interviewDate: existingInterview.startTime
+            interviewDate: updatedInterview.startTime
           };
         } else {
           console.log('📅 Interview already exists with same date, sending reminder');
@@ -156,18 +180,39 @@ class InterviewService {
       }
 
       // Parse the interview date and create start/end times
-      const interviewStart = new Date(interviewDate);
-      if (isNaN(interviewStart.getTime())) {
-        throw new Error('Invalid interview date format');
+      // Support both old format (interviewDate) and new format (startTime/endTime)
+      let interviewStart, interviewEnd;
+      
+      if (startTime) {
+        // New format with explicit start and end times
+        interviewStart = new Date(startTime);
+        if (isNaN(interviewStart.getTime())) {
+          throw new Error('Invalid start time format');
+        }
+        
+        if (endTime) {
+          interviewEnd = new Date(endTime);
+          if (isNaN(interviewEnd.getTime())) {
+            throw new Error('Invalid end time format');
+          }
+        } else {
+          // Default to 1 hour after start if no end time provided
+          interviewEnd = new Date(interviewStart.getTime() + 60 * 60 * 1000);
+        }
+      } else {
+        // Old format - use interviewDate for backward compatibility
+        interviewStart = new Date(interviewDate);
+        if (isNaN(interviewStart.getTime())) {
+          throw new Error('Invalid interview date format');
+        }
+        // Set default interview duration (1 hour)
+        interviewEnd = new Date(interviewStart.getTime() + 60 * 60 * 1000);
       }
 
-      // Set default interview duration (1 hour)
-      const interviewEnd = new Date(interviewStart.getTime() + 60 * 60 * 1000);
-
-      // Create interview with the staff member as interviewer
+      // Create interview with the selected interviewer (or staff member as fallback)
       const interview = new Interview({
         applicationId: applicationId,
-        interviewer: staffUserId,
+        interviewer: actualInterviewerId,
         startTime: interviewStart,
         endTime: interviewEnd
       });
@@ -213,6 +258,177 @@ class InterviewService {
     }
   }
 
+  // Schedule interview for department head - they are always the interviewer themselves
+  static async scheduleInterviewForDepartmentHead(departmentHeadId, interviewData) {
+    try {
+      const { applicationId, startTime, endTime, notes } = interviewData;
+
+      console.log('🔍 Department head scheduling interview:', { applicationId, startTime, endTime, departmentHeadId });
+
+      // Validate input
+      if (!applicationId || !startTime) {
+        throw new Error('Application ID and interview start time are required');
+      }
+
+      // Department head is always the interviewer - force it
+      const interviewerId = departmentHeadId;
+
+      // Find the application
+      const application = await ApplicationForm.findById(applicationId);
+      if (!application) {
+        throw new Error('Application not found');
+      }
+
+      // Check for existing non-deleted interview
+      const existingInterview = await Interview.findOne({ 
+        applicationId: applicationId,
+        is_deleted: { $ne: true }
+      }).populate('interviewer', 'name email');
+      
+      if (existingInterview) {
+        // Generate interview ID for existing interview
+        const existingInterviewId = `INT-${new Date().getFullYear()}-${String(existingInterview._id).slice(-6).toUpperCase()}`;
+        
+        // Parse the new interview dates
+        const newInterviewStart = new Date(startTime);
+        const newInterviewEnd = endTime ? new Date(endTime) : new Date(newInterviewStart.getTime() + 60 * 60 * 1000);
+        
+        if (isNaN(newInterviewStart.getTime())) {
+          throw new Error('Invalid interview date format');
+        }
+        
+        // Check if the date/time is different (rescheduling)
+        const existingStart = new Date(existingInterview.startTime).getTime();
+        const newStart = newInterviewStart.getTime();
+        
+        if (existingStart !== newStart) {
+          console.log('📅 Rescheduling interview from', new Date(existingStart), 'to', newInterviewStart);
+          
+          // Update the interview - always set interviewer to department head
+          existingInterview.startTime = newInterviewStart;
+          existingInterview.endTime = newInterviewEnd;
+          existingInterview.interviewer = departmentHeadId; // Force department head as interviewer
+          await existingInterview.save();
+          
+          // Re-populate after save
+          const updatedInterview = await Interview.findById(existingInterview._id)
+            .populate('interviewer', 'name email');
+          
+          // Send reschedule notification
+          try {
+            await NotificationService.createInterviewRescheduledNotification(
+              application.user,
+              applicationId,
+              newInterviewStart,
+              'Department Head'
+            );
+            console.log('✅ Interview rescheduled notification sent to applicant:', application.user);
+          } catch (notificationError) {
+            console.error('⚠️ Failed to send reschedule notification:', notificationError);
+          }
+          
+          return { 
+            message: 'Interview rescheduled successfully. Notification sent to applicant.',
+            interview: updatedInterview,
+            interviewId: existingInterviewId,
+            isExisting: true,
+            isRescheduled: true,
+            interviewDate: updatedInterview.startTime
+          };
+        } else {
+          console.log('📅 Interview already exists with same date, sending reminder');
+          
+          // Send notification to the applicant about their existing interview
+          try {
+            await NotificationService.createInterviewReminderNotification(
+              application.user,
+              applicationId,
+              existingInterview.startTime,
+              'Department Head'
+            );
+            console.log('✅ Interview reminder notification sent to applicant:', application.user);
+          } catch (notificationError) {
+            console.error('⚠️ Failed to send interview reminder notification:', notificationError);
+          }
+          
+          return { 
+            message: 'Interview already scheduled for this application. Notification sent to applicant.',
+            interview: existingInterview,
+            interviewId: existingInterviewId,
+            isExisting: true,
+            interviewDate: existingInterview.startTime
+          };
+        }
+      }
+
+      // Parse the interview date and create start/end times
+      const interviewStart = new Date(startTime);
+      if (isNaN(interviewStart.getTime())) {
+        throw new Error('Invalid start time format');
+      }
+      
+      let interviewEnd;
+      if (endTime) {
+        interviewEnd = new Date(endTime);
+        if (isNaN(interviewEnd.getTime())) {
+          throw new Error('Invalid end time format');
+        }
+      } else {
+        // Default to 1 hour after start if no end time provided
+        interviewEnd = new Date(interviewStart.getTime() + 60 * 60 * 1000);
+      }
+
+      // Create the interview with department head as interviewer
+      const interview = new Interview({
+        applicationId: applicationId,
+        interviewer: departmentHeadId, // Force department head as interviewer
+        startTime: interviewStart,
+        endTime: interviewEnd,
+        notes: notes || 'Scheduled by Department Head'
+      });
+
+      await interview.save();
+
+      // Generate interview ID
+      const interviewId = `INT-${new Date().getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`;
+
+      const populatedInterview = await Interview.findById(interview._id)
+        .populate('interviewer', 'name email');
+
+      // Send notification to the applicant
+      try {
+        await NotificationService.createInterviewScheduledNotification(
+          application.user,
+          applicationId,
+          interviewStart,
+          'Department Head'
+        );
+        console.log('✅ Interview scheduled notification sent to applicant:', application.user);
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send notification:', notificationError);
+        // Don't fail the scheduling if notification fails
+      }
+
+      console.log('✅ Interview created successfully by Department Head:', {
+        interviewId,
+        applicationId,
+        startTime: interviewStart,
+        interviewer: departmentHeadId
+      });
+
+      return { 
+        message: 'Interview scheduled successfully. Notification sent to applicant.',
+        interview: populatedInterview,
+        interviewId,
+        isExisting: false,
+        interviewDate: interviewStart
+      };
+    } catch (error) {
+      console.error('Error scheduling interview for department head:', error);
+      throw error;
+    }
+  }
+
   static async rescheduleInterviewForDepartmentHead(departmentHeadId, interviewId, rescheduleData) {
     try {
       const { date, time, notes } = rescheduleData;
@@ -245,12 +461,13 @@ class InterviewService {
       // Set end time to 1 hour after start time
       const newEndTime = new Date(newDateTime.getTime() + 60 * 60 * 1000);
 
-      // Update the interview
+      // Update the interview - always force department head as interviewer
       const updatedInterview = await Interview.findByIdAndUpdate(
         interviewId,
         {
           startTime: newDateTime,
           endTime: newEndTime,
+          interviewer: departmentHeadId, // Force department head as interviewer
           notes: notes || interview.notes,
           updatedAt: new Date()
         },
@@ -339,6 +556,41 @@ class InterviewService {
       return { message: 'Interview retrieved successfully', interview };
     } catch (error) {
       console.error('Error getting interview by ID:', error);
+      throw error;
+    }
+  }
+
+  static async getInterviewByApplicationId(applicationId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+        throw new Error('Invalid application ID');
+      }
+      
+      const interview = await Interview.findOne({ applicationId: applicationId, is_deleted: { $ne: true } })
+        .populate('applicationId', 'firstName lastName status _id user')
+        .populate('interviewer', 'name email _id');
+      
+      if (!interview) {
+        return { 
+          message: 'No interview scheduled for this application',
+          interview: null,
+          isScheduled: false
+        };
+      }
+
+      // Generate interview ID for display
+      const interviewId = `INT-${new Date(interview.createdAt).getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`;
+      
+      return { 
+        message: 'Interview retrieved successfully', 
+        interview: {
+          ...interview.toObject(),
+          interviewId: interviewId
+        },
+        isScheduled: true
+      };
+    } catch (error) {
+      console.error('Error getting interview by application ID:', error);
       throw error;
     }
   }
@@ -768,9 +1020,78 @@ class InterviewService {
 
   static async getSoftDeletedInterviews(query = {}) {
     try {
-      return await SoftDeleteUtils.getSoftDeleted(Interview, query);
+      const deletedInterviews = await Interview.find({ ...query, is_deleted: true })
+        .populate('applicationId', 'firstName lastName status _id user')
+        .populate('interviewer', 'name email _id')
+        .sort({ updatedAt: -1 });
+      
+      return {
+        message: 'Soft-deleted interviews retrieved successfully',
+        data: deletedInterviews,
+        count: deletedInterviews.length
+      };
     } catch (error) {
       console.error('Error getting soft deleted interviews:', error);
+      throw error;
+    }
+  }
+
+  // Mark interview as finished
+  static async finishInterview(interviewId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(interviewId)) {
+        throw new Error('Invalid interview ID');
+      }
+
+      const interview = await Interview.findOneAndUpdate(
+        { _id: interviewId, is_deleted: { $ne: true } },
+        { is_finished: true },
+        { new: true }
+      )
+        .populate('applicationId', 'firstName lastName status _id user')
+        .populate('interviewer', 'name email _id');
+
+      if (!interview) {
+        throw new Error('Interview not found');
+      }
+
+      return {
+        success: true,
+        message: 'Interview marked as finished',
+        data: interview
+      };
+    } catch (error) {
+      console.error('Error finishing interview:', error);
+      throw error;
+    }
+  }
+
+  // Revert interview finished status
+  static async revertFinishInterview(interviewId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(interviewId)) {
+        throw new Error('Invalid interview ID');
+      }
+
+      const interview = await Interview.findOneAndUpdate(
+        { _id: interviewId, is_deleted: { $ne: true } },
+        { is_finished: false },
+        { new: true }
+      )
+        .populate('applicationId', 'firstName lastName status _id user')
+        .populate('interviewer', 'name email _id');
+
+      if (!interview) {
+        throw new Error('Interview not found');
+      }
+
+      return {
+        success: true,
+        message: 'Interview finish status reverted',
+        data: interview
+      };
+    } catch (error) {
+      console.error('Error reverting interview finish status:', error);
       throw error;
     }
   }

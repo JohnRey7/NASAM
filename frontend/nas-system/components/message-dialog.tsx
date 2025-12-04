@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
-import { Send, Loader2, Archive, X, User as UserIcon } from "lucide-react"
+import { Send, Loader2, X, User as UserIcon, ChevronUp } from "lucide-react"
 import MessageService, { Message, Conversation } from "@/services/messageService"
 import { formatDistanceToNow } from "date-fns"
 
@@ -18,7 +17,10 @@ interface MessageDialogProps {
   receiverName: string
   applicationId?: string
   conversationType?: 'admin-applicant' | 'admin-department-head' | 'general'
+  conversationId?: string  // Optional: if provided, load this conversation directly
 }
+
+const MESSAGES_PER_PAGE = 30
 
 export function MessageDialog({
   open,
@@ -26,57 +28,153 @@ export function MessageDialog({
   receiverId,
   receiverName,
   applicationId,
-  conversationType = 'general'
+  conversationType = 'general',
+  conversationId: existingConversationId
 }: MessageDialogProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [sending, setSending] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [totalMessages, setTotalMessages] = useState(0)
   const { toast } = useToast()
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesTopRef = useRef<HTMLDivElement>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const previousScrollHeightRef = useRef<number>(0)
 
-  // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  // Auto-scroll to bottom when new messages arrive (only for new messages, not when loading older)
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
   }
 
-  // Load conversation and messages
+  // Maintain scroll position when loading older messages
+  const maintainScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      const newScrollHeight = scrollContainerRef.current.scrollHeight
+      const scrollDiff = newScrollHeight - previousScrollHeightRef.current
+      scrollContainerRef.current.scrollTop = scrollDiff
+    }
+  }
+
+  // Load conversation and initial messages
   useEffect(() => {
     if (open && receiverId) {
+      setMessages([])
+      setHasMore(false)
+      setTotalMessages(0)
       loadConversation()
     }
-  }, [open, receiverId])
+    
+    // Cleanup on close
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+  }, [open, receiverId, existingConversationId])
 
+  // Set up polling for new messages when conversation is loaded
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    if (open && conversation?._id) {
+      // Start polling every 3 seconds for new messages
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          // Only fetch the latest messages to check for new ones
+          const result = await MessageService.getConversationMessages(conversation._id, MESSAGES_PER_PAGE, 0)
+          
+          // Check if there are new messages by comparing the latest message
+          if (result.messages.length > 0 && messages.length > 0) {
+            const latestFetched = result.messages[result.messages.length - 1]
+            const latestExisting = messages[messages.length - 1]
+            
+            if (latestFetched._id !== latestExisting._id) {
+              // There are new messages - merge them
+              const existingIds = new Set(messages.map(m => m._id))
+              const newMessages = result.messages.filter(m => !existingIds.has(m._id))
+              
+              if (newMessages.length > 0) {
+                console.log('📨 New messages received:', newMessages.length)
+                setMessages(prev => [...prev, ...newMessages])
+                setTotalMessages(result.pagination.total)
+                // Mark new messages as read
+                await MessageService.markAsRead(conversation._id)
+              }
+            }
+          } else if (result.messages.length > 0 && messages.length === 0) {
+            // Initial load case
+            setMessages(result.messages)
+            setTotalMessages(result.pagination.total)
+            setHasMore(result.pagination.hasMore)
+          }
+        } catch (error) {
+          console.error('Error polling messages:', error)
+        }
+      }, 3000)
+      
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+      }
+    }
+  }, [open, conversation?._id, messages])
+
+  // Scroll to bottom on initial load
+  useEffect(() => {
+    if (!loading && messages.length > 0 && !loadingMore) {
+      scrollToBottom("auto")
+    }
+  }, [loading])
 
   const loadConversation = async () => {
     setLoading(true)
     try {
-      console.log('🔵 Starting conversation with:', { receiverId, applicationId, conversationType })
+      console.log('🔵 Loading conversation:', { existingConversationId, receiverId, applicationId, conversationType })
       
-      // Start or get conversation
-      const conv = await MessageService.startConversation({
-        receiverId,
-        applicationId,
-        conversationType
-      })
-      console.log('✅ Conversation loaded:', conv)
+      let conv: Conversation
+      
+      // If we have an existing conversation ID, just use it
+      if (existingConversationId) {
+        console.log('✅ Using existing conversation ID:', existingConversationId)
+        conv = {
+          _id: existingConversationId,
+          conversationType: conversationType,
+          otherParticipant: { _id: receiverId, name: receiverName } as any,
+          lastMessage: '',
+          lastMessageTime: new Date(),
+          unreadCount: 0,
+          archived: false,
+          createdAt: new Date()
+        }
+      } else {
+        // Start or get conversation (for new conversations)
+        conv = await MessageService.startConversation({
+          receiverId,
+          applicationId,
+          conversationType
+        })
+        console.log('✅ Conversation loaded:', conv)
+      }
+      
       setConversation(conv)
 
-      // Load messages
-      const msgs = await MessageService.getConversationMessages(conv._id)
-      console.log('✅ Messages loaded:', msgs.length)
-      setMessages(msgs)
+      // Load initial messages (most recent)
+      const result = await MessageService.getConversationMessages(conv._id, MESSAGES_PER_PAGE, 0)
+      console.log('✅ Messages loaded:', result.messages.length, 'of', result.pagination.total)
+      setMessages(result.messages)
+      setHasMore(result.pagination.hasMore)
+      setTotalMessages(result.pagination.total)
 
       // Mark as read
       await MessageService.markAsRead(conv._id)
     } catch (error: any) {
       console.error('❌ Error loading conversation:', error)
-      console.error('❌ Error details:', error.message, error.stack)
       toast({
         title: "Error",
         description: error.message || "Failed to load conversation",
@@ -86,6 +184,59 @@ export function MessageDialog({
       setLoading(false)
     }
   }
+
+  // Load older messages (pagination)
+  const loadOlderMessages = useCallback(async () => {
+    if (!conversation || loadingMore || !hasMore) return
+    
+    setLoadingMore(true)
+    
+    // Store current scroll height before loading
+    if (scrollContainerRef.current) {
+      previousScrollHeightRef.current = scrollContainerRef.current.scrollHeight
+    }
+    
+    try {
+      const skip = messages.length
+      console.log('📜 Loading older messages, skip:', skip)
+      
+      const result = await MessageService.getConversationMessages(
+        conversation._id,
+        MESSAGES_PER_PAGE,
+        skip
+      )
+      
+      console.log('📜 Loaded', result.messages.length, 'older messages')
+      
+      // Prepend older messages to the beginning
+      setMessages(prev => [...result.messages, ...prev])
+      setHasMore(result.pagination.hasMore)
+      
+      // Maintain scroll position after DOM update
+      requestAnimationFrame(() => {
+        maintainScrollPosition()
+      })
+    } catch (error) {
+      console.error('Error loading older messages:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load older messages",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [conversation, loadingMore, hasMore, messages.length])
+
+  // Handle scroll to detect when user scrolls to top
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement
+    
+    // Load more when scrolled near the top (within 100px)
+    if (target.scrollTop < 100 && hasMore && !loadingMore) {
+      loadOlderMessages()
+    }
+  }, [hasMore, loadingMore, loadOlderMessages])
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !conversation) return
@@ -99,11 +250,12 @@ export function MessageDialog({
       })
 
       setMessages(prev => [...prev, message])
+      setTotalMessages(prev => prev + 1)
       setNewMessage("")
       
-      toast({
-        title: "Message Sent",
-        description: "Your message has been delivered",
+      // Scroll to bottom to show the new message
+      requestAnimationFrame(() => {
+        scrollToBottom()
       })
     } catch (error) {
       console.error('Error sending message:', error)
@@ -139,28 +291,43 @@ export function MessageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl h-[600px] flex flex-col p-0">
+      <DialogContent className="max-w-2xl h-[600px] flex flex-col p-0" hideCloseButton>
         {/* Header */}
         <DialogHeader className="px-6 py-4 border-b bg-[#800000]/5">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 bg-[#800000] text-white">
-              <AvatarFallback className="bg-[#800000] text-white">
-                {getInitials(receiverName)}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <DialogTitle className="text-[#800000]">{receiverName}</DialogTitle>
-              <DialogDescription className="text-xs text-gray-500">
-                {conversationType === 'admin-applicant' && 'Applicant'}
-                {conversationType === 'admin-department-head' && 'Department Head'}
-                {conversationType === 'general' && 'User'}
-              </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 bg-[#800000] text-white">
+                <AvatarFallback className="bg-[#800000] text-white">
+                  {getInitials(receiverName)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <DialogTitle className="text-[#800000]">{receiverName}</DialogTitle>
+                <DialogDescription className="text-xs text-gray-500">
+                  {conversationType === 'admin-applicant' && 'Applicant'}
+                  {conversationType === 'admin-department-head' && 'Department Head'}
+                  {conversationType === 'general' && 'User'}
+                  {totalMessages > 0 && ` • ${totalMessages} messages`}
+                </DialogDescription>
+              </div>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onOpenChange(false)}
+              className="h-8 w-8 rounded-full hover:bg-gray-200"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </DialogHeader>
 
-        {/* Messages Area */}
-        <ScrollArea className="flex-1 px-6 py-4">
+        {/* Messages Area with scroll detection */}
+        <div 
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-6 py-4"
+        >
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-[#800000]" />
@@ -173,6 +340,30 @@ export function MessageDialog({
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Load more indicator at top */}
+              <div ref={messagesTopRef} />
+              
+              {loadingMore && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#800000] mr-2" />
+                  <span className="text-sm text-gray-500">Loading older messages...</span>
+                </div>
+              )}
+              
+              {hasMore && !loadingMore && (
+                <div className="flex justify-center py-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={loadOlderMessages}
+                    className="text-gray-500 hover:text-[#800000]"
+                  >
+                    <ChevronUp className="h-4 w-4 mr-1" />
+                    Load older messages
+                  </Button>
+                </div>
+              )}
+              
               {messages.map((message) => {
                 // Check if the message sender is the current user (not the receiver)
                 const isOwn = message.senderId?._id ? message.senderId._id !== receiverId : true
@@ -213,7 +404,7 @@ export function MessageDialog({
               <div ref={messagesEndRef} />
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* Input Area */}
         <div className="px-6 py-4 border-t bg-gray-50">

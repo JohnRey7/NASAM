@@ -161,7 +161,7 @@ export function ApplicationProgressTracker() {
   const isApplicationFormComplete = ["form_verified", "document_verification", "approved", "rejected"].includes(applicationStatus)
   const isDocumentsComplete = ["document_verification", "approved", "rejected"].includes(applicationStatus)
   const isPersonalityTestComplete = hasPersonalityTest
-  const isInterviewComplete = interviewData?.interview?.status === "completed" || interviewData?.status === "completed"
+  const isInterviewComplete = interviewData?.interview?.is_finished === true || interviewData?.is_finished === true
   const isEvaluationComplete = evaluationStatus?.hasEvaluation
 
   // Application progress steps in order - SEQUENTIAL LOGIC
@@ -357,6 +357,21 @@ export function ApplicationProgressTracker() {
                   {/* ✅ Enhanced status messages for Interview step */}
                   {idx === 3 && (
                     <div className="mt-2 text-xs">
+                      {step.status === "Completed" && step.interviewDate && (
+                        <div>
+                          <span className="text-green-600">✓ Interview completed</span>
+                          <div className="mt-1 font-medium text-green-800">
+                            {new Date(step.interviewDate).toLocaleString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
+                      )}
                       {step.status === "Pending" && step.interviewDate && (
                         <div>
                           <span className="text-blue-600">📅 Interview scheduled</span>

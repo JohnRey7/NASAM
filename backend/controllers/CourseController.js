@@ -7,7 +7,7 @@ const CourseController = {
    */
   async createCourse(req, res) {
     try {
-      const { courseId, name } = req.body;
+      const { courseId, name, departmentId } = req.body;
 
       if (!courseId || !name) {
         return res.status(400).json({
@@ -15,7 +15,7 @@ const CourseController = {
         });
       }
 
-      const course = await CourseService.createCourse({ courseId, name });
+      const course = await CourseService.createCourse({ courseId, name, departmentId });
 
       return res.status(201).json({
         message: 'Course created successfully',
@@ -296,6 +296,34 @@ const CourseController = {
         return res.status(404).json({ message: error.message });
       }
       return res.status(500).json({ message: 'Failed to restore course' });
+    }
+  },
+
+  /**
+   * Get courses by department
+   * GET /api/course/department/:departmentId
+   */
+  async getCoursesByDepartment(req, res) {
+    try {
+      const { departmentId } = req.params;
+      const { page = 1, limit = 25 } = req.query;
+
+      if (!departmentId) {
+        return res.status(400).json({ message: 'Department ID is required' });
+      }
+
+      const result = await CourseService.getCoursesByDepartment(departmentId, {
+        page: parseInt(page),
+        limit: parseInt(limit)
+      });
+
+      return res.json({
+        message: 'Courses retrieved successfully',
+        ...result
+      });
+    } catch (error) {
+      console.error('Get courses by department error:', error);
+      return res.status(500).json({ message: 'Failed to retrieve courses' });
     }
   }
 };

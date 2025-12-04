@@ -21,6 +21,21 @@ interface BackendDocument {
   uploadedAt: string;
 }
 
+interface GradeAverages {
+  elementary?: number;
+  juniorHighSchool?: number;
+  seniorHighSchool?: number;
+  college?: number;
+}
+
+interface IncomeTaxInfo {
+  annualIncome?: number;
+  taxableIncome?: number;
+  taxYear?: string;
+  employerName?: string;
+  tin?: string;
+}
+
 interface DocumentResponse {
   _id: string;
   applicationId: string;
@@ -32,8 +47,16 @@ interface DocumentResponse {
   physicalCheckup: BackendDocument[];
   certificates: BackendDocument[];
   homeLocationSketch: BackendDocument[];
+  gradeAverages?: GradeAverages;
+  incomeTaxInfo?: IncomeTaxInfo;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface DocumentsWithMetadata {
+  documents: Document[];
+  gradeAverages?: GradeAverages;
+  incomeTaxInfo?: IncomeTaxInfo;
 }
 
 export const backendFieldMap: Record<DocumentType, string> = {
@@ -94,15 +117,15 @@ export const documentService = {
     }
   },
 
-  // Fetch documents
-  async getDocuments(): Promise<Document[]> {
+  // Fetch documents with metadata (grade averages and income tax info)
+  async getDocumentsWithMetadata(): Promise<DocumentsWithMetadata> {
     const response = await fetch(`${API_URL}/documents`, {
       method: "GET",
       credentials: "include",
     });
 
     if (response.status === 404) {
-      return []; // No documents found
+      return { documents: [], gradeAverages: undefined, incomeTaxInfo: undefined };
     }
 
     if (!response.ok) {
@@ -115,21 +138,32 @@ export const documentService = {
       const type = Object.keys(backendFieldMap).find(
         (k) => backendFieldMap[k as DocumentType] === key
       ) as DocumentType | undefined;
-      if (!type || key === "_id" || key === "applicationId" || key === "createdAt" || key === "updatedAt") {
+      if (!type || key === "_id" || key === "applicationId" || key === "createdAt" || key === "updatedAt" || key === "gradeAverages" || key === "incomeTaxInfo") {
         return [];
       }
-      return (Array.isArray(value) ? value : [value]).map((doc: BackendDocument) => ({
+      if (!value) return [];
+      return (Array.isArray(value) ? value : [value]).filter(Boolean).map((doc: BackendDocument) => ({
         id: doc._id || Math.random().toString(36).substring(2, 9),
         type,
         name: doc.originalName,
-        size: 0, // Size not provided by backend; consider adding file size in backend response
+        size: 0,
         progress: 100,
         status: "complete" as const,
         file: null,
       }));
     });
 
-    return documents;
+    return {
+      documents,
+      gradeAverages: document.gradeAverages,
+      incomeTaxInfo: document.incomeTaxInfo,
+    };
+  },
+
+  // Fetch documents (legacy, returns only documents array)
+  async getDocuments(): Promise<Document[]> {
+    const result = await this.getDocumentsWithMetadata();
+    return result.documents;
   },
 
   // Delete all documents

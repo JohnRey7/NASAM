@@ -3,8 +3,8 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 
-// Development mode flag - set to true to enable console logging instead of DB saves
-const DEV_MODE = process.env.NODE_ENV === 'development' || process.env.NOTIFICATION_DEV_MODE === 'true';
+// Development mode flag - disabled to always save notifications to database
+const DEV_MODE = false;
 
 class NotificationService {
   // Create notification
@@ -339,6 +339,67 @@ class NotificationService {
       });
     } catch (error) {
       console.error('Error creating interview rescheduled notification:', error);
+      throw error;
+    }
+  }
+
+  // Create scholarship approved notification
+  static async createScholarshipApprovedNotification(userId, applicationId, scholarName) {
+    try {
+      return await NotificationService.createNotification({
+        userId: userId,
+        type: 'scholarship_approved',
+        title: 'Congratulations! Scholarship Approved',
+        message: `Congratulations ${scholarName || ''}! Your scholarship application has been approved. Welcome to the NAS program.`,
+        priority: 'urgent',
+        metadata: {
+          applicationId: applicationId,
+          action: 'scholarship_approved'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating scholarship approved notification:', error);
+      throw error;
+    }
+  }
+
+  // Create scholarship rejected notification
+  static async createScholarshipRejectedNotification(userId, applicationId, reason) {
+    try {
+      return await NotificationService.createNotification({
+        userId: userId,
+        type: 'scholarship_rejected',
+        title: 'Scholarship Application Update',
+        message: reason || 'We regret to inform you that your scholarship application was not approved at this time. Thank you for your interest.',
+        priority: 'high',
+        metadata: {
+          applicationId: applicationId,
+          action: 'scholarship_rejected'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating scholarship rejected notification:', error);
+      throw error;
+    }
+  }
+
+  // Create evaluation submitted notification (for scholar after department head evaluates)
+  static async createEvaluationSubmittedNotification(userId, applicationId, evaluatorName, ratingPeriod) {
+    try {
+      return await NotificationService.createNotification({
+        userId: userId,
+        type: 'evaluation_submitted',
+        title: 'Evaluation Submitted',
+        message: `Your evaluation for ${ratingPeriod} has been submitted by ${evaluatorName || 'your department head'}.`,
+        priority: 'medium',
+        metadata: {
+          applicationId: applicationId,
+          ratingPeriod: ratingPeriod,
+          action: 'evaluation_submitted'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating evaluation submitted notification:', error);
       throw error;
     }
   }

@@ -8,6 +8,13 @@ import { Bell, X, CheckCircle, AlertCircle, Clock, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useConfirmation } from "@/components/ui/confirmation-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Notification {
   _id: string
@@ -23,8 +30,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 
 export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  const [allLoading, setAllLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
@@ -88,6 +98,36 @@ export function NotificationDropdown() {
       fetchNotifications()
     }
   }, [isOpen])
+
+  const fetchAllNotifications = async () => {
+    setAllLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/notifications?limit=100`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setAllNotifications(data.notifications || [])
+      } else {
+        console.error('🔔 Failed to fetch all notifications:', response.status)
+      }
+    } catch (error) {
+      console.error('🔔 Error fetching all notifications:', error)
+    } finally {
+      setAllLoading(false)
+    }
+  }
+
+  // Fetch all notifications when dialog opens
+  useEffect(() => {
+    if (isDialogOpen) {
+      fetchAllNotifications()
+    }
+  }, [isDialogOpen])
 
   const markAsRead = async (notificationId: string) => {
     try {
@@ -335,8 +375,7 @@ export function NotificationDropdown() {
                     className="text-[#800000] hover:text-[#600000] text-xs"
                     onClick={() => {
                       setIsOpen(false)
-                      // Navigate to full notifications page if you have one
-                      // router.push('/notifications')
+                      setIsDialogOpen(true)
                     }}
                   >
                     View all notifications
@@ -347,6 +386,83 @@ export function NotificationDropdown() {
           </Card>
         </div>
       )}
+
+      {/* View All Notifications Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              All Notifications
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] pr-4">
+            {allLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
+              </div>
+            ) : allNotifications.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">No notifications yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {allNotifications.map((notification) => (
+                  <div
+                    key={notification._id}
+                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                      notification.isRead 
+                        ? 'border-gray-200 bg-gray-50' 
+                        : 'border-[#800000] bg-white shadow-sm'
+                    }`}
+                    onClick={() => {
+                      markAsRead(notification._id)
+                      setAllNotifications(prev => 
+                        prev.map(n => n._id === notification._id ? { ...n, isRead: true } : n)
+                      )
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {getPriorityIcon(notification.priority)}
+                          <h4 className="font-medium text-gray-900">
+                            {notification.title}
+                          </h4>
+                          {!notification.isRead && (
+                            <Badge variant="destructive" className="text-xs">New</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification._id);
+                          setAllNotifications(prev => prev.filter(n => n._id !== notification._id));
+                        }}
+                        className="h-8 w-8 p-0 text-gray-400 hover:text-red-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       {ConfirmDialog}
     </div>
   )

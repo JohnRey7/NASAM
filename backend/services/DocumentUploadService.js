@@ -492,41 +492,60 @@ class DocumentUploadService {
     }
   }
 
-  // Soft delete document
-  static async softDeleteDocument(documentId) {
+  // Soft delete document by user ID
+  static async softDeleteDocument(userId) {
     try {
-      const result = await SoftDeleteUtils.softDeleteById(DocumentUpload, documentId);
-      return { message: 'Document soft deleted successfully', data: result };
+      // Find document by user reference
+      const document = await DocumentUpload.findOne({ user: userId });
+      if (!document) {
+        throw new Error('Document not found for this user');
+      }
+      
+      document.is_deleted = true;
+      await document.save();
+      
+      return { message: 'Document soft deleted successfully', data: document };
     } catch (error) {
       console.error('Error soft deleting document:', error);
       throw error;
     }
   }
 
-  // Restore document
-  static async restoreDocument(documentId) {
+  // Restore document by user ID
+  static async restoreDocument(userId) {
     try {
-      const result = await SoftDeleteUtils.restoreById(DocumentUpload, documentId);
-      return { message: 'Document restored successfully', data: result };
+      // Find soft-deleted document by user reference
+      const document = await DocumentUpload.findOne({ user: userId, is_deleted: true });
+      if (!document) {
+        throw new Error('Soft-deleted document not found for this user');
+      }
+      
+      document.is_deleted = false;
+      await document.save();
+      
+      return { message: 'Document restored successfully', data: document };
     } catch (error) {
       console.error('Error restoring document:', error);
       throw error;
     }
   }
 
-  // Permanent delete document
-  static async permanentDeleteDocument(documentId) {
+  // Permanent delete document by user ID
+  static async permanentDeleteDocument(userId) {
     try {
-      const document = await DocumentUpload.findById(documentId);
+      // Find soft-deleted document by user reference
+      const document = await DocumentUpload.findOne({ user: userId, is_deleted: true });
       if (!document) {
-        throw new Error('Document not found');
+        throw new Error('Soft-deleted document not found for this user');
       }
 
       // Delete physical files
       await this.deletePhysicalFiles(document);
 
-      const result = await SoftDeleteUtils.permanentDeleteById(DocumentUpload, documentId);
-      return { message: 'Document permanently deleted', data: result };
+      // Permanently delete the document
+      await DocumentUpload.findByIdAndDelete(document._id);
+      
+      return { message: 'Document permanently deleted', data: document };
     } catch (error) {
       console.error('Error permanently deleting document:', error);
       throw error;
@@ -539,17 +558,32 @@ class DocumentUploadService {
       const {
         page = 1,
         limit = 10,
-        sortBy = 'deletedAt',
+        sortBy = 'updatedAt',
         sortOrder = 'desc'
       } = options;
 
-      return await SoftDeleteUtils.getSoftDeleted(DocumentUpload, {
-        page,
-        limit,
-        sortBy,
-        sortOrder,
-        populate: 'user'
-      });
+      const skip = (page - 1) * limit;
+      const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+
+      const documents = await DocumentUpload.find({ is_deleted: true })
+        .populate('user', 'name email idNumber')
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await DocumentUpload.countDocuments({ is_deleted: true });
+
+      return {
+        documents,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          totalDocuments: total,
+          hasNext: page * limit < total,
+          hasPrev: page > 1
+        }
+      };
     } catch (error) {
       console.error('Error getting soft deleted documents:', error);
       throw error;

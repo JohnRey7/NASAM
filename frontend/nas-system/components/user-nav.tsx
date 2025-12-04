@@ -110,9 +110,9 @@ export function UserNav() {
   // Show loading state while auth is loading
   if (status === 'loading') {
     return (
-      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-        <Avatar className="h-8 w-8">
-          <AvatarFallback>...</AvatarFallback>
+      <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+        <Avatar className="h-10 w-10">
+          <AvatarFallback className="bg-white/20 text-white">...</AvatarFallback>
         </Avatar>
       </Button>
     )
@@ -128,10 +128,10 @@ export function UserNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full cursor-pointer hover:ring-2 hover:ring-white/50 focus:ring-2 focus:ring-white/50">
+          <Avatar className="h-10 w-10">
             <AvatarImage src={profileImage || "/placeholder.svg"} alt={displayName} />
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarFallback className="bg-white/20 text-white">{initials}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
