@@ -652,6 +652,34 @@ const ApplicationController = {
     }
   },
 
+  // ADD: New method to revert form verification
+  async revertFormVerification(req, res) {
+    try {
+      const { applicationId } = req.params;
+      console.log('🔄 Backend: Revert form verification for:', applicationId);
+
+      const result = await ApplicationService.revertFormVerification(applicationId, req.user.id);
+      console.log('🔄 Form verification reverted, new status:', result.status);
+
+      res.json({
+        success: true,
+        message: 'Form verification reverted successfully',
+        application: result
+      });
+
+    } catch (error) {
+      console.error('❌ Backend: Error reverting form verification:', error);
+      if (error.message.includes('not found') || error.message.includes('not verified')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({
+        success: false,
+        message: 'Failed to revert form verification',
+        error: error.message
+      });
+    }
+  },
+
   // ADD: New method to revert document verification
   async revertDocumentVerification(req, res) {
     try {

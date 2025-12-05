@@ -33,7 +33,7 @@ export function UserNav() {
     console.log('👤 UserNav useEffect triggered, user:', user)
     if (user?.id) {
       console.log('👤 Fetching student picture for user ID:', user.id)
-      fetchStudentPicture(user.id)
+      fetchStudentPicture()
     } else {
       console.log('👤 No user ID available yet')
     }
@@ -44,10 +44,11 @@ export function UserNav() {
     console.log('👤 User object changed:', user)
   }, [user])
 
-  const fetchStudentPicture = async (userId: string) => {
+  const fetchStudentPicture = async () => {
     try {
-      console.log('📸 Fetching student picture from:', `${API_URL}/document-uploads/user/${userId}`)
-      const response = await fetch(`${API_URL}/document-uploads/user/${userId}`, {
+      // Use /document-uploads to get current user's documents (no permission needed beyond auth)
+      console.log('📸 Fetching student picture from:', `${API_URL}/document-uploads`)
+      const response = await fetch(`${API_URL}/document-uploads`, {
         credentials: 'include'
       })
       

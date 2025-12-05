@@ -9,40 +9,44 @@ class RoleService {
   // Initialize permissions automatically from index.js routes
   static async initializePermissions() {
     try {
-      // Check if permissions collection is empty
-      const permissionCount = await Permission.countDocuments();
-      if (permissionCount > 0) {
-        console.log('Permissions already exist, skipping initialization');
-        return { message: 'Permissions already initialized' };
-      }
-
-      // Auto-extracted permissions from index.js routes
+      // Comprehensive permissions list based on backend endpoints
       const permissions = [
         'administrator',
-        'register.departmentHead',
-        'user.delete',
+        // User management
+        'user.create',
         'user.read',
+        'user.update',
+        'user.delete',
+        // Role management
         'role.create',
         'role.read',
         'role.read.id',
         'role.update',
         'role.delete',
+        // Application Form
         'applicationForm.create',
-        'application.export',
-        'application.export.csv',
         'applicationForm.readOwn',
         'applicationForm.read',
-        'applicationForm.update',
         'applicationForm.updateOwn',
+        'applicationForm.update',
         'applicationForm.delete',
         'applicationForm.status.set',
         'applicationForm.approvals.set',
+        'application.export',
+        'application.export.csv',
+        'application.readAll',
+        // Application History
         'applicationHistory.readOwn',
         'applicationHistory.read',
+        // Documents
+        'document.create',
         'document.set',
         'document.get',
-        'document.delete',
         'document.read',
+        'document.update',
+        'document.delete',
+        'document.upload.endTermGrade',
+        // Personality Test
         'personality_test.create',
         'personality_test.answer',
         'personality_test.stop',
@@ -55,8 +59,8 @@ class RoleService {
         'personality_test.template.read',
         'personality_test.template.update',
         'personality_test.template.delete',
+        // Interview
         'interview.create',
-        'application.readAll',
         'interview.readAll',
         'interview.read',
         'interview.readOwn',
@@ -64,35 +68,45 @@ class RoleService {
         'interview.updateOwn',
         'interview.delete',
         'interview.deleteOwn',
+        // Evaluation
         'evaluation.create',
         'evaluation.read',
+        'evaluation.read.all',
         'evaluation.update',
         'evaluation.delete',
         'evaluation.update_timekeeping',
         'evaluation.read_timekeeping',
+        'evaluation.manage',
+        // Department
         'department.create',
         'department.read',
         'department.update',
         'department.delete',
-        'activity.readAll',
-        'user.create',
-        'user.update',
+        // Course
         'course.create',
         'course.read',
         'course.read.deleted',
         'course.update',
         'course.delete.soft',
-        'course.delete.hard'
+        'course.delete.hard',
+        // Activity
+        'activity.readAll',
+        // Audit
+        'audit.read',
+        'audit.manage'
       ];
 
+      // Upsert all permissions (add missing ones, keep existing)
+      let addedCount = 0;
       for (const perm of permissions) {
-        await Permission.findOneAndUpdate(
+        const result = await Permission.findOneAndUpdate(
           { name: perm },
           { name: perm },
-          { upsert: true, new: true }
+          { upsert: true, new: true, setDefaultsOnInsert: true }
         );
+        if (result.isNew !== false) addedCount++;
       }
-      console.log('Permissions initialized');
+      console.log(`Permissions initialized/updated (${permissions.length} total)`);
       return { message: 'Permissions initialized successfully' };
     } catch (error) {
       console.error('Error initializing permissions:', error);
@@ -112,31 +126,92 @@ class RoleService {
         throw new Error('Administrator permission not found');
       }
 
-      // Create or update admin role with only the 'administrator' permission
+      // ==================== ONLY 3 ROLES ====================
+      // 1. oas_staff - Admin with full access
+      // 2. department_head - Department head with limited access
+      // 3. applicant - Applicant/Scholar with own data access
+
+      // OAS STAFF ROLE - Gets administrator permission for full access (this is the admin)
       await Role.findOneAndUpdate(
-        { name: 'admin' },
-        { name: 'admin', permissions: [adminPermission._id] }, // Assign only the 'administrator' permission
+        { name: 'oas_staff' },
+        { name: 'oas_staff', permissions: [adminPermission._id] },
         { upsert: true, new: true }
       );
 
-      // Create or update user role with all permissions except admin-specific ones
-      const userPermissions = allPermissions
-        .filter(p => !['administrator', 'application.update', 'application.delete', 'application.readAll', 'document.delete'].includes(p.name))
+      // APPLICANT ROLE PERMISSIONS
+      const applicantPermissions = [
+        // Application
+        'applicationForm.create',
+        'applicationForm.readOwn',
+        'applicationForm.updateOwn',
+        'applicationHistory.readOwn',
+        'application.export',  // Export own application PDF
+        // Documents
+        'document.set',
+        'document.get',
+        'document.upload.endTermGrade',
+        // Personality Test
+        'personality_test.create',
+        'personality_test.answer',
+        'personality_test.stop',
+        'personality_test.readOwn',
+        // Interview
+        'interview.readOwn',
+        'interview.updateOwn',  // For updating availability
+        // Evaluation (for scholars)
+        'evaluation.read_timekeeping',  // View own timekeeping
+        // Reference data
+        'department.read',
+        'course.read'
+      ];
+
+      const applicantPermissionIds = allPermissions
+        .filter(p => applicantPermissions.includes(p.name))
         .map(p => p._id);
 
-      // Ensure users can create applications
-      const createAppPermission = allPermissions.find(p => p.name === 'applicationForm.create');
-      if (createAppPermission && !userPermissions.includes(createAppPermission._id)) {
-        userPermissions.push(createAppPermission._id);
-      }
-
       await Role.findOneAndUpdate(
-        { name: 'user' },
-        { name: 'user', permissions: userPermissions },
+        { name: 'applicant' },
+        { name: 'applicant', permissions: applicantPermissionIds },
         { upsert: true, new: true }
       );
 
-      console.log('Roles initialized');
+      // DEPARTMENT HEAD ROLE PERMISSIONS
+      const departmentHeadPermissions = [
+        // Application access
+        'application.readAll',         // View assigned applicants list
+        'applicationForm.read',        // Read application details
+        'applicationHistory.read',     // View application history
+        'application.export',          // Export application PDF
+        // Documents
+        'document.get',                // Download/view documents
+        'document.read',               // Read document records
+        // Personality Test
+        'personality_test.read',       // View applicant's test results
+        // Interview
+        'interview.read',              // View interview details
+        'interview.update',            // Update/reschedule interviews
+        'interview.readOwn',           // View own review list
+        // Evaluation
+        'evaluation.create',           // Create scholar evaluations
+        'evaluation.read',             // Read evaluations
+        'evaluation.update',           // Update evaluations
+        'evaluation.read_timekeeping', // View timekeeping records
+        // Reference data
+        'department.read',             // View departments
+        'course.read'                  // View courses
+      ];
+
+      const departmentHeadPermissionIds = allPermissions
+        .filter(p => departmentHeadPermissions.includes(p.name))
+        .map(p => p._id);
+
+      await Role.findOneAndUpdate(
+        { name: 'department_head' },
+        { name: 'department_head', permissions: departmentHeadPermissionIds },
+        { upsert: true, new: true }
+      );
+
+      console.log('Roles initialized (oas_staff, department_head, applicant)');
       return { message: 'Roles initialized successfully' };
     } catch (error) {
       console.error('Error initializing roles:', error);
@@ -144,7 +219,7 @@ class RoleService {
     }
   }
 
-  // Initialize admin account if users collection is empty
+  // Initialize OAS Staff account if users collection is empty
   static async initializeAdminAccount() {
     try {
       const userCount = await User.countDocuments();
@@ -153,27 +228,27 @@ class RoleService {
         await this.initializePermissions();
         await this.initializeRoles();
 
-        const adminRole = await Role.findOne({ name: 'admin' });
-        if (!adminRole) {
-          throw new Error('Admin role not found after initialization');
+        const oasStaffRole = await Role.findOne({ name: 'oas_staff' });
+        if (!oasStaffRole) {
+          throw new Error('OAS Staff role not found after initialization');
         }
 
         const hashedPassword = await argon2.hash('Welcome1!', { type: argon2.argon2id });
         const adminUser = new User({
-          name: 'Administrator',
-          idNumber: 'ADMIN001',
-          email: 'admin@example.com',
+          name: 'OAS Administrator',
+          idNumber: 'OAS001',
+          email: 'oas@example.com',
           password: hashedPassword,
-          role: adminRole._id,
+          role: oasStaffRole._id,
           verified: true
         });
         await adminUser.save();
-        console.log('Admin account created with ID: ADMIN001 and password: Welcome1!');
-        return { message: 'Admin account created successfully' };
+        console.log('OAS Staff account created with ID: OAS001 and password: Welcome1!');
+        return { message: 'OAS Staff account created successfully' };
       }
-      return { message: 'Admin account already exists' };
+      return { message: 'Users already exist, skipping admin creation' };
     } catch (error) {
-      console.error('Error initializing admin account:', error);
+      console.error('Error initializing OAS Staff account:', error);
       throw error;
     }
   }

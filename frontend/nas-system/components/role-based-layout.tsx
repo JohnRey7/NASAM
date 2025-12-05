@@ -55,13 +55,14 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
   // Fetch student picture
   useEffect(() => {
     if (user?.id) {
-      fetchStudentPicture(user.id)
+      fetchStudentPicture()
     }
   }, [user?.id])
 
-  const fetchStudentPicture = async (userId: string) => {
+  const fetchStudentPicture = async () => {
     try {
-      const response = await fetch(`${API_URL}/document-uploads/user/${userId}`, {
+      // Use /document-uploads to get current user's documents (no permission needed beyond auth)
+      const response = await fetch(`${API_URL}/document-uploads`, {
         credentials: 'include'
       })
       
@@ -125,26 +126,7 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
       { name: "Profile", href: "/profile", icon: <User className="h-5 w-5" /> },
     ]
 
-    if (userRole === "applicant") {
-      return commonItems
-    } else if (userRole === "oas_staff") {
-      return [
-        ...commonItems,
-        { name: "Applications", href: "/applications", icon: <ClipboardList className="h-5 w-5" /> },
-        { name: "Interviews", href: "/interviews", icon: <Calendar className="h-5 w-5" /> },
-        { name: "Scholars", href: "/scholars", icon: <Users className="h-5 w-5" /> },
-        { name: "Analytics", href: "/analytics", icon: <BarChart className="h-5 w-5" /> },
-        { name: "Security", href: "/security", icon: <Shield className="h-5 w-5" /> },
-      ]
-    } else if (userRole === "panelist") {
-      return [
-        ...commonItems,
-        { name: "Assigned Applications", href: "/assigned", icon: <ClipboardList className="h-5 w-5" /> },
-        { name: "Interview Schedule", href: "/schedule", icon: <Calendar className="h-5 w-5" /> },
-        { name: "Evaluations", href: "/evaluations", icon: <FileText className="h-5 w-5" /> },
-      ]
-    }
-
+    // All roles only see Dashboard and Profile
     return commonItems
   }
 

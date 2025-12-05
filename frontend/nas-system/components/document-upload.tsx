@@ -67,6 +67,8 @@ const documentTypeInfo: Record<DocumentType, { title: string; description: strin
 export function DocumentUpload() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [documentsVerified, setDocumentsVerified] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
   
   // Grade averages state
@@ -87,8 +89,9 @@ export function DocumentUpload() {
   })
 
   useEffect(() => {
-    const fetchDocuments = async () => {
+    const fetchDocumentsAndStatus = async () => {
       try {
+        // Fetch documents
         const result = await documentService.getDocumentsWithMetadata()
         setDocuments(result.documents)
         
@@ -112,15 +115,32 @@ export function DocumentUpload() {
             tin: result.incomeTaxInfo.tin || ''
           })
         }
+
+        // Check if documents are already verified
+        const appResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application`, {
+          credentials: 'include'
+        });
+        
+        if (appResponse.ok) {
+          const appData = await appResponse.json();
+          if (appData.application) {
+            // Documents are verified if status is 'document_verification' or beyond
+            const status = appData.application.status;
+            const isVerified = ['document_verification', 'interview_scheduled', 'approved', 'rejected'].includes(status);
+            setDocumentsVerified(isVerified);
+          }
+        }
       } catch (err) {
         toast({
           title: "Error",
           description: err instanceof Error ? err.message : "Failed to fetch existing documents.",
           variant: "destructive",
         })
+      } finally {
+        setIsLoading(false)
       }
     }
-    fetchDocuments()
+    fetchDocumentsAndStatus()
   }, [toast])
 
   const handleFileUpload = (type: DocumentType) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -354,6 +374,116 @@ export function DocumentUpload() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#800000]"></div>
+        <span className="ml-3 text-gray-600">Loading documents...</span>
+      </div>
+    )
+  }
+
+  // If documents are verified, show read-only view
+  if (documentsVerified) {
+    return (
+      <div className="space-y-6">
+        {/* Verified Banner */}
+        <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">Documents Verified</h3>
+              <p className="mt-1 text-sm text-green-700">
+                Your documents have been verified by OAS staff. You can no longer modify or upload new documents.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Show verified documents in read-only mode */}
+        {Object.keys(documentTypeInfo).map((type) => {
+          const docType = type as DocumentType
+          const { title, description } = documentTypeInfo[docType]
+          const typeDocuments = documents.filter((doc) => doc.type === docType)
+          
+          return (
+            <Card key={type} className="mb-6 opacity-90">
+              <CardHeader className="bg-green-50 border-b border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-green-800">{title}</CardTitle>
+                    <CardDescription>{description}</CardDescription>
+                  </div>
+                  <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                    Verified
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {typeDocuments.length > 0 ? (
+                  <div className="space-y-2">
+                    {typeDocuments.map((doc) => (
+                      <div key={doc.id} className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
+                        <FileCheck className="h-5 w-5 text-green-500" />
+                        <div>
+                          <p className="font-medium">{doc.name}</p>
+                          <p className="text-sm text-gray-500">{formatFileSize(doc.size)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">No documents uploaded for this category</p>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
+
+        {/* Show grade averages in read-only mode */}
+        {(gradeAverages.elementary || gradeAverages.juniorHighSchool || gradeAverages.seniorHighSchool || gradeAverages.college) && (
+          <Card className="mb-6">
+            <CardHeader className="bg-green-50 border-b border-green-200">
+              <CardTitle className="text-green-800">Grade Averages (Verified)</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 gap-4">
+                {gradeAverages.elementary && (
+                  <div className="p-3 bg-gray-50 rounded">
+                    <Label className="text-gray-600">Elementary Average</Label>
+                    <p className="font-medium">{gradeAverages.elementary}%</p>
+                  </div>
+                )}
+                {gradeAverages.juniorHighSchool && (
+                  <div className="p-3 bg-gray-50 rounded">
+                    <Label className="text-gray-600">Junior High School Average</Label>
+                    <p className="font-medium">{gradeAverages.juniorHighSchool}%</p>
+                  </div>
+                )}
+                {gradeAverages.seniorHighSchool && (
+                  <div className="p-3 bg-gray-50 rounded">
+                    <Label className="text-gray-600">Senior High School Average</Label>
+                    <p className="font-medium">{gradeAverages.seniorHighSchool}%</p>
+                  </div>
+                )}
+                {gradeAverages.college && (
+                  <div className="p-3 bg-gray-50 rounded">
+                    <Label className="text-gray-600">College Average</Label>
+                    <p className="font-medium">{gradeAverages.college}%</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    )
   }
 
   return (

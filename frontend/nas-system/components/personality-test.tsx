@@ -175,15 +175,16 @@ export function PersonalityTest() {
     async function fetchTestStatus() {
       try {
         const data = await getMyPersonalityTest();
-        if (data && data.test) {
-          // If test is completed, show completion message
-          if (data.test.endTime) {
-            setTestCompleted(true);
-            setScore(data.test.score ? Number(data.test.score) : null);
-          }
+        // Backend returns test object directly, not wrapped in .test
+        if (data && data.endTime) {
+          // Test is completed (has endTime), show completion message
+          setTestCompleted(true);
+          setTestStarted(true); // Also set testStarted so it doesn't show "Start Test"
+          setScore(data.score ? Number(data.score) : null);
         }
       } catch (error) {
-        // Optionally handle error
+        // No test found or error - user hasn't started test yet
+        console.log('No existing personality test found');
       } finally {
         setLoading(false);
       }
@@ -198,6 +199,48 @@ export function PersonalityTest() {
         <CardContent className="py-12 text-center text-gray-500">Loading...</CardContent>
       </Card>
     );
+  }
+
+  // IMPORTANT: Check if test is completed FIRST (before canTakeTest check)
+  // A user who already completed the test should see completion screen, not restriction
+  if (testCompleted) {
+    return (
+      <Card className="max-w-3xl mx-auto border-green-300 shadow-lg bg-green-50">
+        <CardHeader className="bg-green-100 border-b border-green-200 flex flex-col items-center">
+          <div className="mx-auto w-16 h-16 bg-green-200 rounded-full flex items-center justify-center mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-10 w-10 text-green-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <CardTitle className="text-green-700 text-center text-2xl">Personality Assessment Completed!</CardTitle>
+          <CardDescription className="text-green-600 text-center mt-2">
+            You have successfully completed the personality assessment.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="text-center py-6">
+            <div className="bg-green-100 border border-green-300 rounded-lg p-6 mb-4">
+              <h3 className="text-lg font-medium text-green-800 mb-2">Thank You!</h3>
+              <p className="text-green-700 mb-2">
+                Your personality assessment has been recorded and submitted successfully.
+              </p>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-700 text-sm">
+                <strong>What happens next?</strong> Your application has been automatically approved. 
+                Please wait for further instructions from the OAS office.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   // Show access restriction if verification requirements not met
@@ -328,57 +371,6 @@ export function PersonalityTest() {
         <CardFooter className="border-t pt-6 flex justify-end">
           <Button onClick={handleStartTest} className="bg-[#800000] hover:bg-[#600000]">
             Start Test
-          </Button>
-        </CardFooter>
-      </Card>
-    )
-  }
-
-  if (testCompleted) {
-    return (
-      <Card className="max-w-3xl mx-auto border-green-300 shadow-lg bg-green-50">
-        <CardHeader className="bg-green-100 border-b border-green-200 flex flex-col items-center">
-          <div className="mx-auto w-16 h-16 bg-green-200 rounded-full flex items-center justify-center mb-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-10 w-10 text-green-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <CardTitle className="text-green-800 text-2xl text-center">Assessment Completed</CardTitle>
-          <CardDescription className="text-green-700 text-center mt-2">
-            <span className="font-semibold block mb-2">
-              Applicant is done taking the personality test.
-            </span>
-            <span className="block bg-green-200 text-green-900 rounded px-3 py-2 mt-2 shadow-inner font-medium">
-              Please proceed to the <span className="underline">Application Status</span> tab and wait for the approval.
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="text-center py-8">
-            <p className="text-gray-700 mb-4">
-              Thank you for completing the personality assessment. Your responses have been recorded and will be reviewed by the scholarship committee.
-            </p>
-            <p className="text-sm text-gray-500 mb-2">
-              You answered {Object.keys(answers).length} out of {questions.length} questions.
-            </p>
-            {score !== null && (
-              <div className="mt-4">
-                <p className="text-sm text-gray-600">
-                  Your responses have been submitted successfully. The scholarship committee will review your assessment.
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter className="border-t pt-6 flex justify-center">
-          <Button className="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-lg shadow">
-            <a href="/dashboard">Return to Dashboard</a>
           </Button>
         </CardFooter>
       </Card>

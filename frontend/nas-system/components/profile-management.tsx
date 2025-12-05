@@ -203,16 +203,6 @@ export function ProfileManagement() {
                     <p className="text-xs text-gray-500">Student ID cannot be changed</p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" type="tel" defaultValue="+63 912 345 6789" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input id="address" defaultValue="123 Main St, Cebu City" />
-                  </div>
-
                   <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
                     <div className="flex">
                       <div className="flex-shrink-0">

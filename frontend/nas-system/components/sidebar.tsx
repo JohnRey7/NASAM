@@ -7,18 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
   Home,
-  FileText,
-  Upload,
-  Clock,
   User,
-  Users,
-  BarChart,
-  Calendar,
-  Shield,
-  Settings,
-  BookOpen,
-  Award,
-  ClipboardCheck,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import {
@@ -49,93 +38,9 @@ const navItems: NavItem[] = [
     roles: ["applicant", "scholar", "oas", "panel"],
   },
   {
-    title: "Application Form",
-    href: "/application",
-    icon: FileText,
-    roles: ["applicant"],
-  },
-  {
-    title: "Document Upload",
-    href: "/documents",
-    icon: Upload,
-    roles: ["applicant", "scholar"],
-  },
-  {
-    title: "Application Status",
-    href: "/status",
-    icon: Clock,
-    roles: ["applicant", "scholar"],
-  },
-  {
-    title: "Personality Test",
-    href: "/personality-test",
-    icon: ClipboardCheck,
-    roles: ["applicant"],
-  },
-  {
-    title: "OAS Dashboard",
-    href: "/oas-dashboard",
-    icon: Award,
-    roles: ["oas"],
-  },
-  {
-    title: "Application Review",
-    href: "/applications-review",
-    icon: FileText,
-    roles: ["oas", "panel"],
-  },
-  {
-    title: "Scholar Management",
-    href: "/scholars",
-    icon: Users,
-    roles: ["oas"],
-  },
-  {
-    title: "Analytics",
-    href: "/analytics",
-    icon: BarChart,
-    roles: ["oas"],
-  },
-  {
-    title: "Panel Dashboard",
-    href: "/panel-dashboard",
-    icon: Users,
-    roles: ["panel"],
-  },
-  {
-    title: "Interviews",
-    href: "/interviews",
-    icon: Calendar,
-    roles: ["panel"],
-  },
-  {
-    title: "Scholar Evaluation",
-    href: "/evaluation",
-    icon: BookOpen,
-    roles: ["oas", "panel"],
-  },
-  {
-    title: "Term-End Evaluation",
-    href: "/term-end-evaluation",
-    icon: ClipboardCheck,
-    roles: ["scholar"],
-  },
-  {
-    title: "Security & Audit",
-    href: "/security",
-    icon: Shield,
-    roles: ["oas"],
-  },
-  {
     title: "Profile",
     href: "/profile",
     icon: User,
-    roles: ["applicant", "scholar", "oas", "panel"],
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
     roles: ["applicant", "scholar", "oas", "panel"],
   },
 ]

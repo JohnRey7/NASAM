@@ -454,6 +454,7 @@ app.get('/api/oas/application/export/all', authenticate, checkPermission('applic
 // Application verification routes
 app.patch('/api/oas/application/:applicationId/verify', authenticate, ApplicationController.verifyApplicationForm);
 app.patch('/api/oas/application/:applicationId/verify-documents', authenticate, ApplicationController.verifyApplicationDocuments);
+app.patch('/api/oas/application/:applicationId/revert-form-verification', authenticate, ApplicationController.revertFormVerification);
 app.patch('/api/oas/application/:applicationId/revert-document-verification', authenticate, ApplicationController.revertDocumentVerification);
 
 // Test routes (can be removed in production)

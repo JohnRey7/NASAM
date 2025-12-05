@@ -304,6 +304,55 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
     }
   };
 
+  const handleRevertFormVerification = async (application: any) => {
+    const isConfirmed = await confirm({
+      title: "Revert Application Verification",
+      description: "This will revert the application form verification status back to pending. The application will need to be verified again.",
+      confirmText: "Revert Verification",
+      cancelText: "Cancel",
+      type: "warning"
+    });
+
+    if (!isConfirmed) return;
+
+    try {
+      console.log('🔄 Reverting form verification for application:', application._id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${application._id}/revert-form-verification`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('🔄 Form verification reverted:', result);
+
+      toast({
+        title: "Verification Reverted",
+        description: `Application form verification has been reverted to pending status.`,
+        duration: 5000
+      });
+
+      // Refresh the page to show updated status
+      setTimeout(() => window.location.reload(), 2000);
+
+    } catch (error) {
+      console.error('❌ Revert form verification failed:', error);
+      
+      toast({
+        title: "Revert Failed",
+        description: `Failed to revert verification: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+        duration: 5000
+      });
+    }
+  };
+
   const handleVerifyAllDocuments = async () => {
     try {
       console.log('✅ Verifying all documents for application:', applicationId);
@@ -2014,6 +2063,74 @@ export function ApplicationReview() {
     }
   };
 
+  const handleRevertFormVerification = async (application: any) => {
+    const isConfirmed = await confirm({
+      title: "Revert Application Verification",
+      description: "This will revert the application form verification status back to pending. The application will need to be verified again.",
+      confirmText: "Revert Verification",
+      cancelText: "Cancel",
+      type: "warning"
+    });
+
+    if (!isConfirmed) return;
+
+    try {
+      console.log('🔄 Reverting form verification for application:', application._id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${application._id}/revert-form-verification`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('🔄 Form verification reverted:', result);
+
+      // Update local state to reflect the change
+      setApplications(prev => 
+        prev.map(app => 
+          app._id === application._id 
+            ? { ...app, status: result.application?.status || 'pending' }
+            : app
+        )
+      );
+
+      // Update the selected application in the dialog
+      if (selectedApplication) {
+        setSelectedApplication({ ...selectedApplication, status: 'pending' });
+      }
+
+      toast({
+        title: "Verification Reverted",
+        description: `Application form verification has been reverted to pending status.`,
+        duration: 5000
+      });
+
+      // Refresh server-side counts
+      try {
+        const res = await applicationService.getApplicationCounts();
+        if (res?.success) setCounts(res.data);
+      } catch (err) {
+        console.warn('Failed to refresh counts after revert', err);
+      }
+
+    } catch (error) {
+      console.error('❌ Revert form verification failed:', error);
+      
+      toast({
+        title: "Revert Failed",
+        description: `Failed to revert verification: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+        duration: 5000
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -2213,18 +2330,30 @@ export function ApplicationReview() {
                                   </div>
                                 </div>
                                 
-                                {/* ✅ UPDATED: Add Verify Application button alongside Download */}
-                                <div className="pt-4 border-t">
-                                  <div className="flex gap-2">
-                                    <Button
-                                      className="bg-green-600 hover:bg-green-700 text-white"
-                                      onClick={() => handleVerifyApplication(application)}
-                                      disabled={application.status === 'form_verified'}
-                                    >
-                                      <CheckCircle className="mr-2 h-4 w-4" />
-                                      {application.status === 'form_verified' ? 'Application Verified' : 'Verify Application'}
-                                    </Button>
+                                {/* Action Buttons - In Details Section */}
+                                <div className="pt-4 border-t mt-4">
+                                  <div className="flex gap-2 flex-wrap">
+                                    {/* Verify/Revert Application Button */}
+                                    {application.status === 'form_verified' || application.status === 'document_verification' ? (
+                                      <Button
+                                        className="bg-orange-600 hover:bg-orange-700 text-white"
+                                        onClick={() => handleRevertFormVerification(application)}
+                                      >
+                                        <RefreshCw className="mr-2 h-4 w-4" />
+                                        Revert Application Verification
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                        onClick={() => handleVerifyApplication(application)}
+                                        disabled={application.status !== 'pending'}
+                                      >
+                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                        Verify Application
+                                      </Button>
+                                    )}
                                     
+                                    {/* Download Application Button */}
                                     <Button
                                       variant="outline"
                                       onClick={() => handleDownloadApplicationPDF(application)}
@@ -2233,9 +2362,15 @@ export function ApplicationReview() {
                                       Download Application
                                     </Button>
                                     
+                                    {/* Status Badge */}
                                     {application.status === 'form_verified' && (
                                       <Badge className="bg-green-100 text-green-800 self-center">
                                         ✅ Form Approved
+                                      </Badge>
+                                    )}
+                                    {application.status === 'document_verification' && (
+                                      <Badge className="bg-blue-100 text-blue-800 self-center">
+                                        📄 Documents Verified
                                       </Badge>
                                     )}
                                   </div>

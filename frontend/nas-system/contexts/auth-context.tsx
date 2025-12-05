@@ -226,26 +226,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
+    // Clear local state immediately
+    setUser(null)
+    setStatus("unauthenticated")
+    localStorage.removeItem("nas_user")
+    // Clear all auth-related cookies
+    document.cookie = "nas_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    
     try {
-      const response = await fetch(`${API_URL}/auth/logout`, {
+      // Call backend to clear server-side session
+      await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
-        credentials: "include", // Include cookies
+        credentials: "include",
       })
-      
-      if (!response.ok) {
-        console.error("Logout failed on server, but proceeding with client logout")
-      }
     } catch (error) {
-      console.error("Logout error:", error)
-    } finally {
-      // Always clear local state regardless of server response
-      setUser(null)
-      setStatus("unauthenticated")
-      localStorage.removeItem("nas_user")
-      // Clear the cookie
-      document.cookie = "nas_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-      router.push("/")
+      console.error("Logout API error:", error)
     }
+    
+    // Force a full page reload to clear all cached state
+    window.location.href = "/"
   }
 
   const register = async (email: string, idNumber: string, password: string, courseId: string, name?: string) => {

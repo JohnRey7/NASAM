@@ -1276,6 +1276,45 @@ class ApplicationService {
     };
   }
 
+  // Revert application form verification
+  static async revertFormVerification(applicationId, revertedBy) {
+    const application = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId })).populate('user');
+    if (!application) {
+      throw new Error('Application not found');
+    }
+
+    // Check if form is verified
+    if (application.status !== 'form_verified' && application.status !== 'document_verification') {
+      throw new Error('Application form is not verified');
+    }
+
+    // If documents are already verified, we need to revert those too
+    if (application.documentsVerifiedAt) {
+      const DocumentUpload = require('../models/DocumentUpload');
+      await DocumentUpload.findOneAndUpdate(
+        { user: application.user._id },
+        { $unset: { verifiedAt: 1, verifiedBy: 1 } }
+      );
+    }
+
+    const updatedApplication = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }),
+      { 
+        status: 'pending', // Revert to pending status
+        $unset: { verifiedAt: 1, verifiedBy: 1, documentsVerifiedAt: 1, documentsVerifiedBy: 1 }
+      },
+      { new: true }
+    );
+
+    console.log('📱 Form verification reverted for application:', applicationId);
+
+    return {
+      id: updatedApplication._id,
+      status: updatedApplication.status,
+      verifiedAt: null
+    };
+  }
+
   // Revert document verification
   static async revertDocumentVerification(applicationId, revertedBy) {
     const application = await ApplicationForm.findById(applicationId).populate('user');

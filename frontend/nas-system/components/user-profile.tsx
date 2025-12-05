@@ -108,7 +108,7 @@ export function UserProfile() {
           setFormData(updatedFormData)
           
           // Fetch student picture from documents
-          fetchStudentPicture(data.user?.id)
+          fetchStudentPicture()
         } else {
           console.error("Failed to fetch user data. Status:", response.status)
           const errorData = await response.json().catch(() => null)
@@ -136,9 +136,10 @@ export function UserProfile() {
   }, [toast]) // Remove user from dependencies since we're getting email from backend
 
   // Fetch student picture from documents
-  const fetchStudentPicture = async (userId: string) => {
+  const fetchStudentPicture = async () => {
     try {
-      const response = await fetch(`${API_URL}/document-uploads/user/${userId}`, {
+      // Use /document-uploads to get current user's documents (no permission needed beyond auth)
+      const response = await fetch(`${API_URL}/document-uploads`, {
         credentials: 'include'
       })
       
@@ -298,9 +299,7 @@ export function UserProfile() {
       })
 
       // Refresh the image from backend
-      if (user?.id) {
-        fetchStudentPicture(user.id)
-      }
+      fetchStudentPicture()
     } catch (error) {
       console.error('Error uploading image:', error)
       toast({
@@ -309,9 +308,7 @@ export function UserProfile() {
         variant: "destructive",
       })
       // Revert preview on error
-      if (user?.id) {
-        fetchStudentPicture(user.id)
-      }
+      fetchStudentPicture()
     } finally {
       setIsLoading(false)
     }
@@ -527,53 +524,6 @@ export function UserProfile() {
                         className="bg-gray-50"
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Complete Address</Label>
-                    <Input 
-                      id="address" 
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      placeholder="Enter your complete address"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="contact">Contact Number</Label>
-                      <Input 
-                        id="contact" 
-                        name="contact"
-                        value={formData.contact}
-                        onChange={handleInputChange}
-                        placeholder="e.g., 09123456789"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="birthday">Date of Birth</Label>
-                      <Input 
-                        id="birthday" 
-                        name="birthday"
-                        type="date" 
-                        value={formData.birthday}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Select value={formData.gender} onValueChange={(val) => setFormData(prev => ({ ...prev, gender: val }))}>
-                      <SelectTrigger id="gender">
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
               </div>
