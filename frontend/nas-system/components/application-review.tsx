@@ -2690,7 +2690,20 @@ export function ApplicationReview() {
                                                 }}
                                               >
                                                 <Calendar className="mr-2 h-4 w-4" />
-                                                Reschedule
+                                                Reschedule Interview
+                                              </Button>
+
+                                              {/* Finish/Revert Interview Button */}
+                                              <Button
+                                                variant={interviewData.interview.is_finished ? "outline" : "default"}
+                                                className={interviewData.interview.is_finished 
+                                                  ? "border-orange-300 text-orange-600 hover:bg-orange-50" 
+                                                  : "bg-green-600 hover:bg-green-700 text-white"
+                                                }
+                                                onClick={() => handleFinishInterview(interviewData.interview._id, interviewData.interview.is_finished)}
+                                              >
+                                                <CheckCircle className="mr-2 h-4 w-4" />
+                                                {interviewData.interview.is_finished ? "Revert Interview" : "Finish Interview"}
                                               </Button>
 
                                               <Button
@@ -2711,18 +2724,6 @@ export function ApplicationReview() {
                                               >
                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                 Delete Interview
-                                              </Button>
-
-                                              <Button
-                                                variant={interviewData.interview.is_finished ? "destructive" : "outline"}
-                                                className={interviewData.interview.is_finished 
-                                                  ? "" 
-                                                  : "border-green-300 text-green-600 hover:bg-green-50"
-                                                }
-                                                onClick={() => handleFinishInterview(interviewData.interview._id, interviewData.interview.is_finished)}
-                                              >
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                                {interviewData.interview.is_finished ? "Revert" : "Finish Interview"}
                                               </Button>
                                             </div>
                                           ) : (

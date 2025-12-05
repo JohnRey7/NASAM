@@ -195,14 +195,16 @@ export function AdminEvaluationControl() {
 
               <div>
                 <Label htmlFor="schoolYear">School Year *</Label>
-                <Input
-                  id="schoolYear"
-                  value={schoolYear}
-                  onChange={(e) => setSchoolYear(e.target.value)}
-                  placeholder="e.g., 2024-2025"
-                  className="bg-white"
-                />
-                <p className="text-xs text-gray-500 mt-1">Format: YYYY-YYYY (e.g., 2024-2025)</p>
+                <Select value={schoolYear} onValueChange={setSchoolYear}>
+                  <SelectTrigger id="schoolYear" className="bg-white">
+                    <SelectValue placeholder="Select school year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2025-2026">2025-2026</SelectItem>
+                    <SelectItem value="2026-2027">2026-2027</SelectItem>
+                    <SelectItem value="2027-2028">2027-2028</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

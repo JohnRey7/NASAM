@@ -267,23 +267,6 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
                 <div><Label className="text-xs text-gray-500">Department/Office</Label><p className="font-medium">{scholar?.department || 'N/A'}</p></div>
               </div>
               <div><Label htmlFor="evaluatorPosition">Your Position Title *</Label><Input id="evaluatorPosition" value={evaluatorPosition} onChange={(e) => setEvaluatorPosition(e.target.value)} placeholder="e.g., Circulation in-charge" className="mt-1" disabled={readOnly} /></div>
-              {useDepartmentHeadEndpoint && !readOnly && (
-                <div className="mt-4 pt-4 border-t">
-                  <div>
-                    <Label>School Year *</Label>
-                    <Select value={schoolYear} onValueChange={setSchoolYear}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select school year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={`${currentYear}-${currentYear + 1}`}>{currentYear}-{currentYear + 1}</SelectItem>
-                        <SelectItem value={`${currentYear - 1}-${currentYear}`}>{currentYear - 1}-{currentYear}</SelectItem>
-                        <SelectItem value={`${currentYear + 1}-${currentYear + 2}`}>{currentYear + 1}-{currentYear + 2}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
             </div>
             <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg"><div className="flex justify-between items-center"><div><Label className="text-sm text-blue-700">Overall Rating Preview</Label><p className="text-3xl font-bold text-blue-900">{overallPreview.rating}</p></div><Badge className={`text-lg px-4 py-2 ${overallPreview.interpretation === 'Excellent' || overallPreview.interpretation === 'Good' ? 'bg-green-500' : overallPreview.interpretation === 'Average' ? 'bg-yellow-500' : 'bg-red-500'}`}>{overallPreview.interpretation}</Badge></div></div>
             <div className="border-2 border-red-200 bg-red-50 p-4 rounded-lg space-y-4"><h3 className="font-semibold text-red-900">A. ATTENDANCE AND PUNCTUALITY (20%)</h3><RatingInput label="Regularity of Attendance" value={attendance.regularityOfAttendance} onChange={(v) => setAttendance({...attendance, regularityOfAttendance: v})} disabled={readOnly} /><RatingInput label="Promptness in Reporting for Duty" value={attendance.promptnessInReporting} onChange={(v) => setAttendance({...attendance, promptnessInReporting: v})} disabled={readOnly} /></div>

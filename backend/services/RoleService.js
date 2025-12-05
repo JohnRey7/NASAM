@@ -193,8 +193,7 @@ class RoleService {
         'interview.readOwn',           // View own review list
         // Evaluation
         'evaluation.create',           // Create scholar evaluations
-        'evaluation.read',             // Read evaluations
-        'evaluation.update',           // Update evaluations
+        'evaluation.read',             // Read evaluations (read-only after submission)
         'evaluation.read_timekeeping', // View timekeeping records
         // Reference data
         'department.read',             // View departments

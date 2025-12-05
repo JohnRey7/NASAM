@@ -1510,26 +1510,72 @@ export default function DepartmentHeadDashboardPage() {
 
                                           {/* Reschedule Form */}
                                           {!isRescheduling ? (
-                                            <Button
-                                              variant="outline"
-                                              className="border-orange-300 text-orange-600 hover:bg-orange-50"
-                                              onClick={() => {
-                                                setIsRescheduling(true);
-                                                if (interviewData.interview.startTime) {
-                                                  const existingDate = new Date(interviewData.interview.startTime);
-                                                  setInterviewDate(existingDate.toISOString().split('T')[0]);
-                                                  setInterviewTime(existingDate.toTimeString().slice(0, 5));
+                                            <div className="flex gap-3 flex-wrap">
+                                              <Button
+                                                variant="outline"
+                                                className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                                onClick={() => {
+                                                  setIsRescheduling(true);
+                                                  if (interviewData.interview.startTime) {
+                                                    const existingDate = new Date(interviewData.interview.startTime);
+                                                    setInterviewDate(existingDate.toISOString().split('T')[0]);
+                                                    setInterviewTime(existingDate.toTimeString().slice(0, 5));
+                                                  }
+                                                  if (interviewData.interview.endTime) {
+                                                    const existingEndDate = new Date(interviewData.interview.endTime);
+                                                    setInterviewEndTime(existingEndDate.toTimeString().slice(0, 5));
+                                                  }
+                                                  // Department head is always the interviewer, no need to set
+                                                }}
+                                              >
+                                                <Calendar className="mr-2 h-4 w-4" />
+                                                Reschedule Interview
+                                              </Button>
+
+                                              {/* Finish/Revert Interview Button */}
+                                              <Button
+                                                variant={interviewData.interview.is_finished ? "outline" : "default"}
+                                                className={interviewData.interview.is_finished 
+                                                  ? "border-orange-300 text-orange-600 hover:bg-orange-50" 
+                                                  : "bg-green-600 hover:bg-green-700 text-white"
                                                 }
-                                                if (interviewData.interview.endTime) {
-                                                  const existingEndDate = new Date(interviewData.interview.endTime);
-                                                  setInterviewEndTime(existingEndDate.toTimeString().slice(0, 5));
-                                                }
-                                                // Department head is always the interviewer, no need to set
-                                              }}
-                                            >
-                                              <Calendar className="mr-2 h-4 w-4" />
-                                              Reschedule Interview
-                                            </Button>
+                                                onClick={async () => {
+                                                  try {
+                                                    const endpoint = interviewData.interview.is_finished ? 'revert-finish' : 'finish';
+                                                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${interviewData.interview._id}/${endpoint}`, {
+                                                      method: 'PATCH',
+                                                      headers: { 'Content-Type': 'application/json' },
+                                                      credentials: 'include',
+                                                    });
+                                                    const result = await response.json();
+                                                    if (result.success) {
+                                                      toast({
+                                                        title: interviewData.interview.is_finished ? "Interview Reverted" : "Interview Finished",
+                                                        description: interviewData.interview.is_finished 
+                                                          ? "Interview has been marked as not finished." 
+                                                          : "Interview has been marked as finished.",
+                                                      });
+                                                      // Refresh interview data
+                                                      if (selectedApplication) {
+                                                        fetchInterviewData(selectedApplication._id);
+                                                      }
+                                                    } else {
+                                                      throw new Error(result.message || 'Failed to update interview status');
+                                                    }
+                                                  } catch (error) {
+                                                    console.error('Error updating interview status:', error);
+                                                    toast({
+                                                      title: "Error",
+                                                      description: `Failed to update interview status: ${error instanceof Error ? error.message : String(error)}`,
+                                                      variant: "destructive",
+                                                    });
+                                                  }
+                                                }}
+                                              >
+                                                <CheckCircle className="mr-2 h-4 w-4" />
+                                                {interviewData.interview.is_finished ? "Revert Interview" : "Finish Interview"}
+                                              </Button>
+                                            </div>
                                           ) : (
                                             <div className="space-y-4 p-4 border rounded-lg">
                                               <h4 className="font-medium">Reschedule Interview</h4>
@@ -1674,8 +1720,8 @@ export default function DepartmentHeadDashboardPage() {
                                   variant="ghost"
                                   size="sm"
                                   className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  title="Evaluate Scholar"
-                                  onClick={() => {
+                                  title={interview.hasEvaluation ? "View Evaluation (Read Only)" : "Evaluate Scholar"}
+                                  onClick={async () => {
                                     // Find the scholar data for this applicant
                                     const scholar = scholars.find((s: any) => 
                                       s._id === interview._id || 
@@ -1683,13 +1729,39 @@ export default function DepartmentHeadDashboardPage() {
                                       s.applicationId === interview._id ||
                                       s.userId === interview._id
                                     );
+                                    
+                                    const idNumber = scholar?.idNumber || interview.idNumber || applicationDetails?.idNumber;
+                                    
+                                    // Check if evaluation exists for this scholar
+                                    if (idNumber) {
+                                      try {
+                                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/evaluations/user/${idNumber}`, {
+                                          credentials: 'include'
+                                        });
+                                        if (response.ok) {
+                                          const data = await response.json();
+                                          const evaluations = Array.isArray(data) ? data : (data.evaluations || []);
+                                          if (evaluations.length > 0) {
+                                            // Evaluation exists - set it for read-only view
+                                            setSelectedEvaluation(evaluations[0]);
+                                          } else {
+                                            // No evaluation - allow creating new one
+                                            setSelectedEvaluation(null);
+                                          }
+                                        }
+                                      } catch (error) {
+                                        console.error('Error checking for existing evaluation:', error);
+                                        setSelectedEvaluation(null);
+                                      }
+                                    }
+                                    
                                     if (scholar) {
                                       // Ensure firstName/lastName are set for the form
                                       const scholarData = {
                                         ...scholar,
                                         firstName: scholar.firstName || scholar.name?.split(' ')[0] || interview.applicantName?.split(' ')[0] || '',
                                         lastName: scholar.lastName || scholar.name?.split(' ').slice(1).join(' ') || interview.applicantName?.split(' ').slice(1).join(' ') || '',
-                                        idNumber: scholar.idNumber || applicationDetails?.idNumber
+                                        idNumber: idNumber
                                       };
                                       setSelectedScholar(scholarData);
                                       setShowEvaluationForm(true);
@@ -1701,7 +1773,7 @@ export default function DepartmentHeadDashboardPage() {
                                         name: interview.applicantName,
                                         firstName: nameParts[0] || '',
                                         lastName: nameParts.slice(1).join(' ') || '',
-                                        idNumber: interview.idNumber || applicationDetails?.idNumber,
+                                        idNumber: idNumber,
                                         course: interview.course,
                                         department: interview.department
                                       });
@@ -1795,7 +1867,7 @@ export default function DepartmentHeadDashboardPage() {
               }
             }}
             existingEvaluation={selectedEvaluation}
-            readOnly={isViewingEvaluation}
+            readOnly={isViewingEvaluation || !!selectedEvaluation}
             hideTimekeeping={true}
             useDepartmentHeadEndpoint={true}
           />
