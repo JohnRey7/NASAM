@@ -2216,7 +2216,7 @@ export function ApplicationReview() {
                   <tr key={application._id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-2 text-sm">{application._id}</td>
                     <td className="py-3 px-2 text-sm">{application.firstName} {application.lastName}</td>
-                    <td className="py-3 px-2 text-sm">{application.user?.idNumber}</td>
+                    <td className="py-3 px-2 text-sm whitespace-nowrap">{application.user?.idNumber}</td>
                     <td className="py-3 px-2 text-sm">{application.programOfStudyAndYear}</td>
                     <td className="py-3 px-2 text-sm">{application.gender || 'Unknown'}</td>
                     <td className="py-3 px-2 text-sm">{application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}</td>

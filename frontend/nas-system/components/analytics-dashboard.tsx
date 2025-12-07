@@ -5,8 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download, FileText, FileSpreadsheet } from "lucide-react"
 import { oasAnalyticsService } from "@/services/oasAnalyticsService"
+import { useToast } from "@/hooks/use-toast"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 import {
   ResponsiveContainer,
@@ -28,6 +35,8 @@ export function AnalyticsDashboard() {
   const [dateRange, setDateRange] = useState("current")
   const [analytics, setAnalytics] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     let mounted = true
@@ -71,6 +80,26 @@ export function AnalyticsDashboard() {
     ]
   })()
 
+  const handleExport = async (format: 'csv' | 'pdf') => {
+    setExporting(true)
+    try {
+      await oasAnalyticsService.exportAnalytics(format)
+      toast({
+        title: "Export Successful",
+        description: `Analytics report downloaded as ${format.toUpperCase()}`,
+      })
+    } catch (error) {
+      console.error('Export error:', error)
+      toast({
+        title: "Export Failed",
+        description: "Failed to export analytics report. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -90,10 +119,24 @@ export function AnalyticsDashboard() {
               <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export Report
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2" disabled={exporting}>
+                <Download className="h-4 w-4" />
+                {exporting ? 'Exporting...' : 'Export Report'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('csv')} className="cursor-pointer">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')} className="cursor-pointer">
+                <FileText className="h-4 w-4 mr-2" />
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

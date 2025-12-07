@@ -13,28 +13,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  Bell,
-  Calendar,
   ChevronDown,
-  ClipboardList,
-  FileText,
   Home,
   LogOut,
   Menu,
   Settings,
   User,
-  Users,
-  BarChart,
-  Shield,
-  BookOpen,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
 import { NotificationDropdown } from "./notification-dropdown"
 import { MessageNotificationBadge } from "./message-notification-badge"
 import { useAuth } from "@/contexts/auth-context"
+import { Breadcrumb } from "./breadcrumb"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 
@@ -49,7 +41,6 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [notifications, setNotifications] = useState(3)
   const [profileImage, setProfileImage] = useState<string | null>(null)
 
   // Fetch student picture
@@ -240,17 +231,15 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
                     <Link
                       href={item.href}
                       className={`flex items-center p-3 rounded-md transition-colors relative ${
-                        item.name === "Profile"
-                          ? "text-[#800000] bg-gray-100 font-medium"
-                          : active
+                        active
                           ? "text-[#800000] bg-gray-100 font-medium"
                           : "text-gray-600 hover:bg-gray-50 hover:text-[#800000]"
                       }`}
                     >
-                      {(active || item.name === "Profile") && (
+                      {active && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#800000] rounded-r-md" />
                       )}
-                      <div className={`${(active || item.name === "Profile") ? "text-[#800000]" : "text-gray-500"}`}>
+                      <div className={`${active ? "text-[#800000]" : "text-gray-500"}`}>
                         {item.icon}
                       </div>
                       <span className="ml-3">{item.name}</span>
@@ -262,47 +251,11 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
           </nav>
         </aside>
 
-        {/* Mobile menu */}
-        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-          <SheetContent side="left" className="w-64 p-0">
-            <div className="bg-[#800000] text-white p-4">
-              <h2 className="text-xl font-bold">CIT-U NAS</h2>
-            </div>
-            <nav className="p-4">
-              <ul className="space-y-1">
-                {navigationItems.map((item) => {
-                  const active = isActive(item.href)
-                  return (
-                    <li key={item.name}>
-                      <Link
-                        href={item.href}
-                        className={`flex items-center p-3 rounded-md transition-colors relative ${
-                          item.name === "Profile"
-                            ? "text-[#800000] bg-gray-100 font-medium"
-                            : active
-                            ? "text-[#800000] bg-gray-100 font-medium"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-[#800000]"
-                        }`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        {(active || item.name === "Profile") && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#800000] rounded-r-md" />
-                        )}
-                        <div className={`${(active || item.name === "Profile") ? "text-[#800000]" : "text-gray-500"}`}>
-                          {item.icon}
-                        </div>
-                        <span className="ml-3">{item.name}</span>
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </nav>
-          </SheetContent>
-        </Sheet>
-
         {/* Main content */}
-        <main className="flex-1 p-8 bg-gray-50">{children}</main>
+        <main className="flex-1 p-8 bg-gray-50">
+          <Breadcrumb />
+          {children}
+        </main>
       </div>
     </div>
   )

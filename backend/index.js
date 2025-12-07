@@ -29,6 +29,7 @@ const MessageController = require('./controllers/MessageController');
 const CourseController = require('./controllers/CourseController');
 
 const AuditLogController = require('./controllers/AuditLogController');
+const AnalyticsExportController = require('./controllers/AnalyticsExportController');
 
 const fileUtils = require('./utils/FileUtils');
 const authenticate = require('./middleware/authenticate');
@@ -468,6 +469,8 @@ app.get('/api/oas/dashboard-stats', authenticate, checkPermission('applicationFo
 app.get('/api/oas/application-counts', authenticate, checkPermission('applicationForm.read'), ApplicationController.getApplicationCounts);
 // Analytics endpoint for OAS staff (applications overview & charts)
 app.get('/api/oas/analytics', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAnalytics);
+// Analytics export endpoint (CSV or PDF)
+app.get('/api/oas/analytics/export', authenticate, checkPermission('applicationForm.read'), AnalyticsExportController.exportAnalytics);
 
 // Admin: Schedule interview with notification
 app.post('/api/admin/interview/schedule', authenticate, checkPermission('interview.create'), InterviewController.createInterviewForApplicant);
