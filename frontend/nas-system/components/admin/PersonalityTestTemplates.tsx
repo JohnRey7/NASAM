@@ -19,9 +19,8 @@ export function PersonalityTestTemplates() {
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    questions: [] as any[], // Simplified for now, ideally would have a question editor
+    type: "",
+    question: "",
   })
 
   const [error, setError] = useState<string | null>(null)
@@ -49,10 +48,10 @@ export function PersonalityTestTemplates() {
     try {
       if (editingTemplate) {
         await updateTemplate(editingTemplate._id, formData)
-        toast({ title: "Success", description: "Template updated successfully" })
+        toast({ title: "Success", description: "Question updated successfully" })
       } else {
         await createTemplate(formData)
-        toast({ title: "Success", description: "Template created successfully" })
+        toast({ title: "Success", description: "Question created successfully" })
       }
       setIsDialogOpen(false)
       fetchTemplates()
@@ -69,23 +68,22 @@ export function PersonalityTestTemplates() {
   const handleEdit = (template: any) => {
     setEditingTemplate(template)
     setFormData({
-      name: template.name,
-      description: template.description || "",
-      questions: template.questions || [],
+      type: template.type,
+      question: template.question,
     })
     setIsDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this template?")) return
+    if (!confirm("Are you sure you want to delete this question?")) return
     try {
       await deleteTemplate(id)
-      toast({ title: "Success", description: "Template deleted successfully" })
+      toast({ title: "Success", description: "Question deleted successfully" })
       fetchTemplates()
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to delete template",
+        description: "Failed to delete question",
         variant: "destructive",
       })
     }
@@ -94,9 +92,8 @@ export function PersonalityTestTemplates() {
   const resetForm = () => {
     setEditingTemplate(null)
     setFormData({
-      name: "",
-      description: "",
-      questions: [],
+      type: "",
+      question: "",
     })
   }
 
@@ -114,34 +111,33 @@ export function PersonalityTestTemplates() {
         }}>
           <DialogTrigger asChild>
             <Button className="bg-[#800000] hover:bg-[#600000]">
-              <Plus className="mr-2 h-4 w-4" /> Create Template
+              <Plus className="mr-2 h-4 w-4" /> Add Question
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{editingTemplate ? "Edit Template" : "Create New Template"}</DialogTitle>
+              <DialogTitle>{editingTemplate ? "Edit Question" : "Add New Question"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Template Name</Label>
+                <Label htmlFor="type">Category / Type</Label>
                 <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  id="type"
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  placeholder="e.g. Openness, Extraversion"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="question">Question</Label>
                 <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  id="question"
+                  value={formData.question}
+                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                  placeholder="Enter the question text"
+                  required
                 />
-              </div>
-              {/* Question editor would go here - keeping it simple for now */}
-              <div className="p-4 bg-muted rounded-md text-sm text-muted-foreground">
-                Question editing is not yet implemented in this view.
               </div>
               <DialogFooter>
                 <Button type="submit" className="bg-[#800000] hover:bg-[#600000]">
@@ -157,31 +153,29 @@ export function PersonalityTestTemplates() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Questions</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Question</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8">
-                  Loading templates...
+                <TableCell colSpan={3} className="text-center py-8">
+                  Loading questions...
                 </TableCell>
               </TableRow>
             ) : templates.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8">
-                  No templates found
+                <TableCell colSpan={3} className="text-center py-8">
+                  No questions found
                 </TableCell>
               </TableRow>
             ) : (
               templates.map((template) => (
                 <TableRow key={template._id}>
-                  <TableCell className="font-medium">{template.name}</TableCell>
-                  <TableCell>{template.description || "-"}</TableCell>
-                  <TableCell>{template.questions?.length || 0}</TableCell>
+                  <TableCell className="font-medium">{template.type}</TableCell>
+                  <TableCell>{template.question}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button

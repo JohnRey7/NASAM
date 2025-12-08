@@ -1,6 +1,7 @@
 const ApplicationForm = require('../models/ApplicationForm');
 const ApplicationHistory = require('../models/ApplicationHistory');
 const ApplicationDraft = require('../models/ApplicationDraft');
+const Evaluation = require('../models/Evaluation');
 const mongoose = require('mongoose');
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
@@ -421,6 +422,35 @@ class ApplicationService {
     
     if (!application) {
       throw new Error('No application found for this user');
+    }
+
+    // Check for latest evaluation and sync status if needed
+    try {
+      const latestEvaluation = await Evaluation.findOne({ 
+        evaluateeUser: userId, 
+        is_deleted: false 
+      }).sort({ createdAt: -1 });
+
+      if (latestEvaluation && latestEvaluation.overallRating !== undefined) {
+        const rating = parseFloat(latestEvaluation.overallRating.toString());
+        const evaluationPassed = rating >= 3.0;
+        const correctStatus = evaluationPassed ? 'approved' : 'rejected';
+
+        // Only sync if current status contradicts the evaluation result
+        // e.g. if status is 'approved' but evaluation failed -> change to 'rejected'
+        // e.g. if status is 'rejected' but evaluation passed -> change to 'approved'
+        if ((application.status === 'approved' && !evaluationPassed) || 
+            (application.status === 'rejected' && evaluationPassed)) {
+          
+          console.log(`🔄 Auto-correcting application status for user ${userId}. Old: ${application.status}, New: ${correctStatus} (Rating: ${rating})`);
+          
+          application.status = correctStatus;
+          await application.save();
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing evaluation status in getMyApplication:', error);
+      // Don't fail the request if this sync fails
     }
 
     return application;

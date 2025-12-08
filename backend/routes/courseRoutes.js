@@ -5,6 +5,7 @@ const authenticate = require('../middleware/authenticate');
 const checkPermission = require('../middleware/checkPermission');
 
 router.post('/', authenticate, checkPermission('course.create'), CourseController.createCourse);
+router.get('/public', CourseController.getAllCourses); // Public endpoint for registration
 router.get('/all', authenticate, checkPermission('course.read'), CourseController.getAllCourses);
 router.get('/all/deleted', authenticate, checkPermission('course.read.deleted'), CourseController.getDeletedCourses);
 router.get('/department/:departmentId', authenticate, checkPermission('course.read'), CourseController.getCoursesByDepartment);

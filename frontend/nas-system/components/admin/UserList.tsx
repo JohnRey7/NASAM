@@ -11,11 +11,13 @@ import { useToast } from "@/hooks/use-toast"
 import { Plus, Search, Pencil, Trash2, Ban, CheckCircle } from "lucide-react"
 import userService, { User, CreateUserData } from "@/services/userService"
 import roleService, { Role } from "@/services/roleService"
+import departmentService, { Department } from "@/services/departmentService"
 import { Badge } from "@/components/ui/badge"
 
 export function UserList() {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -29,6 +31,7 @@ export function UserList() {
     idNumber: "",
     password: "",
     roleId: "",
+    departmentCode: "",
   })
 
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +39,7 @@ export function UserList() {
   useEffect(() => {
     fetchUsers()
     fetchRoles()
+    fetchDepartments()
   }, [])
 
   const fetchUsers = async () => {
@@ -67,6 +71,15 @@ export function UserList() {
     }
   }
 
+  const fetchDepartments = async () => {
+    try {
+      const response = await departmentService.getAllDepartments(1, 100)
+      setDepartments(response.data || [])
+    } catch (error) {
+      console.error("Error fetching departments:", error)
+    }
+  }
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     fetchUsers()
@@ -80,6 +93,7 @@ export function UserList() {
           name: formData.name,
           email: formData.email,
           roleId: formData.roleId,
+          departmentCode: formData.departmentCode,
         })
         toast({ title: "Success", description: "User updated successfully" })
       } else {
@@ -110,6 +124,7 @@ export function UserList() {
       email: user.email,
       idNumber: user.idNumber,
       roleId: roleId,
+      departmentCode: user.departmentCode || "",
     })
     setIsDialogOpen(true)
   }
@@ -156,7 +171,14 @@ export function UserList() {
       idNumber: "",
       password: "",
       roleId: "",
+      departmentCode: "",
     })
+  }
+
+  // Helper to check if selected role is department head
+  const isDepartmentHeadRole = () => {
+    const selectedRole = roles.find(r => r._id === formData.roleId)
+    return selectedRole?.name === "department_head"
   }
 
   return (
@@ -251,6 +273,29 @@ export function UserList() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {isDepartmentHeadRole() && (
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Select
+                    value={formData.departmentCode}
+                    onValueChange={(value) => setFormData({ ...formData, departmentCode: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept._id} value={dept.departmentCode}>
+                          {dept.name} ({dept.departmentCode})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <DialogFooter>
                 <Button type="submit" className="bg-[#800000] hover:bg-[#600000]">
                   {editingUser ? "Update" : "Create"}

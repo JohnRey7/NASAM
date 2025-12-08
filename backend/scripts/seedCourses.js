@@ -4,16 +4,18 @@ const Course = require('../models/Course');
 
 // Sample courses matching the frontend
 const COURSES = [
-  { courseId: "bsit", name: "BS Information Technology" },
-  { courseId: "bscs", name: "BS Computer Science" },
-  { courseId: "bsce", name: "BS Civil Engineering" },
-  { courseId: "bsee", name: "BS Electrical Engineering" },
-  { courseId: "bsme", name: "BS Mechanical Engineering" },
-  { courseId: "bsarch", name: "BS Architecture" },
-  { courseId: "bsacct", name: "BS Accountancy" },
-  { courseId: "bsba", name: "BS Business Administration" },
-  { courseId: "bstm", name: "BS Tourism Management" },
-  { courseId: "bshm", name: "BS Hospitality Management" },
+  { courseId: "bsit", name: "Bachelor of Science in Information Technology" },
+  { courseId: "bscs", name: "Bachelor of Science in Computer Science" },
+  { courseId: "bsarch", name: "Bachelor of Science in Architecture" },
+  { courseId: "bsn", name: "Bachelor of Science in Nursing" },
+  { courseId: "bsma", name: "Bachelor of Science in Multimedia Arts" },
+  { courseId: "bsce", name: "Bachelor of Science in Civil Engineering" },
+  { courseId: "bsee", name: "Bachelor of Science in Electrical Engineering" },
+  { courseId: "bsme", name: "Bachelor of Science in Mechanical Engineering" },
+  { courseId: "bsacct", name: "Bachelor of Science in Accountancy" },
+  { courseId: "bsba", name: "Bachelor of Science in Business Administration" },
+  { courseId: "bstm", name: "Bachelor of Science in Tourism Management" },
+  { courseId: "bshm", name: "Bachelor of Science in Hospitality Management" },
 ];
 
 async function seedCourses() {

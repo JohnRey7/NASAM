@@ -436,7 +436,7 @@ export function ApplicationProgressTracker() {
                         <span className="text-green-600">🎉 Application approved!</span>
                       )}
                       {step.status === "Completed" && applicationStatus === "rejected" && (
-                        <span className="text-red-600">❌ Application rejected</span>
+                        <span className="text-red-600">😢 Application rejected</span>
                       )}
                       {step.status === "Locked" && (
                         <span className="text-red-600">🔒 Complete all previous steps first</span>

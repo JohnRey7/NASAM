@@ -9,9 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Trash2, Plus, Search, RotateCcw, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import axios from 'axios';
+import userService from "@/services/userService";
+import roleService from "@/services/roleService";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -21,8 +24,8 @@ interface Department {
   name: string;
   head?: {
     _id: string;
-    firstName: string;
-    lastName: string;
+    name: string;
+    email: string;
   };
   is_deleted?: boolean;
   createdAt: string;
@@ -32,11 +35,13 @@ interface Department {
 interface CreateDepartmentData {
   departmentCode: string;
   name: string;
+  headId?: string;
 }
 
 interface UpdateDepartmentData {
   departmentCode?: string;
   name?: string;
+  headId?: string;
 }
 
 interface DepartmentManagementInlineProps {
@@ -54,6 +59,7 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
   const [total, setTotal] = useState(0);
   const [deletedTotal, setDeletedTotal] = useState(0);
   const [activeTab, setActiveTab] = useState('active');
+  const [departmentHeads, setDepartmentHeads] = useState<any[]>([]);
   
   // Form states
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -65,10 +71,30 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
   
   const [formData, setFormData] = useState<CreateDepartmentData>({
     departmentCode: '',
-    name: ''
+    name: '',
+    headId: ''
   });
   
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchDepartmentHeads();
+  }, []);
+
+  const fetchDepartmentHeads = async () => {
+    try {
+      // First get the role ID for department_head
+      const rolesResponse = await roleService.getAllRoles();
+      const headRole = rolesResponse.roles.find((r: any) => r.name === 'department_head');
+      
+      if (headRole) {
+        const usersResponse = await userService.getAllUsers({ roleId: headRole._id });
+        setDepartmentHeads(usersResponse.users || []);
+      }
+    } catch (error) {
+      console.error("Error fetching department heads:", error);
+    }
+  };
 
   // Load departments
   const loadDepartments = async (page = 1, search = '') => {
@@ -175,7 +201,12 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
     }
 
     try {
-      await axios.post(`${API_URL}/departments`, formData, {
+      const payload = {
+        ...formData,
+        headId: formData.headId === 'none' ? '' : formData.headId
+      };
+
+      await axios.post(`${API_URL}/departments`, payload, {
         withCredentials: true,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -184,7 +215,7 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
         description: `Department "${formData.name}" created successfully`
       });
       setShowCreateDialog(false);
-      setFormData({ departmentCode: '', name: '' });
+      setFormData({ departmentCode: '', name: '', headId: '' });
       loadDepartments(currentPage, searchTerm);
     } catch (error: any) {
       toast({
@@ -208,7 +239,8 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
 
     try {
       const updateData: UpdateDepartmentData = {
-        name: formData.name
+        name: formData.name,
+        headId: formData.headId === 'none' ? '' : formData.headId
       };
       
       // Only include departmentCode if it's different
@@ -319,7 +351,8 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
     setSelectedDepartment(department);
     setFormData({
       departmentCode: department.departmentCode,
-      name: department.name
+      name: department.name,
+      headId: department.head?._id || 'none'
     });
     setShowEditDialog(true);
   };
@@ -416,7 +449,7 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
                             <TableCell>
                               {department.head ? (
                                 <span className="text-green-600">
-                                  {department.head.firstName} {department.head.lastName}
+                                  {department.head.name}
                                 </span>
                               ) : (
                                 <span className="text-gray-400 italic">Not assigned</span>
@@ -576,6 +609,26 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
                 placeholder="e.g., College of Computer Studies"
               />
             </div>
+            <div>
+              <Label htmlFor="head">Department Head</Label>
+              <Select
+                value={formData.headId}
+                onValueChange={(value) => setFormData({ ...formData, headId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department head" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {departmentHeads.map((head) => (
+                    <SelectItem key={head._id} value={head._id}>
+                      {head.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">Optional: Assign a department head</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
@@ -616,6 +669,25 @@ export default function DepartmentManagementInline({ isExpanded, onToggle }: Dep
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., College of Computer Studies"
               />
+            </div>
+            <div>
+              <Label htmlFor="edit-head">Department Head</Label>
+              <Select
+                value={formData.headId}
+                onValueChange={(value) => setFormData({ ...formData, headId: value === "none" ? "" : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department head" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {departmentHeads.map((head) => (
+                    <SelectItem key={head._id} value={head._id}>
+                      {head.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

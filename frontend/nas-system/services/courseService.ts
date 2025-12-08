@@ -38,6 +38,20 @@ export interface CourseListResponse {
 }
 
 const courseService = {
+  // Get all courses (public access for registration)
+  async getPublicCourses(): Promise<Course[]> {
+    try {
+      const response = await axios.get(`${API_URL}/course/public`, {
+        params: { limit: 100 }, // Fetch all relevant courses
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response.data.courses || [];
+    } catch (error) {
+      console.error('Error fetching public courses:', error);
+      return [];
+    }
+  },
+
   // Get all courses with pagination and search
   async getAllCourses(page: number = 1, limit: number = 25, search: string = ''): Promise<CourseListResponse> {
     console.log('📚 Fetching courses:', { page, limit, search });

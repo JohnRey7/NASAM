@@ -12,7 +12,7 @@ class DepartmentService {
         throw new Error('Department data is required');
       }
 
-      let { departmentCode, name } = departmentData;
+      let { departmentCode, name, headId } = departmentData;
 
       // Validate required fields
       if (!departmentCode || !name) {
@@ -27,11 +27,48 @@ class DepartmentService {
         throw new Error('Department code already exists');
       }
 
+      // Validate headId if provided
+      if (headId) {
+        const headUser = await User.findById(headId);
+        if (!headUser) {
+          throw new Error('Department head not found');
+        }
+        
+        // Verify role is department_head
+        const headRole = await Role.findById(headUser.role);
+        if (!headRole || headRole.name !== 'department_head') {
+          throw new Error('Selected user is not a department head');
+        }
+        
+        // Check if user is already assigned to a department
+        if (headUser.department) {
+           const existingDept = await Department.findById(headUser.department);
+           if (existingDept) {
+             throw new Error(`User is already assigned to ${existingDept.name}`);
+           }
+        }
+      }
+
       // Create department
-      const department = new Department({ departmentCode, name });
+      const department = new Department({ 
+        departmentCode, 
+        name
+      });
       await department.save();
 
-      return department;
+      // If headId provided, update the user's department reference
+      if (headId) {
+        await User.findByIdAndUpdate(headId, { department: department._id });
+      }
+
+      // Return department with head info if assigned
+      const createdDepartment = department.toObject();
+      if (headId) {
+        const headUser = await User.findById(headId).select('name email');
+        createdDepartment.head = headUser;
+      }
+
+      return createdDepartment;
     } catch (error) {
       console.error('Error creating department:', error);
       if (error.code === 11000) {
@@ -92,11 +129,43 @@ class DepartmentService {
 
       console.log('🏢 Department query:', JSON.stringify(departmentQuery, null, 2));
 
-      // Fetch departments
-      const departments = await Department.find(departmentQuery)
-        .skip((pageNum - 1) * limitNum)
-        .limit(limitNum)
-        .sort({ createdAt: -1 });
+      // Get department head role
+      const headRole = await Role.findOne({ name: 'department_head' });
+      const headRoleId = headRole ? headRole._id : null;
+
+      // Fetch departments with head
+      const departments = await Department.aggregate([
+        { $match: departmentQuery },
+        { $sort: { createdAt: -1 } },
+        { $skip: (pageNum - 1) * limitNum },
+        { $limit: limitNum },
+        {
+          $lookup: {
+            from: 'users',
+            let: { deptId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$department', '$$deptId'] },
+                      { $eq: ['$role', headRoleId] },
+                      { $eq: ['$is_deleted', false] }
+                    ]
+                  }
+                }
+              },
+              { $project: { name: 1, email: 1 } }
+            ],
+            as: 'head'
+          }
+        },
+        {
+          $addFields: {
+            head: { $arrayElemAt: ['$head', 0] }
+          }
+        }
+      ]);
 
       // Get total count for pagination
       const total = await Department.countDocuments(departmentQuery);
@@ -133,6 +202,20 @@ class DepartmentService {
         throw new Error('Department not found');
       }
 
+      // Get department head
+      const headRole = await Role.findOne({ name: 'department_head' });
+      if (headRole) {
+        const head = await User.findOne({ 
+          department: department._id, 
+          role: headRole._id,
+          is_deleted: false 
+        }).select('name email');
+        
+        if (head) {
+          return { ...department.toObject(), head };
+        }
+      }
+
       return department;
     } catch (error) {
       console.error('Error getting department by code:', error);
@@ -158,7 +241,7 @@ class DepartmentService {
         throw new Error('Update data is required');
       }
 
-      const { departmentCode: newDepartmentCode, name } = updateData;
+      const { departmentCode: newDepartmentCode, name, headId } = updateData;
 
       // Find department
       const department = await Department.findOne({ departmentCode });
@@ -178,9 +261,59 @@ class DepartmentService {
       // Update fields
       if (name) department.name = name;
 
+      // Update head if provided
+      if (headId !== undefined) {
+        // Find current head(s) of this department and unset their department
+        const headRole = await Role.findOne({ name: 'department_head' });
+        if (headRole) {
+           await User.updateMany(
+             { department: department._id, role: headRole._id },
+             { $unset: { department: 1 } }
+           );
+        }
+
+        if (headId) {
+          const headUser = await User.findById(headId);
+          if (!headUser) {
+            throw new Error('Department head not found');
+          }
+          
+          // Verify role
+          const userRole = await Role.findById(headUser.role);
+          if (!userRole || userRole.name !== 'department_head') {
+            throw new Error('Selected user is not a department head');
+          }
+
+          // Check if user is already assigned to another department
+          if (headUser.department && headUser.department.toString() !== department._id.toString()) {
+             const existingDept = await Department.findById(headUser.department);
+             if (existingDept) {
+               throw new Error(`User is already assigned to ${existingDept.name}`);
+             }
+          }
+          
+          // Update the user's department reference
+          headUser.department = department._id;
+          await headUser.save();
+        }
+      }
+
       await department.save();
 
-      return department;
+      // Return department with head info
+      const updatedDepartment = department.toObject();
+      if (headRole) {
+        const head = await User.findOne({ 
+          department: department._id, 
+          role: headRole._id,
+          is_deleted: false 
+        }).select('name email');
+        if (head) {
+          updatedDepartment.head = head;
+        }
+      }
+
+      return updatedDepartment;
     } catch (error) {
       console.error('Error updating department:', error);
       if (error.code === 11000) {

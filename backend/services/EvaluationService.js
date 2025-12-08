@@ -15,6 +15,11 @@ const convertDecimal128ToNumber = (obj) => {
   if (obj._bsontype === 'Decimal128' || (obj.$numberDecimal !== undefined)) {
     return parseFloat(obj.toString());
   }
+
+  // If it's an ObjectId, return as is
+  if (obj instanceof mongoose.Types.ObjectId || obj._bsontype === 'ObjectID') {
+    return obj;
+  }
   
   // If it's an array, convert each element
   if (Array.isArray(obj)) {
@@ -23,6 +28,9 @@ const convertDecimal128ToNumber = (obj) => {
   
   // If it's an object, recursively convert each property
   if (typeof obj === 'object') {
+    // Handle Date objects
+    if (obj instanceof Date) return obj;
+
     const result = {};
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
@@ -199,7 +207,12 @@ class EvaluationService {
         );
         console.log('✅ Application status updated to approved for user:', evaluateeUser);
       } else {
-        console.log('⚠️ Evaluation failed (rating < 3.0), application status unchanged for user:', evaluateeUser);
+        await ApplicationForm.findByIdAndUpdate(
+          application._id,
+          { status: 'rejected' },
+          { new: true }
+        );
+        console.log('⚠️ Evaluation failed (rating < 3.0), application status updated to rejected for user:', evaluateeUser);
       }
 
       const populatedEvaluation = await Evaluation.findById(evaluation._id)
@@ -407,6 +420,24 @@ class EvaluationService {
       if (semester) evaluation.semester = semester;
 
       await evaluation.save();
+
+      // Sync application status if overallRating changed
+      if (overallRating !== undefined) {
+        const application = await ApplicationForm.findOne({ user: evaluation.evaluateeUser });
+        if (application) {
+          const evaluationPassed = parseFloat(overallRating) >= 3.0;
+          const newStatus = evaluationPassed ? 'approved' : 'rejected';
+          
+          console.log(`🔄 Syncing application status. Rating: ${overallRating}, Passed: ${evaluationPassed}, New Status: ${newStatus}, Old Status: ${application.status}`);
+
+          if (application.status !== newStatus) {
+             await ApplicationForm.findByIdAndUpdate(application._id, { status: newStatus });
+             console.log(`✅ Application status updated to ${newStatus} for user:`, evaluation.evaluateeUser);
+          }
+        } else {
+          console.log('⚠️ Application not found for user:', evaluation.evaluateeUser);
+        }
+      }
 
       const populatedEvaluation = await Evaluation.findById(evaluation._id)
         .populate('evaluateeUser', 'name email idNumber');

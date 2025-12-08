@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Search, Pencil, Trash2, Calendar, Clock, CheckCircle } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, Calendar, Clock, CheckCircle, Loader2 } from "lucide-react"
 import { interviewService, Interview } from "@/services/interviewService"
 import userService from "@/services/userService"
 import { format } from "date-fns"
@@ -42,9 +43,19 @@ export function InterviewManagement() {
     try {
       setLoading(true)
       const response = await interviewService.getAllInterviews()
-      setInterviews(response || [])
+      // The backend returns { interviews: [], pagination: {}, message: "" }
+      // We need to extract the interviews array
+      if (response && response.interviews && Array.isArray(response.interviews)) {
+        setInterviews(response.interviews)
+      } else if (Array.isArray(response)) {
+        // Fallback in case the API changes to return just an array
+        setInterviews(response)
+      } else {
+        setInterviews([])
+      }
     } catch (error) {
       console.error("Error fetching interviews:", error)
+      setInterviews([])
     } finally {
       setLoading(false)
     }

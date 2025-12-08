@@ -20,9 +20,16 @@ export function AdminEvaluationControl() {
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   
+  // Generate school years (10 past, 10 future)
+  const currentYear = new Date().getFullYear()
+  const schoolYears = Array.from({ length: 21 }, (_, i) => {
+    const start = currentYear - 10 + i
+    return `${start}-${start + 1}`
+  })
+
   // Form state for opening new period
   const [semester, setSemester] = useState("First Semester")
-  const [schoolYear, setSchoolYear] = useState("2024-2025")
+  const [schoolYear, setSchoolYear] = useState(`${currentYear}-${currentYear + 1}`)
   const [notes, setNotes] = useState("")
 
   useEffect(() => {
@@ -200,9 +207,11 @@ export function AdminEvaluationControl() {
                     <SelectValue placeholder="Select school year" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2025-2026">2025-2026</SelectItem>
-                    <SelectItem value="2026-2027">2026-2027</SelectItem>
-                    <SelectItem value="2027-2028">2027-2028</SelectItem>
+                    {schoolYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -1585,6 +1585,13 @@ export default function DepartmentHeadDashboardPage() {
                                                           ? "Interview has been marked as not finished." 
                                                           : "Interview has been marked as finished.",
                                                       });
+
+                                                      // Reload page if finishing interview
+                                                      if (!interviewData.interview.is_finished) {
+                                                        window.location.reload();
+                                                        return;
+                                                      }
+
                                                       // Refresh interview data
                                                       if (selectedApplication) {
                                                         fetchInterviewData(selectedApplication._id);

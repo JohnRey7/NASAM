@@ -51,4 +51,9 @@ export async function getAllUserPersonalityTests() {
 export async function getPersonalityTestByUserId(userId: string) {
   const response = await axios.get(`${API_URL}/personality-test/user/${userId}`, { withCredentials: true });
   return response.data;
+}
+
+export async function deletePersonalityTestByUserId(userId: string) {
+  const response = await axios.delete(`${API_URL}/personality-test/user/${userId}`, { withCredentials: true });
+  return response.data;
 } 

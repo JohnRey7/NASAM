@@ -21,9 +21,16 @@ export function EvaluationPeriodManagement() {
   const [processing, setProcessing] = useState(false)
   const { toast } = useToast()
 
+  // Generate school years (10 past, 10 future)
+  const currentYear = new Date().getFullYear()
+  const schoolYears = Array.from({ length: 21 }, (_, i) => {
+    const start = currentYear - 10 + i
+    return `${start}-${start + 1}`
+  })
+
   // Form states
   const [semester, setSemester] = useState("First Semester")
-  const [schoolYear, setSchoolYear] = useState("")
+  const [schoolYear, setSchoolYear] = useState(`${currentYear}-${currentYear + 1}`)
   const [notes, setNotes] = useState("")
 
   useEffect(() => {
@@ -193,11 +200,18 @@ export function EvaluationPeriodManagement() {
                   </div>
                   <div className="space-y-2">
                     <Label>School Year</Label>
-                    <Input 
-                      placeholder="e.g. 2024-2025" 
-                      value={schoolYear}
-                      onChange={(e) => setSchoolYear(e.target.value)}
-                    />
+                    <Select value={schoolYear} onValueChange={setSchoolYear}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select school year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {schoolYears.map((year) => (
+                          <SelectItem key={year} value={year}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-2">

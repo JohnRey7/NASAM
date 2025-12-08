@@ -49,6 +49,19 @@ class UserService {
           throw new Error('Invalid department code');
         }
         departmentId = department._id;
+
+        // Check if department already has a head if role is department_head
+        if (role.name === 'department_head') {
+          const existingHead = await User.findOne({
+            role: role._id,
+            department: departmentId,
+            is_deleted: false // Only check active users
+          });
+
+          if (existingHead) {
+            throw new Error(`Department ${department.name} already has a department head assigned`);
+          }
+        }
       }
 
       const user = new User({

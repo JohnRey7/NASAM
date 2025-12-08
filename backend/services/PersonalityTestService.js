@@ -335,6 +335,10 @@ class PersonalityTestService {
 
       const tests = await PersonalityTest.find(filter)
         .populate({
+          path: 'applicationId',
+          populate: { path: 'user', select: 'name email' }
+        })
+        .populate({
           path: 'questions',
           select: 'type question',
         })

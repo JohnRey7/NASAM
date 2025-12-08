@@ -1409,6 +1409,18 @@ export function ApplicationReview() {
             Pending
           </Badge>
         );
+      case "draft":
+        return (
+          <Badge variant="outline" className="bg-slate-100 text-slate-500">
+            Draft
+          </Badge>
+        );
+      case "form_verified":
+        return (
+          <Badge variant="outline" className="bg-teal-100 text-teal-700">
+            Form Verified
+          </Badge>
+        );
       case "document_verification":
         return (
           <Badge variant="outline" className="bg-blue-100 text-blue-700">
@@ -1691,6 +1703,13 @@ export function ApplicationReview() {
             ? "Interview has been marked as not finished." 
             : "Interview has been marked as finished.",
         })
+
+        // Reload page if finishing interview
+        if (!isCurrentlyFinished) {
+          window.location.reload()
+          return
+        }
+
         // Refresh interview data
         if (selectedApplication) {
           fetchInterviewData(selectedApplication._id)
@@ -2180,7 +2199,9 @@ export function ApplicationReview() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Applications</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="form_verified">Form Verified</SelectItem>
                   <SelectItem value="document_verification">Document Verification</SelectItem>
                   <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>

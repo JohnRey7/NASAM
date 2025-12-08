@@ -16,22 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"
 
-interface ApplicationHistoryItem {
-  id: string
-  title: string
-  description: string
-  date: string
-  status: "completed" | "current" | "pending"
-  type: "submission" | "verification" | "test" | "interview" | "decision" | "review"
-}
-
 export function UserProfile() {
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const { toast } = useToast()
-  const [applicationHistory, setApplicationHistory] = useState<ApplicationHistoryItem[]>([])
   
   // Add state for password change
   const [passwordData, setPasswordData] = useState({
@@ -394,45 +384,6 @@ export function UserProfile() {
   }
 
 
-  // Fetch application history
-  useEffect(() => {
-    const fetchApplicationHistory = async () => {
-      try {
-        const response = await fetch(`${API_URL}/applications/history`, {
-          method: "GET",
-          credentials: "include",
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setApplicationHistory(data.history || [])
-        }
-      } catch (error) {
-        console.error("Error fetching application history:", error)
-      }
-    }
-
-    if (!isInitialLoading) {
-      fetchApplicationHistory()
-    }
-  }, [isInitialLoading])
-
-  // Helper function to get status color
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-500" // Green for completed steps
-      case "current":
-        return "bg-blue-500"  // Blue for current step
-      case "pending":
-        return "bg-yellow-500" // Yellow for pending (only when application exists)
-      default:
-        return "bg-gray-400"  // Gray for not started
-    }
-  }
-
-
-
   return (
     <Card>
       <CardHeader className="bg-[#800000]/10 border-b border-[#800000]/20">
@@ -446,11 +397,9 @@ export function UserProfile() {
           </div>
         ) : (
           <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
               <TabsTrigger value="personal">Personal Info</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
-              <TabsTrigger value="history">Application History</TabsTrigger>
-              <TabsTrigger value="location">Location</TabsTrigger>
             </TabsList>
 
             <TabsContent value="personal" className="space-y-6">
@@ -622,95 +571,6 @@ export function UserProfile() {
                       </p>
                     </div>
                   </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="history" className="space-y-6">
-              <div className="space-y-6">
-                {applicationHistory.length > 0 ? (
-                  <div className="relative">
-                    <div className="absolute h-full w-0.5 bg-gray-200 left-2.5 top-0"></div>
-                    <div className="space-y-8">
-                      {applicationHistory.map((item: ApplicationHistoryItem, index: number) => (
-                        <div key={item.id} className="relative pl-10">
-                          <div className={`absolute left-0 top-1 h-5 w-5 rounded-full ${getStatusColor(item.status)}`}></div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-medium">{item.title}</h3>
-                              <span className="text-sm text-gray-500">
-                                {new Date(item.date).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600">
-                              {item.description}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 space-y-4">
-                    
-                    
-                    
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="location" className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="province">Province</Label>
-                  <Input 
-                    id="province" 
-                    name="province"
-                    value={formData.province}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Cebu"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="city">City/Municipality</Label>
-                  <Input 
-                    id="city" 
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Cebu City"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="barangay">Barangay</Label>
-                  <Input 
-                    id="barangay" 
-                    name="barangay"
-                    value={formData.barangay}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Lahug"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="street">Street Address</Label>
-                  <Input 
-                    id="street" 
-                    name="street"
-                    value={formData.street}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 123 Main Street"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="postalCode">Postal Code</Label>
-                  <Input 
-                    id="postalCode" 
-                    name="postalCode"
-                    value={formData.postalCode}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 6000"
-                  />
                 </div>
               </div>
             </TabsContent>

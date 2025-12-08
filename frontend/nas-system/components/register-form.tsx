@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,20 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
-
-// Sample courses - in a real app, these would come from an API
-const COURSES = [
-  { id: "bsit", name: "BS Information Technology" },
-  { id: "bscs", name: "BS Computer Science" },
-  { id: "bsce", name: "BS Civil Engineering" },
-  { id: "bsee", name: "BS Electrical Engineering" },
-  { id: "bsme", name: "BS Mechanical Engineering" },
-  { id: "bsarch", name: "BS Architecture" },
-  { id: "bsacct", name: "BS Accountancy" },
-  { id: "bsba", name: "BS Business Administration" },
-  { id: "bstm", name: "BS Tourism Management" },
-  { id: "bshm", name: "BS Hospitality Management" },
-]
+import courseService, { Course } from "@/services/courseService"
 
 export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -40,7 +27,30 @@ export function RegisterForm() {
   const { toast } = useToast()
   const { register } = useAuth()
   const [course, setCourse] = useState("")
+  const [courses, setCourses] = useState<Course[]>([])
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setIsLoadingCourses(true)
+      try {
+        const courses = await courseService.getPublicCourses()
+        setCourses(courses)
+      } catch (error) {
+        console.error("Failed to fetch courses:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load courses. Please try refreshing the page.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCourses(false)
+      }
+    }
+
+    fetchCourses()
+  }, [toast])
 
   // Format ID Number with automatic hyphen insertion
   const formatIdNumber = (value: string) => {
@@ -301,14 +311,14 @@ export function RegisterForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="course">Course</Label>
-        <Select name="course" required value={course} onValueChange={setCourse}>
+        <Select name="course" required value={course} onValueChange={setCourse} disabled={isLoadingCourses}>
           <SelectTrigger>
-            <SelectValue placeholder="Select your course" />
+            <SelectValue placeholder={isLoadingCourses ? "Loading courses..." : "Select your course"} />
           </SelectTrigger>
           <SelectContent>
-            {COURSES.map((course) => (
-              <SelectItem key={course.id} value={course.id}>
-                {course.name}
+            {courses.map((c) => (
+              <SelectItem key={c._id} value={c.courseId}>
+                {c.name}
               </SelectItem>
             ))}
           </SelectContent>
