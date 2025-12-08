@@ -19,7 +19,9 @@ export default function Home() {
   // Redirect authenticated users to their appropriate dashboard
   useEffect(() => {
     if (status === "authenticated" && user) {
-      if (user.role === "admin" || user.role === "oas_staff") {
+      if (user.role === "admin") {
+        router.replace("/admin-dashboard")
+      } else if (user.role === "oas_staff") {
         router.replace("/oas-dashboard")
       } else if (user.role === "department_head") {
         router.replace("/department-head")

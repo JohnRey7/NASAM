@@ -4,7 +4,8 @@ import type { NextRequest } from 'next/server'
 // Define protected routes and their allowed roles
 const protectedRoutes = {
   '/dashboard': ['applicant'],
-  '/oas-dashboard': ['oas_staff', 'admin'],
+  '/oas-dashboard': ['oas_staff'],
+  '/admin-dashboard': ['admin'],
   '/panel-dashboard': ['panelist'],
 }
 
@@ -50,6 +51,8 @@ export function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/dashboard', request.url))
           case 'oas_staff':
             return NextResponse.redirect(new URL('/oas-dashboard', request.url))
+          case 'admin':
+            return NextResponse.redirect(new URL('/admin-dashboard', request.url))
           case 'panelist':
             return NextResponse.redirect(new URL('/panel-dashboard', request.url))
           default:
@@ -70,6 +73,7 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/oas-dashboard/:path*',
+    '/admin-dashboard/:path*',
     '/panel-dashboard/:path*',
   ],
 } 

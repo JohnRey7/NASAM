@@ -210,7 +210,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.cookie = `nas_user=${JSON.stringify(loggedInUser)}; path=/; max-age=${remember ? 2592000 : 86400}`
       
       // Redirect based on role
-      if (loggedInUser.role === "admin" || loggedInUser.role === "oas_staff") {
+      if (loggedInUser.role === "admin") {
+        router.push("/admin-dashboard")
+      } else if (loggedInUser.role === "oas_staff") {
         router.push("/oas-dashboard")
       }
       else if (loggedInUser.role === "department_head") {

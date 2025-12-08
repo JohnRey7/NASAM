@@ -114,6 +114,15 @@ class RoleService {
     }
   }
 
+  // Get all permissions
+  static async getAllPermissions() {
+    try {
+      return await Permission.find({ is_deleted: false }).select('name description');
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Initialize roles
   static async initializeRoles() {
     try {
@@ -126,15 +135,104 @@ class RoleService {
         throw new Error('Administrator permission not found');
       }
 
-      // ==================== ONLY 3 ROLES ====================
-      // 1. oas_staff - Admin with full access
-      // 2. department_head - Department head with limited access
-      // 3. applicant - Applicant/Scholar with own data access
+      // ==================== ROLES ====================
+      // 1. admin - Super Admin with full access
+      // 2. oas_staff - OAS Staff with restricted access
+      // 3. department_head - Department head with limited access
+      // 4. applicant - Applicant/Scholar with own data access
 
-      // OAS STAFF ROLE - Gets administrator permission for full access (this is the admin)
+      // ADMIN ROLE - Gets administrator permission for full access
+      await Role.findOneAndUpdate(
+        { name: 'admin' },
+        { name: 'admin', permissions: [adminPermission._id] },
+        { upsert: true, new: true }
+      );
+
+      // OAS STAFF PERMISSIONS
+      const oasStaffPermissions = [
+        // User management (No delete)
+        'user.create',
+        'user.read',
+        'user.update',
+        // Role management (Read only)
+        'role.read',
+        'role.read.id',
+        // Application Form (No delete)
+        'applicationForm.create',
+        'applicationForm.readOwn',
+        'applicationForm.read',
+        'applicationForm.updateOwn',
+        'applicationForm.update',
+        'applicationForm.status.set',
+        'applicationForm.approvals.set',
+        'application.export',
+        'application.export.csv',
+        'application.readAll',
+        // Application History
+        'applicationHistory.readOwn',
+        'applicationHistory.read',
+        // Documents
+        'document.create',
+        'document.set',
+        'document.get',
+        'document.read',
+        'document.update',
+        'document.delete',
+        'document.upload.endTermGrade',
+        // Personality Test
+        'personality_test.create',
+        'personality_test.answer',
+        'personality_test.stop',
+        'personality_test.readOwn',
+        'personality_test.readAll',
+        'personality_test.read',
+        'personality_test.update',
+        'personality_test.delete',
+        'personality_test.template.create',
+        'personality_test.template.read',
+        'personality_test.template.update',
+        'personality_test.template.delete',
+        // Interview
+        'interview.create',
+        'interview.readAll',
+        'interview.read',
+        'interview.readOwn',
+        'interview.update',
+        'interview.updateOwn',
+        'interview.delete',
+        'interview.deleteOwn',
+        // Evaluation
+        'evaluation.create',
+        'evaluation.read',
+        'evaluation.read.all',
+        'evaluation.update',
+        'evaluation.delete',
+        'evaluation.update_timekeeping',
+        'evaluation.read_timekeeping',
+        'evaluation.manage',
+        // Department (Read/Update only, No Create/Delete)
+        'department.read',
+        'department.update',
+        // Course (No Hard Delete)
+        'course.create',
+        'course.read',
+        'course.read.deleted',
+        'course.update',
+        'course.delete.soft',
+        // Activity
+        'activity.readAll',
+        // Audit
+        'audit.read',
+        'audit.manage'
+      ];
+
+      const oasStaffPermissionIds = allPermissions
+        .filter(p => oasStaffPermissions.includes(p.name))
+        .map(p => p._id);
+
       await Role.findOneAndUpdate(
         { name: 'oas_staff' },
-        { name: 'oas_staff', permissions: [adminPermission._id] },
+        { name: 'oas_staff', permissions: oasStaffPermissionIds },
         { upsert: true, new: true }
       );
 
@@ -210,7 +308,7 @@ class RoleService {
         { upsert: true, new: true }
       );
 
-      console.log('Roles initialized (oas_staff, department_head, applicant)');
+      console.log('Roles initialized (admin, oas_staff, department_head, applicant)');
       return { message: 'Roles initialized successfully' };
     } catch (error) {
       console.error('Error initializing roles:', error);
@@ -218,36 +316,46 @@ class RoleService {
     }
   }
 
-  // Initialize OAS Staff account if users collection is empty
+  // Initialize Admin account if users collection is empty
   static async initializeAdminAccount() {
     try {
-      const userCount = await User.countDocuments();
-      if (userCount === 0) {
-        // Initialize permissions and roles first
-        await this.initializePermissions();
-        await this.initializeRoles();
-
-        const oasStaffRole = await Role.findOne({ name: 'oas_staff' });
-        if (!oasStaffRole) {
-          throw new Error('OAS Staff role not found after initialization');
-        }
-
-        const hashedPassword = await argon2.hash('Welcome1!', { type: argon2.argon2id });
-        const adminUser = new User({
-          name: 'OAS Administrator',
-          idNumber: 'OAS001',
-          email: 'oas@example.com',
-          password: hashedPassword,
-          role: oasStaffRole._id,
-          verified: true
-        });
-        await adminUser.save();
-        console.log('OAS Staff account created with ID: OAS001 and password: Welcome1!');
-        return { message: 'OAS Staff account created successfully' };
+      // Check if ADMIN001 already exists
+      const existingAdmin = await User.findOne({ idNumber: 'ADMIN001' });
+      if (existingAdmin) {
+         console.log('Admin account (ADMIN001) already exists.');
+         return { message: 'Admin account already exists' };
       }
-      return { message: 'Users already exist, skipping admin creation' };
+
+      // Initialize permissions and roles first
+      await this.initializePermissions();
+      await this.initializeRoles();
+
+      const adminRole = await Role.findOne({ name: 'admin' });
+      if (!adminRole) {
+        throw new Error('Admin role not found after initialization');
+      }
+
+      const hashedPassword = await argon2.hash('Welcome1!', { type: argon2.argon2id });
+      const adminUser = new User({
+        name: 'System Administrator',
+        idNumber: 'ADMIN001',
+        email: 'admin@example.com',
+        password: hashedPassword,
+        role: adminRole._id,
+        verified: true
+      });
+      
+      await adminUser.save();
+      console.log('Admin account created with ID: ADMIN001 and password: Welcome1!');
+      return { message: 'Admin account created successfully' };
+
     } catch (error) {
-      console.error('Error initializing OAS Staff account:', error);
+      // If duplicate key error happens despite check (race condition), just log it and ignore
+      if (error.code === 11000 && error.keyPattern && error.keyPattern.idNumber) {
+         console.log('Admin account already exists (caught duplicate key error).');
+         return { message: 'Admin account already exists' };
+      }
+      console.error('Error initializing Admin account:', error);
       throw error;
     }
   }

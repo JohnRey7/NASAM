@@ -141,7 +141,7 @@ export function ToolsCard() {
     <>
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle>OAS Tools</CardTitle>
+          <CardTitle>Admin Tools</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
@@ -180,7 +180,17 @@ export function ToolsCard() {
             >
               <BookOpen className="h-5 w-5" /> Manage Courses
             </Button>
-            {/* Department Management removed for OAS Staff */}
+            <Button 
+              variant={departmentManagementOpen ? "default" : "outline"} 
+              className={`flex items-center gap-2 ${departmentManagementOpen ? 'bg-[#800000] text-white' : ''}`}
+              onClick={() => {
+                const newState = !departmentManagementOpen;
+                if (newState) closeOtherPanels('department');
+                setDepartmentManagementOpen(newState);
+              }}
+            >
+              <Users className="h-5 w-5" /> Manage Departments
+            </Button>
             <Button 
               variant={viewLogsOpen ? "default" : "outline"} 
               className={`flex items-center gap-2 ${viewLogsOpen ? 'bg-[#800000] text-white' : ''}`}
@@ -192,7 +202,9 @@ export function ToolsCard() {
             >
               <List className="h-5 w-5" /> View Logs
             </Button>
-            {/* Create Department Head removed for OAS Staff */}
+            <Button variant="default" className="flex items-center gap-2 bg-[#800000] text-white" onClick={() => setDialogOpen(true)}>
+              <UserPlus className="h-5 w-5" /> Create Department Head
+            </Button>
             <Button 
               variant={scholarEvaluationsOpen ? "default" : "outline"} 
               className={`flex items-center gap-2 ${scholarEvaluationsOpen ? 'bg-green-600 text-white' : 'border-green-600 text-green-700 hover:bg-green-50'}`}
@@ -205,7 +217,7 @@ export function ToolsCard() {
               <ClipboardCheck className="h-5 w-5" /> Scholar Evaluations
             </Button>
           </div>
-          <div className="text-xs text-gray-500 mt-2">Select a tool to perform quick OAS actions. (Some actions are stubs for now.)</div>
+          <div className="text-xs text-gray-500 mt-2">Select a tool to perform administrative actions.</div>
         </CardContent>
       </Card>
 
@@ -215,7 +227,11 @@ export function ToolsCard() {
         onToggle={() => setCourseManagementOpen(false)} 
       />
 
-      {/* Department Management removed for OAS Staff */}
+      {/* Department Management - Inline below the card */}
+      <DepartmentManagementInline 
+        isExpanded={departmentManagementOpen} 
+        onToggle={() => setDepartmentManagementOpen(false)} 
+      />
 
       {/* Send Notification - Inline below the card */}
       <SendNotificationInline 
@@ -304,4 +320,4 @@ export function ToolsCard() {
       </Dialog>
     </>
   );
-} 
+}

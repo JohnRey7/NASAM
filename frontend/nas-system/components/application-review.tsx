@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { applicationService } from "@/services/applicationService"
+import { useAuth } from "@/contexts/auth-context"
 
 function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: string; userId?: string; idNumber?: string }) {
   const { toast } = useToast();
@@ -1073,6 +1074,7 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
 }
 
 export function ApplicationReview() {
+  const { user } = useAuth()
   const [filter, setFilter] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -2717,6 +2719,7 @@ export function ApplicationReview() {
                                                 {interviewData.interview.is_finished ? "Revert Interview" : "Finish Interview"}
                                               </Button>
 
+                                              {user?.role?.name === 'admin' && (
                                               <Button
                                                 variant="outline"
                                                 className="border-red-300 text-red-600 hover:bg-red-50"
@@ -2736,6 +2739,7 @@ export function ApplicationReview() {
                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                 Delete Interview
                                               </Button>
+                                              )}
                                             </div>
                                           ) : (
                                             <div className="space-y-4">
@@ -3049,6 +3053,7 @@ export function ApplicationReview() {
                           />
                         )}
 
+                        {user?.role?.name === 'admin' && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -3058,6 +3063,7 @@ export function ApplicationReview() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

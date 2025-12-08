@@ -35,6 +35,17 @@ const RoleController = {
     }
   },
 
+  // Get all permissions
+  async getAllPermissions(req, res) {
+    try {
+      const result = await RoleService.getAllPermissions();
+      res.json(result);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
   // Get a specific role by ID
   async getRoleById(req, res) {
     try {

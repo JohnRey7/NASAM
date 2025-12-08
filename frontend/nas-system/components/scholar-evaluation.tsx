@@ -295,6 +295,7 @@ export function ScholarEvaluation() {
   const [availableSemesters, setAvailableSemesters] = useState<string[]>(['First Semester', 'Second Semester', 'Third Semester'])
   const [currentSchoolYear, setCurrentSchoolYear] = useState<string>("")
   const { toast } = useToast()
+  const [error, setError] = useState<string | null>(null)
 
   // Generate school year options from 2526 to 3738
   const schoolYearOptions = Array.from({ length: 13 }, (_, i) => {
@@ -311,6 +312,7 @@ export function ScholarEvaluation() {
   const fetchScholars = async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await fetch(`${API_URL}/application/all?status=approved`, {
         credentials: 'include'
       })
@@ -327,9 +329,12 @@ export function ScholarEvaluation() {
           gpa: 0
         }))
         setScholars(scholarData)
+      } else {
+        throw new Error('Failed to fetch scholars')
       }
     } catch (error) {
       console.error('Error fetching scholars:', error)
+      setError('Failed to load scholars. Please try again.')
       toast({
         title: "Error",
         description: "Failed to fetch scholars list",
@@ -723,6 +728,15 @@ export function ScholarEvaluation() {
             </p>
           </div>
           <div className="max-h-[500px] overflow-y-auto">
+            {error && (
+              <div className="p-4 m-4 bg-red-50 text-red-600 rounded-md flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                <span className="text-sm">{error}</span>
+                <Button variant="outline" size="sm" onClick={fetchScholars} className="ml-auto h-8">
+                  Retry
+                </Button>
+              </div>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-gray-400" />

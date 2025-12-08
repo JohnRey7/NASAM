@@ -108,8 +108,8 @@ async function seedRoles() {
     console.log('Permissions initialized');
 
     // Delete existing roles for fresh seed
-    await Role.deleteMany({ name: { $in: ['applicant', 'oas_staff', 'department_head'] } });
-    console.log('Cleared existing applicant, oas_staff, and department_head roles');
+    await Role.deleteMany({ name: { $in: ['applicant', 'oas_staff', 'department_head', 'admin'] } });
+    console.log('Cleared existing applicant, oas_staff, admin, and department_head roles');
 
     // Define role permissions based on system requirements
     
@@ -149,8 +149,87 @@ async function seedRoles() {
     ];
 
     // OAS STAFF PERMISSIONS
-    // OAS Staff gets 'administrator' permission which grants full access to all endpoints
+    // OAS Staff has restricted access (cannot delete applicants, cannot create departments)
     const oasStaffPermissions = [
+      // User management (No delete)
+      'user.create',
+      'user.read',
+      'user.update',
+      // Role management (Read only)
+      'role.read',
+      'role.read.id',
+      // Application Form (No delete)
+      'applicationForm.create',
+      'applicationForm.readOwn',
+      'applicationForm.read',
+      'applicationForm.updateOwn',
+      'applicationForm.update',
+      'applicationForm.status.set',
+      'applicationForm.approvals.set',
+      'application.export',
+      'application.export.csv',
+      'application.readAll',
+      // Application History
+      'applicationHistory.readOwn',
+      'applicationHistory.read',
+      // Documents
+      'document.create',
+      'document.set',
+      'document.get',
+      'document.read',
+      'document.update',
+      'document.delete',
+      'document.upload.endTermGrade',
+      // Personality Test
+      'personality_test.create',
+      'personality_test.answer',
+      'personality_test.stop',
+      'personality_test.readOwn',
+      'personality_test.readAll',
+      'personality_test.read',
+      'personality_test.update',
+      'personality_test.delete',
+      'personality_test.template.create',
+      'personality_test.template.read',
+      'personality_test.template.update',
+      'personality_test.template.delete',
+      // Interview
+      'interview.create',
+      'interview.readAll',
+      'interview.read',
+      'interview.readOwn',
+      'interview.update',
+      'interview.updateOwn',
+      'interview.delete',
+      'interview.deleteOwn',
+      // Evaluation
+      'evaluation.create',
+      'evaluation.read',
+      'evaluation.read.all',
+      'evaluation.update',
+      'evaluation.delete',
+      'evaluation.update_timekeeping',
+      'evaluation.read_timekeeping',
+      'evaluation.manage',
+      // Department (Read/Update only, No Create/Delete)
+      'department.read',
+      'department.update',
+      // Course (No Hard Delete)
+      'course.create',
+      'course.read',
+      'course.read.deleted',
+      'course.update',
+      'course.delete.soft',
+      // Activity
+      'activity.readAll',
+      // Audit
+      'audit.read',
+      'audit.manage'
+    ];
+
+    // ADMIN PERMISSIONS
+    // Admin gets 'administrator' permission which grants full access to all endpoints
+    const adminPermissions = [
       'administrator'
     ];
 
@@ -198,6 +277,12 @@ async function seedRoles() {
         name: 'oas_staff',
         permissions: permissionDocs
           .filter(p => oasStaffPermissions.includes(p.name))
+          .map(p => p._id)
+      },
+      {
+        name: 'admin',
+        permissions: permissionDocs
+          .filter(p => adminPermissions.includes(p.name))
           .map(p => p._id)
       },
       {
