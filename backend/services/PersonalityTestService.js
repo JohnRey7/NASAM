@@ -49,14 +49,14 @@ class PersonalityTestService {
 
       // Create test with start and end time
       const startTime = new Date();
-      const endTime = new Date(startTime.getTime() + 900 * 1000); // 15 minutes from start
+      const endTime = new Date(startTime.getTime() + 300 * 1000); // 5 minutes from start
       const test = new PersonalityTest({
         applicationId: application._id,
         questions: questions.map(q => q._id), // Save question IDs
         answers: [],
         startTime,
         endTime,
-        timeLimitSeconds: 900, // 15 minutes
+        timeLimitSeconds: 300, // 5 minutes
       });
       await test.save();
 
@@ -217,10 +217,19 @@ class PersonalityTestService {
       const total = answers.reduce((sum, ans) => sum + Number(ans.answer), 0);
       const score = answers.length ? total / answers.length : 0;
 
-      // Risk level rubric (example)
-      let riskLevelIndicator = "Low";
-      if (score < 2.5) riskLevelIndicator = "High";
-      else if (score < 3.5) riskLevelIndicator = "Medium";
+      // New risk level rubric based on score ranges
+      let riskLevelIndicator = "Average";
+      if (score < 2.0) {
+        riskLevelIndicator = "Very Low";
+      } else if (score < 2.5) {
+        riskLevelIndicator = "Low";
+      } else if (score < 3.0) {
+        riskLevelIndicator = "Below Average";
+      } else if (score < 4.0) {
+        riskLevelIndicator = "Average";
+      } else {
+        riskLevelIndicator = "Above Average";
+      }
 
       test.score = score;
       test.riskLevelIndicator = riskLevelIndicator;

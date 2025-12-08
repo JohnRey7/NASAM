@@ -24,15 +24,15 @@ const personalityTestSchema = new mongoose.Schema({
     },
     timeLimitSeconds: {
         type: Number,
-        default: 900 // 15 minutes
+        default: 300 // 5 minutes
     },
     score: {
         type: mongoose.Schema.Types.Decimal128
     },
     riskLevelIndicator: {
         type: String,
-        enum: ['Low', 'Medium', 'High'],
-        default: 'Low'
+        enum: ['Very Low', 'Low', 'Below Average', 'Average', 'Above Average'],
+        default: 'Average'
     },
     reviewed: {
         type: Boolean,

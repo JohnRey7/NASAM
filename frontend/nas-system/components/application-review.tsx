@@ -2407,20 +2407,31 @@ export function ApplicationReview() {
                                         Assessment Completed
                                       </h2>
                                       
+                                      {/* Test ID */}
+                                      <div className="text-xs text-gray-500 mb-2">
+                                        Test ID: {personalityTestData._id}
+                                      </div>
+                                      
                                       {/* Risk Level & Questions - Inline */}
                                       <div className="flex items-center justify-center gap-4 mb-3 text-sm">
                                         <span className="text-gray-600">
-                                          {personalityTestData.answers?.length || 0}/{personalityTestData.questions?.length || personalityTestData.answers?.length || 0} questions
+                                          {Math.min(personalityTestData.answers?.length || 0, personalityTestData.questions?.length || 10)}/{personalityTestData.questions?.length || 10} questions
                                         </span>
                                         <span className="text-gray-400">•</span>
                                         <span className={`font-semibold ${
-                                          personalityTestData.riskLevelIndicator === 'Low' 
+                                          personalityTestData.riskLevelIndicator === 'Very Low' 
+                                            ? 'text-blue-600'
+                                            : personalityTestData.riskLevelIndicator === 'Low'
                                             ? 'text-green-600'
-                                            : personalityTestData.riskLevelIndicator === 'Medium'
+                                            : personalityTestData.riskLevelIndicator === 'Below Average'
                                             ? 'text-yellow-600'
-                                            : 'text-red-600'
+                                            : personalityTestData.riskLevelIndicator === 'Average'
+                                            ? 'text-orange-600'
+                                            : personalityTestData.riskLevelIndicator === 'Above Average'
+                                            ? 'text-red-600'
+                                            : 'text-gray-600'
                                         }`}>
-                                          {personalityTestData.riskLevelIndicator || 'Unknown'} Risk
+                                          {personalityTestData.riskLevelIndicator || 'Unknown'}
                                         </span>
                                       </div>
 
@@ -2787,8 +2798,12 @@ export function ApplicationReview() {
                                                 <Button
                                                   className="bg-[#800000] hover:bg-[#600000]"
                                                   onClick={async () => {
+                                                    setInterviewLoading(true);
+                                                    setIsRescheduling(false);
                                                     await handleScheduleInterview(application);
-                                                    fetchInterviewData(application._id);
+                                                    // Wait a moment for backend to process
+                                                    await new Promise(resolve => setTimeout(resolve, 500));
+                                                    await fetchInterviewData(application._id);
                                                   }}
                                                   disabled={!selectedInterviewer || !interviewDate}
                                                 >
@@ -2888,8 +2903,11 @@ export function ApplicationReview() {
                                           <Button
                                             className="bg-[#800000] hover:bg-[#600000]"
                                             onClick={async () => {
+                                              setInterviewLoading(true);
                                               await handleScheduleInterview(application);
-                                              fetchInterviewData(application._id);
+                                              // Wait a moment for backend to process
+                                              await new Promise(resolve => setTimeout(resolve, 500));
+                                              await fetchInterviewData(application._id);
                                             }}
                                             disabled={!selectedInterviewer || !interviewDate}
                                           >

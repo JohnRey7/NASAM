@@ -30,6 +30,8 @@ interface InterviewData {
   schedule: string;
   status: 'not yet scheduled' | 'pending interview' | 'pending evaluation' | 'evaluated' | 'approved' | 'rejected';
   applicationStatus?: string;
+  idNumber?: string;
+  hasEvaluation?: boolean;
 }
 
 // Helper function to safely extract numeric values from MongoDB $numberDecimal format
@@ -210,46 +212,68 @@ export default function DepartmentHeadDashboardPage() {
     try {
       console.log('🔍 Fetching application details for:', applicantId);
       
-      // Use the already fetched scholars data instead of making another API call
+      // First, try to find the applicant in the scholars array to get the applicationId
       const applicant = scholars.find((app: any) => (app.id || app._id) === applicantId);
+      const applicationId = applicant?.applicationId || applicantId;
       
-      if (applicant) {
-        console.log('📋 Found applicant data:', applicant);
-        console.log('🔍 All applicant keys:', Object.keys(applicant));
+      // Fetch full application data from the API
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application/${applicationId}`,
+        { credentials: 'include' }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const application = data.application || data;
+        console.log('📋 Full application data:', application);
         
-        const idNumber = applicant.idNumber || applicant.user?.idNumber || applicant.studentId || 'N/A';
+        // Calculate GPA from education.collegeLevel
+        let gpa = 'N/A';
+        if (application.education?.collegeLevel && Array.isArray(application.education.collegeLevel)) {
+          const grades = application.education.collegeLevel.flatMap((level: any) => [
+            level.firstSemesterAverageFinalGrade,
+            level.secondSemesterAverageFinalGrade,
+            level.thirdSemesterAverageFinalGrade
+          ].filter((grade: any) => grade != null && !isNaN(grade)));
+          
+          if (grades.length > 0) {
+            const avgGrade = grades.reduce((sum: number, grade: number) => sum + grade, 0) / grades.length;
+            gpa = avgGrade.toFixed(2);
+          }
+        }
         
-        // Set the application details with real data from the backend
+        // Set the application details with real data from the API
         setApplicationDetails({
-          _id: applicant._id || applicant.id,
-          userId: applicant.userId || applicant._id || applicant.id,
-          applicationId: applicant.applicationId || applicant._id,
-          firstName: applicant.firstName || applicant.name?.split(' ')[0] || '',
-          lastName: applicant.lastName || applicant.name?.split(' ').slice(1).join(' ') || '',
-          idNumber: idNumber,
-          email: applicant.email || applicant.user?.email || applicant.emailAddress || 'N/A',
-          contactNumber: applicant.contactNumber || applicant.phoneNumber || applicant.phone || applicant.mobileNumber || 'N/A',
-          dateOfBirth: applicant.dateOfBirth || applicant.birthDate || applicant.dob || 'N/A',
-          gender: applicant.gender || applicant.sex || 'N/A',
-          programOfStudyAndYear: applicant.programOfStudyAndYear || applicant.program || applicant.course || 'N/A',
-          gpa: applicant.gpa || applicant.gradePointAverage || applicant.grades || 'N/A',
-          yearLevel: applicant.yearLevel || applicant.year || applicant.level || 'N/A',
-          school: applicant.school || applicant.university || 'CIT-University',
-          fatherName: applicant.fatherName || applicant.father?.name || applicant.fathersName || 'N/A',
-          motherName: applicant.motherName || applicant.mother?.name || applicant.mothersName || 'N/A',
-          familyIncome: applicant.familyIncome || applicant.monthlyFamilyIncome || applicant.income || 'N/A',
-          numberOfSiblings: applicant.numberOfSiblings || applicant.siblings || 'N/A',
-          address: applicant.address || applicant.homeAddress || applicant.completeAddress || applicant.location || 'N/A'
+          _id: application._id,
+          userId: application.user?._id || application.user,
+          applicationId: application._id,
+          firstName: application.firstName || '',
+          lastName: application.lastName || '',
+          idNumber: application.user?.idNumber || application.idNumber || 'N/A',
+          email: application.emailAddress || application.email || 'N/A',
+          contactNumber: application.contactNumber || 'N/A',
+          dateOfBirth: application.dateOfBirth ? new Date(application.dateOfBirth).toLocaleDateString() : 'N/A',
+          gender: application.gender || 'N/A',
+          programOfStudyAndYear: application.programOfStudyAndYear || 'N/A',
+          gpa: gpa,
+          yearLevel: application.yearLevel || 'N/A',
+          school: 'CIT-University',
+          fatherName: application.familyBackground?.father?.name || 'N/A',
+          motherName: application.familyBackground?.mother?.name || 'N/A',
+          familyIncome: application.annualFamilyIncome || 'N/A',
+          numberOfSiblings: application.familyBackground?.numberOfSiblings || 'N/A',
+          address: application.permanentResidentialAddress || 'N/A'
         });
         
         // Also fetch evaluations for this scholar
+        const idNumber = application.user?.idNumber || application.idNumber;
         if (idNumber && idNumber !== 'N/A') {
           fetchScholarEvaluations(idNumber);
         } else {
           setScholarEvaluations([]);
         }
       } else {
-        console.warn('⚠️ Applicant not found in assigned applicants');
+        console.warn('⚠️ Failed to fetch application data, using fallback');
         // Fallback to interview data
         const interview = interviews.find(i => i._id === applicantId);
         if (interview) {
@@ -1411,16 +1435,22 @@ export default function DepartmentHeadDashboardPage() {
                                               </div>
                                             </div>
                                             <h2 className="text-lg font-bold text-green-800 mb-1">Assessment Completed</h2>
+                                            <div className="text-xs text-gray-500 mb-2">
+                                              Test ID: {personalityTestData._id}
+                                            </div>
                                             <div className="flex items-center justify-center gap-4 mb-3 text-sm">
                                               <span className="text-gray-600">
-                                                {personalityTestData.answers?.length || 0}/{personalityTestData.questions?.length || personalityTestData.answers?.length || 0} questions
+                                                {Math.min(personalityTestData.answers?.length || 0, personalityTestData.questions?.length || 10)}/{personalityTestData.questions?.length || 10} questions
                                               </span>
                                               <span className="text-gray-400">•</span>
                                               <span className={`font-semibold ${
+                                                personalityTestData.riskLevelIndicator === 'Very Low' ? 'text-blue-600' :
                                                 personalityTestData.riskLevelIndicator === 'Low' ? 'text-green-600' :
-                                                personalityTestData.riskLevelIndicator === 'Medium' ? 'text-yellow-600' : 'text-red-600'
+                                                personalityTestData.riskLevelIndicator === 'Below Average' ? 'text-yellow-600' :
+                                                personalityTestData.riskLevelIndicator === 'Average' ? 'text-orange-600' :
+                                                personalityTestData.riskLevelIndicator === 'Above Average' ? 'text-red-600' : 'text-gray-600'
                                               }`}>
-                                                {personalityTestData.riskLevelIndicator || 'Unknown'} Risk
+                                                {personalityTestData.riskLevelIndicator || 'Unknown'}
                                               </span>
                                             </div>
                                             <div className="bg-white/50 rounded-lg p-3 text-left">

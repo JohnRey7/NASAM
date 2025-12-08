@@ -101,6 +101,55 @@ const AnalyticsExportController = {
                   count: { $sum: 1 }
                 }
               }
+            ],
+            gpaBuckets: [
+              {
+                $project: {
+                  applicantAvg: {
+                    $let: {
+                      vars: {
+                        perEntryAvg: {
+                          $map: {
+                            input: { $ifNull: ['$collegeLevel', []] },
+                            as: 'cl',
+                            in: {
+                              $let: {
+                                vars: {
+                                  sum: {
+                                    $add: [
+                                      { $ifNull: ['$$cl.firstSemesterAverageFinalGrade', null] },
+                                      { $ifNull: ['$$cl.secondSemesterAverageFinalGrade', null] },
+                                      { $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', null] }
+                                    ]
+                                  },
+                                  cnt: {
+                                    $add: [
+                                      { $cond: [{ $ifNull: ['$$cl.firstSemesterAverageFinalGrade', false] }, 1, 0] },
+                                      { $cond: [{ $ifNull: ['$$cl.secondSemesterAverageFinalGrade', false] }, 1, 0] },
+                                      { $cond: [{ $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', false] }, 1, 0] }
+                                    ]
+                                  }
+                                },
+                                in: { $cond: [{ $gt: ['$$cnt', 0] }, { $divide: ['$$sum', '$$cnt'] }, null] }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      in: { $avg: '$$perEntryAvg' }
+                    }
+                  }
+                }
+              },
+              { $match: { applicantAvg: { $ne: null } } },
+              {
+                $bucket: {
+                  groupBy: '$applicantAvg',
+                  boundaries: [0, 1.6, 2.1, 2.6, 3.1, 3.6, 4.1, 100],
+                  default: 'Other',
+                  output: { count: { $sum: 1 } }
+                }
+              }
             ]
           }
         }
@@ -122,6 +171,22 @@ const AnalyticsExportController = {
       
       const avgGPA = (facet.gpaStats && facet.gpaStats[0] && facet.gpaStats[0].avgGPA) ? Number((facet.gpaStats[0].avgGPA).toFixed(2)) : null;
       const gpaCount = (facet.gpaStats && facet.gpaStats[0] && facet.gpaStats[0].count) || 0;
+      
+      // Format GPA distribution buckets
+      const bucketLabels = [
+        '≤ 1.5',
+        '1.6 - 2.0',
+        '2.1 - 2.5',
+        '2.6 - 3.0',
+        '3.1 - 3.5',
+        '3.6 - 4.0',
+        '4.1+'
+      ];
+      const rawBuckets = facet.gpaBuckets || [];
+      const gpaDistribution = rawBuckets.map((b, idx) => ({
+        range: bucketLabels[idx] || String(b._id),
+        count: b.count || 0
+      }));
 
       if (format === 'csv') {
         // Generate CSV
@@ -156,6 +221,12 @@ const AnalyticsExportController = {
         Object.entries(genderCounts).forEach(([gender, count]) => {
           csv += `${gender},${count}\n`;
         });
+        
+        csv += '\nGPA DISTRIBUTION\n';
+        csv += 'GPA Range,Applicant Count\n';
+        gpaDistribution.forEach(bucket => {
+          csv += `${bucket.range},${bucket.count}\n`;
+        });
 
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename=analytics-report-${new Date().toISOString().split('T')[0]}.csv`);
@@ -178,6 +249,11 @@ const AnalyticsExportController = {
         const topPrograms = programs.slice(0, 10);
         const programLabels = topPrograms.map(p => p.program.length > 30 ? p.program.substring(0, 30) + '...' : p.program);
         const programData = topPrograms.map(p => p.count);
+        
+        // GPA Distribution chart data
+        const gpaLabels = gpaDistribution.map(b => b.range);
+        const gpaData = gpaDistribution.map(b => b.count);
+        const gpaColors = ['#4caf50', '#66bb6a', '#81c784', '#a5d6a7', '#c8e6c9', '#e8f5e9', '#f1f8e9'];
         
         // Generate PDF using puppeteer with Chart.js
         const html = `
@@ -278,6 +354,24 @@ const AnalyticsExportController = {
         </div>
       </div>
     </div>
+
+    <!-- GPA Distribution Summary Card -->
+    <div style="background: #e8f5e9; padding: 20px; border-radius: 5px; border-left: 4px solid #4caf50; margin-top: 20px;">
+      <h3 style="margin: 0 0 15px 0; color: #2e7d32;">📊 GPA Distribution</h3>
+      <p style="font-size: 11px; color: #555; margin-bottom: 15px;">Distribution of applicant average GPAs</p>
+      <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; font-size: 11px;">
+        ${gpaDistribution.map(bucket => 
+          `<div style="text-align: center; padding: 12px; background: white; border-radius: 5px; border: 1px solid #c8e6c9;">
+            <div style="font-size: 18px; font-weight: bold; color: #2e7d32;">${bucket.count}</div>
+            <div style="color: #666; margin-top: 5px; font-size: 10px;">${bucket.range}</div>
+          </div>`
+        ).join('')}
+      </div>
+      <div style="margin-top: 15px; text-align: center; padding: 10px; background: white; border-radius: 5px;">
+        <span style="color: #666; font-size: 12px;">Total Applicants with GPA: </span>
+        <span style="font-weight: bold; color: #2e7d32; font-size: 14px;">${gpaCount}</span>
+      </div>
+    </div>
   </div>
 
   <!-- Page 2: Application Status -->
@@ -376,7 +470,33 @@ const AnalyticsExportController = {
     </div>
   </div>
 
-  <!-- Page 5: Data Tables -->
+  <!-- Page 5: GPA Distribution -->
+  <div class="section">
+    <h2>GPA Distribution</h2>
+    <div class="chart-container">
+      <canvas id="gpaChart" width="650" height="400"></canvas>
+    </div>
+    <div style="margin-top: 30px; padding: 20px; background: #e8f5e9; border-radius: 5px; border-left: 4px solid #4caf50;">
+      <h3 style="color: #2e7d32; margin-bottom: 15px;">📊 GPA Breakdown</h3>
+      <table style="width: 100%; margin: 0; font-size: 11px;">
+        <tr><th>GPA Range</th><th style="text-align: center;">Applicant Count</th><th style="text-align: right;">%</th></tr>
+        ${gpaDistribution.map(bucket => 
+          `<tr>
+            <td>${bucket.range}</td>
+            <td style="text-align: center;">${bucket.count}</td>
+            <td style="text-align: right;">${gpaCount > 0 ? ((bucket.count / gpaCount) * 100).toFixed(1) : 0}%</td>
+          </tr>`
+        ).join('')}
+        <tr style="background: #4caf50; color: white; font-weight: bold;">
+          <td>TOTAL</td>
+          <td style="text-align: center;">${gpaCount}</td>
+          <td style="text-align: right;">100%</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Page 6: Data Tables -->
   <div class="section">
     <h2>Detailed Data Tables</h2>
     
@@ -482,6 +602,39 @@ const AnalyticsExportController = {
         responsive: true,
         plugins: {
           legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 10 } }
+        }
+      }
+    });
+
+    // GPA Distribution Chart (Bar)
+    new Chart(document.getElementById('gpaChart'), {
+      type: 'bar',
+      data: {
+        labels: ${JSON.stringify(gpaLabels)},
+        datasets: [{
+          label: 'Number of Applicants',
+          data: ${JSON.stringify(gpaData)},
+          backgroundColor: ${JSON.stringify(gpaColors)},
+          borderWidth: 1,
+          borderColor: '#2e7d32'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: { display: false }
+        },
+        scales: {
+          x: { 
+            ticks: { font: { size: 12 } },
+            title: { display: true, text: 'GPA Range', font: { size: 14, weight: 'bold' } }
+          },
+          y: { 
+            beginAtZero: true,
+            ticks: { font: { size: 12 }, stepSize: 1 },
+            title: { display: true, text: 'Applicant Count', font: { size: 14, weight: 'bold' } }
+          }
         }
       }
     });

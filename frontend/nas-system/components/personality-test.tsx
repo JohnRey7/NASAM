@@ -32,7 +32,7 @@ interface Question {
 export function PersonalityTest() {
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number>>({})
-  const [timeLeft, setTimeLeft] = useState(1200) // 20 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(300) // 5 minutes in seconds
   const [testCompleted, setTestCompleted] = useState(false)
   const [testStarted, setTestStarted] = useState(false)
   const [testId, setTestId] = useState<string | null>(null)
@@ -67,10 +67,10 @@ export function PersonalityTest() {
       setTestStarted(true)
       setTestId(data.testId)
       setQuestions(data.questions)
-      setTimeLeft(data.timeLimitSeconds || 1200)
+      setTimeLeft(data.timeLimitSeconds || 300)
       toast({
         title: "Test Started",
-        description: "You have 20 minutes to complete the personality test.",
+        description: "You have 5 minutes to complete the personality test.",
       })
     } catch (error: any) {
       toast({
@@ -348,7 +348,7 @@ export function PersonalityTest() {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-yellow-700">
-                    <strong>Important:</strong> Once you start the test, you will have 20 minutes to complete it. Please
+                    <strong>Important:</strong> Once you start the test, you will have 5 minutes to complete it. Please
                     ensure you have a quiet environment and won't be interrupted.
                   </p>
                 </div>

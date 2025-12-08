@@ -240,8 +240,8 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[95vh]">
-        <DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[80vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl">
             {readOnly ? 'View' : existingEvaluation ? 'Edit' : 'Create'} Scholar Evaluation - {scholar?.firstName} {scholar?.lastName}
           </DialogTitle>
@@ -250,7 +250,7 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
             {readOnly && <span className="ml-2 text-amber-600 font-medium">(Read Only)</span>}
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-[600px] pr-4">
+        <ScrollArea className="flex-1 overflow-y-auto pr-4">
           <div className="space-y-6">
             {readOnly && (
               <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-lg">
