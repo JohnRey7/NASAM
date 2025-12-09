@@ -125,7 +125,7 @@ class InterviewService {
         if (applicantUser.course && applicantUser.course.departmentId) {
             const courseDeptId = applicantUser.course.departmentId._id || applicantUser.course.departmentId;
             if (courseDeptId.toString() === deptHeadDepartment._id.toString()) {
-                throw new Error('Conflict of Interest: Applicant cannot be interviewed by the head of their own academic department.');
+                throw new Error('Applicant cannot be interviewed by the head of their own academic department.');
             }
         }
 
@@ -174,7 +174,7 @@ class InterviewService {
         
         const conflictingInterview = await Interview.findOne(conflictQuery);
         if (conflictingInterview) {
-          throw new Error('Scheduling Conflict: The selected interviewer is already booked for another interview at this time.');
+          throw new Error('The selected interviewer is already booked for another interview at this time.');
         }
 
         // Check for conflicts for the APPLICANT (Rescheduling)
@@ -189,7 +189,7 @@ class InterviewService {
         
         const conflictingApplicantInterview = await Interview.findOne(applicantConflictQuery);
         if (conflictingApplicantInterview) {
-          throw new Error('Scheduling Conflict: The applicant already has another interview scheduled at this time.');
+          throw new Error('The applicant already has another interview scheduled at this time.');
         }
         
         // Check if the date/time is different (rescheduling)
@@ -303,7 +303,7 @@ class InterviewService {
       
       const conflictingInterview = await Interview.findOne(conflictQuery);
       if (conflictingInterview) {
-        throw new Error('Scheduling Conflict: The selected interviewer is already booked for another interview at this time.');
+        throw new Error('The selected interviewer is already booked for another interview at this time.');
       }
 
       // Check for conflicts for the APPLICANT (New Interview)
@@ -317,7 +317,7 @@ class InterviewService {
       
       const conflictingApplicantInterview = await Interview.findOne(applicantConflictQuery);
       if (conflictingApplicantInterview) {
-        throw new Error('Scheduling Conflict: The applicant already has another interview scheduled at this time.');
+        throw new Error('The applicant already has another interview scheduled at this time.');
       }
 
       // Create interview with the selected interviewer (or staff member as fallback)

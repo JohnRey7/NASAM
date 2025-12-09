@@ -33,7 +33,8 @@ import {
   ZoomOut,
   RotateCcw,
   Users,
-  Award
+  Award,
+  AlertCircle
 } from "lucide-react"
 import { AdminEditApplication } from "@/components/admin-edit-application"
 import { MessageButton } from "@/components/message-button"
@@ -1108,6 +1109,7 @@ export function ApplicationReview() {
   const [interviewers, setInterviewers] = useState<any[]>([])
   const [selectedInterviewer, setSelectedInterviewer] = useState<string>("")
   const [schedulingType, setSchedulingType] = useState<'OAS' | 'DepartmentHead' | null>(null)
+  const [conflictError, setConflictError] = useState<{title: string, message: string} | null>(null)
   
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -1611,19 +1613,20 @@ export function ApplicationReview() {
       
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      if (errorMessage.includes('own academic department') || errorMessage.includes('Conflict of Interest')) {
-        toast({
+      if (errorMessage.includes('own academic department')) {
+        setConflictError({
           title: "Conflict of Interest",
-          description: errorMessage,
-          variant: "destructive",
-          duration: 7000
+          message: "The applicant cannot be interviewed by the head of their own academic department. Please select a different interviewer."
         });
-      } else if (errorMessage.includes('already booked') || errorMessage.includes('already has another interview') || errorMessage.includes('Scheduling Conflict')) {
-        toast({
-          title: "Scheduling Conflict",
-          description: errorMessage,
-          variant: "destructive",
-          duration: 7000
+      } else if (errorMessage.includes('already booked for another interview')) {
+        setConflictError({
+          title: "Interviewer Unavailable",
+          message: "The selected interviewer is already booked for another interview at this time. Please select a different time or interviewer."
+        });
+      } else if (errorMessage.includes('applicant already has another interview')) {
+        setConflictError({
+          title: "Applicant Unavailable",
+          message: "The applicant already has another interview scheduled at this time. Please select a different time."
         });
       } else {
         toast({
@@ -3266,6 +3269,24 @@ export function ApplicationReview() {
         />
       )}
       
+      {/* Conflict Dialog */}
+      <Dialog open={!!conflictError} onOpenChange={(open) => !open && setConflictError(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-red-600">
+              <AlertCircle className="h-5 w-5 mr-2" />
+              {conflictError?.title}
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-base text-gray-700">
+              {conflictError?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setConflictError(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirmation Dialog */}
       {ConfirmDialog}
     </div>
