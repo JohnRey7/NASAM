@@ -315,7 +315,7 @@ export function UserList() {
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-center translate-x-[0px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

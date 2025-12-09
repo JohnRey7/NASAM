@@ -562,14 +562,16 @@ class ApplicationService {
         page: parseInt(page),
         totalPages: Math.ceil(totalDocs / parseInt(limit)),
         hasNextPage: skip + applications.length < totalDocs,
-        hasPrevPage: page > 1
       }
     };
   }
 
-  // Get all applications for staff dashboard
-  static async getAllApplicationsForStaff() {
-    console.log('🔍 Starting database query for applications...');
+  // Get all applications for staff dashboard with pagination
+  static async getAllApplicationsForStaff(page = 1, limit = 10) {
+    console.log(`🔍 Starting database query for applications (page ${page}, limit ${limit})...`);
+    
+    // Calculate skip value for pagination
+    const skip = (page - 1) * limit;
     
     // First, let's check total count without filters
     const totalCount = await ApplicationForm.countDocuments({});
@@ -578,29 +580,28 @@ class ApplicationService {
     
     console.log(`📊 Database stats: Total=${totalCount}, Deleted=${deletedCount}, Active=${activeCount}`);
     
-    // Temporarily include applications without is_deleted field
-    const applications = await ApplicationForm.find({ 
+    // Build query for active applications
+    const query = { 
       $or: [
         { is_deleted: false },
         { is_deleted: { $exists: false } }
       ]
-    })
-      .populate('user', 'name email idNumber')
-      .sort({ createdAt: -1 })
-      .lean();
-
-    console.log(`📊 Found ${applications.length} applications for staff dashboard`);
-    console.log('📋 Application IDs:', applications.map(app => app._id));
+    };
     
-    // Let's also check if there are applications without the is_deleted field
-    const appsWithoutDeletedField = await ApplicationForm.find({ is_deleted: { $exists: false } })
+    // Get total count for pagination
+    const totalDocs = await ApplicationForm.countDocuments(query);
+    const totalPages = Math.ceil(totalDocs / limit);
+    
+    // Fetch paginated applications
+    const applications = await ApplicationForm.find(query)
       .populate('user', 'name email idNumber')
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .lean();
-    console.log(`📋 Applications without is_deleted field: ${appsWithoutDeletedField.length}`);
-    if (appsWithoutDeletedField.length > 0) {
-      console.log('📋 IDs without is_deleted field:', appsWithoutDeletedField.map(app => app._id));
-    }
+    
+    console.log(`📊 Page ${page}/${totalPages}: Showing ${applications.length} of ${totalDocs} total applications`);
+    console.log('📋 Application IDs:', applications.map(app => app._id));
 
     // Fetch interview data for all applications
     const Interview = require('../models/Interview');
@@ -647,7 +648,18 @@ class ApplicationService {
     });
 
     console.log(`✅ Returning ${formattedApps.length} formatted applications with interview data`);
-    return formattedApps;
+    
+    return {
+      applications: formattedApps,
+      pagination: {
+        page,
+        limit,
+        totalDocs,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    };
   }
 
   // Update application by ID

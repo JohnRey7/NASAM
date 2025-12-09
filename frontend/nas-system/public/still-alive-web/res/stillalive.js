@@ -162,6 +162,7 @@ const CREDIT_DATA = [
 	"",
 	"",
 	"",
+	"",
 	"THANK YOU FOR USING NASAMS",
 	"BECAUSE OF YOU WE ARE",
 	"OFFICIALLY GRADUATING!!",

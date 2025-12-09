@@ -101,15 +101,18 @@ const ApplicationController = {
     }
   },
 
-  // GET: Get all applications for OAS staff dashboard
+  // GET: Get all applications for OAS staff dashboard with pagination
   async getAllApplicationsForStaff(req, res) {
     try {
-      console.log('🔍 Fetching applications for OAS dashboard...');
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
       
-      const formattedApplications = await ApplicationService.getAllApplicationsForStaff();
-      console.log(`📊 Found ${formattedApplications.length} applications`);
+      console.log(`🔍 Fetching applications for OAS dashboard (page ${page}, limit ${limit})...`);
+      
+      const result = await ApplicationService.getAllApplicationsForStaff(page, limit);
+      console.log(`📊 Found ${result.applications.length} applications on page ${page}`);
 
-      res.json(formattedApplications);
+      res.json(result);
     } catch (error) {
       console.error('❌ Error fetching applications:', error);
       res.status(500).json({ 

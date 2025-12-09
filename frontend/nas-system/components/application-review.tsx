@@ -1394,6 +1394,7 @@ export function ApplicationReview() {
   const pendingCount = counts?.counts?.pending ?? 0
   const approvedCount = counts?.counts?.approved ?? 0
   const rejectedCount = counts?.counts?.rejected ?? 0
+  const underConsiderationCount = counts?.counts?.under_consideration ?? counts?.counts?.form_verified ?? 0
 
   // Filter only admin applications client-side (server handles search and status)
   const filteredApplications = applications.filter((app) => {
@@ -2190,7 +2191,7 @@ export function ApplicationReview() {
         </CardHeader>
         <CardContent className="pt-6">
           {/* Stats Row */}
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-5 gap-3 mb-4">
             <div className="p-3 bg-white border rounded">
               <p className="text-xs text-gray-500">Total</p>
               <p className="text-xl font-bold text-[#800000]">{totalCount}</p>
@@ -2198,6 +2199,10 @@ export function ApplicationReview() {
             <div className="p-3 bg-white border rounded">
               <p className="text-xs text-gray-500">Pending</p>
               <p className="text-xl font-bold">{pendingCount}</p>
+            </div>
+            <div className="p-3 bg-white border rounded">
+              <p className="text-xs text-gray-500">Under Consideration</p>
+              <p className="text-xl font-bold text-blue-600">{underConsiderationCount}</p>
             </div>
             <div className="p-3 bg-white border rounded">
               <p className="text-xs text-gray-500">Approved</p>
@@ -2244,36 +2249,36 @@ export function ApplicationReview() {
               <thead>
                 <tr className="border-b">
                   <th className="py-3 px-2 text-left font-medium text-sm">Application ID</th>
-                  <th className="py-3 px-2 text-left font-medium text-sm">Student Name</th>
-                  <th className="py-3 px-2 text-left font-medium text-sm">Student ID</th>
-                  <th className="py-3 px-2 text-left font-medium text-sm">Course</th>
-                  <th className="py-3 px-2 text-left font-medium text-sm">Gender</th>
+                  <th className="py-3 px-4 text-left font-medium text-sm">Student Name</th>
+                  <th className="py-3 px-4 text-left font-medium text-sm">Student ID</th>
+                  <th className="py-3 px-4 text-left font-medium text-sm">Course</th>
+                  <th className="py-3 px-4 text-center font-medium text-sm">Gender</th>
                   <th 
-                    className="py-3 px-2 text-left font-medium text-sm cursor-pointer hover:bg-gray-100 select-none"
+                    className="py-3 px-4 text-left font-medium text-sm cursor-pointer hover:bg-gray-100 select-none"
                     onClick={() => {
-                      const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-                      setSortOrder(newOrder);
-                      fetchApplications(newOrder);
+                      const newOrder = sortOrder === 'desc' ? 'asc' : 'desc'
+                      setSortOrder(newOrder)
+                      fetchApplications(pagination.page, newOrder, debouncedSearch, filter)
                     }}
                     title="Click to toggle sort order"
                   >
                     Submission Date {sortOrder === 'asc' ? '↑' : '↓'}
                   </th>
-                  <th className="py-3 px-2 text-left font-medium text-sm">Status</th>
-                  <th className="py-3 px-2 text-left font-medium text-sm">Actions</th>
+                  <th className="py-3 px-4 text-left font-medium text-sm">Status</th>
+                  <th className="py-3 px-4 text-center font-medium text-sm">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredApplications.map((application: any) => (
                   <tr key={application._id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-2 text-sm">{application._id}</td>
-                    <td className="py-3 px-2 text-sm">{application.firstName} {application.lastName}</td>
-                    <td className="py-3 px-2 text-sm whitespace-nowrap">{application.user?.idNumber}</td>
-                    <td className="py-3 px-2 text-sm">{application.programOfStudyAndYear}</td>
-                    <td className="py-3 px-2 text-sm">{application.gender || 'Unknown'}</td>
-                    <td className="py-3 px-2 text-sm">{application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}</td>
-                    <td className="py-3 px-2 text-sm">{getStatusBadge(application.status)}</td>
-                    <td className="py-3 px-2 text-sm">
+                    <td className="py-3 px-4 text-sm">{application.firstName} {application.lastName}</td>
+                    <td className="py-3 px-4 text-sm whitespace-nowrap">{application.user?.idNumber}</td>
+                    <td className="py-3 px-4 text-sm">{application.programOfStudyAndYear}</td>
+                    <td className="py-3 px-4 text-sm text-center">{application.gender || 'Unknown'}</td>
+                    <td className="py-3 px-4 text-sm">{application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}</td>
+                    <td className="py-3 px-4 text-sm">{getStatusBadge(application.status)}</td>
+                    <td className="py-3 px-4 text-sm">
                       <div className="flex gap-2">
                         <Dialog>
                           <DialogTrigger asChild>
