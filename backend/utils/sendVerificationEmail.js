@@ -13,7 +13,7 @@ async function sendVerificationEmail(email, code, subject = 'NAS Registration | 
   });
 
   // Use backend URL for API endpoint (will redirect to frontend after verification)
-  const backendUrl = process.env.BACKEND_URL || process.env.BASE_URL || 'http://localhost:3000';
+  const backendUrl = `http://${process.env.HOST}:${process.env.PORT}` || 'http://localhost:3000';
   const verificationUrl = `${backendUrl}/api/auth/email/verify?code=${code}`;
   
   // Debug logging
