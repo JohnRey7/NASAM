@@ -31,7 +31,7 @@ const InterviewController = {
       if (error.message.includes('not found')) {
         return res.status(404).json({ message: error.message });
       }
-      if (error.message.includes('required') || error.message.includes('Invalid')) {
+      if (error.message.includes('required') || error.message.includes('Invalid') || error.message.includes('own academic department')) {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: `Failed to schedule interview: ${error.message}` });
@@ -53,7 +53,7 @@ const InterviewController = {
       if (error.message.includes('not found')) {
         return res.status(404).json({ message: error.message });
       }
-      if (error.message.includes('required')) {
+      if (error.message.includes('required') || error.message.includes('own academic department')) {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: `Failed to reschedule interview: ${error.message}` });
@@ -74,7 +74,7 @@ const InterviewController = {
       if (error.message.includes('not found')) {
         return res.status(404).json({ message: error.message });
       }
-      if (error.message.includes('required') || error.message.includes('Invalid')) {
+      if (error.message.includes('required') || error.message.includes('Invalid') || error.message.includes('own academic department')) {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: `Failed to schedule interview: ${error.message}` });
@@ -116,11 +116,30 @@ const InterviewController = {
   async getInterviewByApplicationId(req, res) {
     try {
       const { applicationId } = req.params;
+      // Use the new method that returns all interviews but formatted for backward compatibility if needed
+      // Or expose a new endpoint for multiple interviews.
+      // For now, let's keep this endpoint returning a single "primary" interview (OAS) via the service wrapper
       const result = await InterviewService.getInterviewByApplicationId(applicationId);
       
       res.json(result);
     } catch (error) {
       console.error('Error in getInterviewByApplicationId:', error);
+      if (error.message.includes('Invalid')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+
+  // GET: Retrieve ALL interviews by application ID
+  async getInterviewsByApplicationId(req, res) {
+    try {
+      const { applicationId } = req.params;
+      const result = await InterviewService.getInterviewsByApplicationId(applicationId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in getInterviewsByApplicationId:', error);
       if (error.message.includes('Invalid')) {
         return res.status(400).json({ message: error.message });
       }

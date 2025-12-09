@@ -4,6 +4,10 @@ const DocumentUpload = require('../models/DocumentUpload');
 const NotificationService = require('../services/NotificationService');
 const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 const mongoose = require('mongoose');
+const User = require('../models/User');
+const Department = require('../models/Department');
+const Role = require('../models/Role');
+const Course = require('../models/Course');
 
 class InterviewService {
   static async createInterview(userId, interviewData) {
@@ -79,15 +83,63 @@ class InterviewService {
       const actualInterviewerId = interviewerId || staffUserId;
 
       // Find the application
-      const application = await ApplicationForm.findById(applicationId);
+      const application = await ApplicationForm.findById(applicationId).populate('user');
       if (!application) {
         throw new Error('Application not found');
       }
 
-      // Check for existing non-deleted interview
+      // Determine Interview Type and Validate Department Head Logic
+      let interviewType = 'OAS';
+      const interviewer = await User.findById(actualInterviewerId).populate('role');
+      
+      if (interviewer && interviewer.role && interviewer.role.name === 'department_head') {
+        interviewType = 'DepartmentHead';
+        
+        // Find Dept Head's Department
+        // Check both department_head field in Department AND department field in User
+        let deptHeadDepartment = await Department.findOne({ department_head: actualInterviewerId });
+        
+        if (!deptHeadDepartment) {
+          // Fallback: Check if the user has a department assigned to them
+          const userWithDept = await User.findById(actualInterviewerId).populate('department');
+          if (userWithDept && userWithDept.department) {
+            deptHeadDepartment = userWithDept.department;
+            // Auto-fix: Update the department to point to this head if it's not set
+            if (!deptHeadDepartment.department_head) {
+              await Department.findByIdAndUpdate(deptHeadDepartment._id, { department_head: actualInterviewerId });
+              console.log(`🔧 Auto-fixed department ${deptHeadDepartment.name}: set department_head to ${actualInterviewerId}`);
+            }
+          }
+        }
+
+        if (!deptHeadDepartment) {
+           throw new Error(`Selected interviewer (${interviewer.name}) is a Department Head but is not assigned to lead any department.`);
+        }
+
+        // Check Applicant's Course Department
+        const applicantUser = await User.findById(application.user._id).populate({
+            path: 'course',
+            populate: { path: 'departmentId' }
+        });
+
+        if (applicantUser.course && applicantUser.course.departmentId) {
+            const courseDeptId = applicantUser.course.departmentId._id || applicantUser.course.departmentId;
+            if (courseDeptId.toString() === deptHeadDepartment._id.toString()) {
+                throw new Error('Conflict of Interest: Applicant cannot be interviewed by the head of their own academic department.');
+            }
+        }
+
+        // Assign Applicant to this Department - MOVED TO finishInterview
+        // applicantUser.assigned_department = deptHeadDepartment._id;
+        // await applicantUser.save();
+        // console.log(`✅ Assigned applicant ${applicantUser.name} to department ${deptHeadDepartment.name}`);
+      }
+
+      // Check for existing non-deleted interview OF THE SAME TYPE
       const existingInterview = await Interview.findOne({ 
         applicationId: applicationId,
-        is_deleted: { $ne: true }  // Exclude soft-deleted interviews
+        type: interviewType,
+        is_deleted: { $ne: true }
       }).populate('interviewer', 'name email');
       
       if (existingInterview) {
@@ -107,6 +159,37 @@ class InterviewService {
         
         if (isNaN(newInterviewStart.getTime())) {
           throw new Error('Invalid interview date format');
+        }
+
+        // Check for conflicts with other interviews (Rescheduling)
+        const targetInterviewerId = interviewerId || existingInterview.interviewer?._id || existingInterview.interviewer;
+        const conflictQuery = {
+          interviewer: targetInterviewerId,
+          is_deleted: { $ne: true },
+          _id: { $ne: existingInterview._id },
+          $or: [
+            { startTime: { $lt: newInterviewEnd }, endTime: { $gt: newInterviewStart } }
+          ]
+        };
+        
+        const conflictingInterview = await Interview.findOne(conflictQuery);
+        if (conflictingInterview) {
+          throw new Error('Scheduling Conflict: The selected interviewer is already booked for another interview at this time.');
+        }
+
+        // Check for conflicts for the APPLICANT (Rescheduling)
+        const applicantConflictQuery = {
+          applicationId: applicationId,
+          is_deleted: { $ne: true },
+          _id: { $ne: existingInterview._id },
+          $or: [
+            { startTime: { $lt: newInterviewEnd }, endTime: { $gt: newInterviewStart } }
+          ]
+        };
+        
+        const conflictingApplicantInterview = await Interview.findOne(applicantConflictQuery);
+        if (conflictingApplicantInterview) {
+          throw new Error('Scheduling Conflict: The applicant already has another interview scheduled at this time.');
         }
         
         // Check if the date/time is different (rescheduling)
@@ -138,7 +221,7 @@ class InterviewService {
               application.user,
               applicationId,
               newInterviewStart,
-              'OAS Staff'
+              interviewType === 'DepartmentHead' ? 'Department Head' : 'OAS Staff'
             );
             console.log('✅ Interview rescheduled notification sent to applicant:', application.user);
           } catch (notificationError) {
@@ -162,7 +245,7 @@ class InterviewService {
               application.user,
               applicationId,
               existingInterview.startTime,
-              'OAS Staff'
+              interviewType === 'DepartmentHead' ? 'Department Head' : 'OAS Staff'
             );
             console.log('✅ Interview reminder notification sent to applicant:', application.user);
           } catch (notificationError) {
@@ -209,12 +292,42 @@ class InterviewService {
         interviewEnd = new Date(interviewStart.getTime() + 60 * 60 * 1000);
       }
 
+      // Check for conflicts with other interviews (New Interview)
+      const conflictQuery = {
+        interviewer: actualInterviewerId,
+        is_deleted: { $ne: true },
+        $or: [
+          { startTime: { $lt: interviewEnd }, endTime: { $gt: interviewStart } }
+        ]
+      };
+      
+      const conflictingInterview = await Interview.findOne(conflictQuery);
+      if (conflictingInterview) {
+        throw new Error('Scheduling Conflict: The selected interviewer is already booked for another interview at this time.');
+      }
+
+      // Check for conflicts for the APPLICANT (New Interview)
+      const applicantConflictQuery = {
+        applicationId: applicationId,
+        is_deleted: { $ne: true },
+        $or: [
+          { startTime: { $lt: interviewEnd }, endTime: { $gt: interviewStart } }
+        ]
+      };
+      
+      const conflictingApplicantInterview = await Interview.findOne(applicantConflictQuery);
+      if (conflictingApplicantInterview) {
+        throw new Error('Scheduling Conflict: The applicant already has another interview scheduled at this time.');
+      }
+
       // Create interview with the selected interviewer (or staff member as fallback)
       const interview = new Interview({
         applicationId: applicationId,
         interviewer: actualInterviewerId,
         startTime: interviewStart,
-        endTime: interviewEnd
+        endTime: interviewEnd,
+        type: interviewType,
+        is_finished: false
       });
 
       await interview.save();
@@ -239,7 +352,7 @@ class InterviewService {
           application.user, // userId from the application
           applicationId,
           interviewStart,
-          'OAS Staff' // scheduledBy
+          interviewType === 'DepartmentHead' ? 'Department Head' : 'OAS Staff' // scheduledBy
         );
         console.log('✅ Interview notification sent to applicant:', application.user);
       } catch (notificationError) {
@@ -282,6 +395,7 @@ class InterviewService {
       // Check for existing non-deleted interview
       const existingInterview = await Interview.findOne({ 
         applicationId: applicationId,
+        type: 'DepartmentHead',
         is_deleted: { $ne: true }
       }).populate('interviewer', 'name email');
       
@@ -384,7 +498,8 @@ class InterviewService {
         interviewer: departmentHeadId, // Force department head as interviewer
         startTime: interviewStart,
         endTime: interviewEnd,
-        notes: notes || 'Scheduled by Department Head'
+        notes: notes || 'Scheduled by Department Head',
+        type: 'DepartmentHead'
       });
 
       await interview.save();
@@ -560,38 +675,61 @@ class InterviewService {
     }
   }
 
-  static async getInterviewByApplicationId(applicationId) {
+  static async getInterviewsByApplicationId(applicationId) {
     try {
       if (!mongoose.Types.ObjectId.isValid(applicationId)) {
         throw new Error('Invalid application ID');
       }
       
-      const interview = await Interview.findOne({ applicationId: applicationId, is_deleted: { $ne: true } })
+      const interviews = await Interview.find({ applicationId: applicationId, is_deleted: { $ne: true } })
         .populate('applicationId', 'firstName lastName status _id user')
         .populate('interviewer', 'name email _id');
       
-      if (!interview) {
+      if (!interviews || interviews.length === 0) {
         return { 
-          message: 'No interview scheduled for this application',
-          interview: null,
+          message: 'No interviews scheduled for this application',
+          interviews: [],
           isScheduled: false
         };
       }
 
-      // Generate interview ID for display
-      const interviewId = `INT-${new Date(interview.createdAt).getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`;
-      
+      // Format interviews for display
+      const formattedInterviews = interviews.map(interview => ({
+        ...interview.toObject(),
+        interviewId: `INT-${new Date(interview.createdAt).getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`
+      }));
+
       return { 
-        message: 'Interview retrieved successfully', 
-        interview: {
-          ...interview.toObject(),
-          interviewId: interviewId
-        },
+        message: 'Interviews retrieved successfully',
+        interviews: formattedInterviews,
         isScheduled: true
       };
     } catch (error) {
-      console.error('Error getting interview by application ID:', error);
+      console.error('Error getting interviews by application ID:', error);
       throw error;
+    }
+  }
+
+  static async getInterviewByApplicationId(applicationId) {
+    // Legacy support - returns the first interview found (prefer OAS)
+    try {
+        const result = await this.getInterviewsByApplicationId(applicationId);
+        if (result.interviews && result.interviews.length > 0) {
+            // Prefer OAS interview if multiple exist
+            const oasInterview = result.interviews.find(i => i.type === 'OAS');
+            return {
+                message: 'Interview retrieved successfully',
+                interview: oasInterview || result.interviews[0],
+                isScheduled: true
+            };
+        }
+        return { 
+            message: 'No interview scheduled for this application',
+            interview: null,
+            isScheduled: false
+        };
+    } catch (error) {
+        throw error;
     }
   }
 
@@ -1041,6 +1179,34 @@ class InterviewService {
     try {
       if (!mongoose.Types.ObjectId.isValid(interviewId)) {
         throw new Error('Invalid interview ID');
+      }
+
+      // First find the interview to check the interviewer
+      const interviewToCheck = await Interview.findById(interviewId).populate({
+        path: 'interviewer',
+        populate: { path: 'role' }
+      });
+
+      if (!interviewToCheck) {
+        throw new Error('Interview not found');
+      }
+
+      // Check if interviewer is a Department Head
+      if (interviewToCheck.interviewer && interviewToCheck.interviewer.role && interviewToCheck.interviewer.role.name === 'department_head') {
+        // Find the department
+        const department = await Department.findOne({ department_head: interviewToCheck.interviewer._id });
+        
+        if (department) {
+          // Find the application to get the user
+          const application = await ApplicationForm.findById(interviewToCheck.applicationId);
+          if (application && application.user) {
+            // Update the user's assigned_department
+            await User.findByIdAndUpdate(application.user, {
+              assigned_department: department._id
+            });
+            console.log(`✅ Assigned applicant to department ${department.name} after interview finish`);
+          }
+        }
       }
 
       const interview = await Interview.findOneAndUpdate(

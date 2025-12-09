@@ -31,7 +31,9 @@ import {
   Trash2,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  Users,
+  Award
 } from "lucide-react"
 import { AdminEditApplication } from "@/components/admin-edit-application"
 import { MessageButton } from "@/components/message-button"
@@ -1105,6 +1107,7 @@ export function ApplicationReview() {
   const [interviewSubTab, setInterviewSubTab] = useState<'active' | 'deleted'>('active')
   const [interviewers, setInterviewers] = useState<any[]>([])
   const [selectedInterviewer, setSelectedInterviewer] = useState<string>("")
+  const [schedulingType, setSchedulingType] = useState<'OAS' | 'DepartmentHead' | null>(null)
   
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -1166,7 +1169,7 @@ export function ApplicationReview() {
     setInterviewData(null)
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/application/${applicationId}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/application/${applicationId}/all`,
         { credentials: 'include' }
       )
       
@@ -1176,11 +1179,11 @@ export function ApplicationReview() {
         setInterviewData(result)
       } else {
         console.log('📅 No interview found or error fetching')
-        setInterviewData({ interview: null, isScheduled: false })
+        setInterviewData({ interviews: [], isScheduled: false })
       }
     } catch (error) {
       console.error('Error fetching interview data:', error)
-      setInterviewData({ interview: null, isScheduled: false })
+      setInterviewData({ interviews: [], isScheduled: false })
     } finally {
       setInterviewLoading(false)
     }
@@ -1188,10 +1191,12 @@ export function ApplicationReview() {
 
   // Fetch deleted interviews
   const fetchDeletedInterviews = async () => {
+    if (!selectedApplication?._id) return
+    
     setDeletedInterviewsLoading(true)
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interviews/deleted`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interviews/deleted?applicationId=${selectedApplication._id}`,
         { credentials: 'include' }
       )
       
@@ -1532,7 +1537,8 @@ export function ApplicationReview() {
           startTime: startDateTime,
           endTime: endDateTime,
           interviewerId: selectedInterviewer,
-          notes: 'Scheduled via OAS Staff Dashboard'
+          notes: 'Scheduled via OAS Staff Dashboard',
+          type: schedulingType || 'OAS' // Default to OAS if not specified
         })
       });
 
@@ -1602,16 +1608,36 @@ export function ApplicationReview() {
       
     } catch (error) {
       console.error('Error scheduling interview:', error);
-      toast({
-        title: "Error",
-        description: `Failed to schedule interview: ${error instanceof Error ? error.message : String(error)}`,
-        variant: "destructive",
-      })
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes('own academic department') || errorMessage.includes('Conflict of Interest')) {
+        toast({
+          title: "Conflict of Interest",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 7000
+        });
+      } else if (errorMessage.includes('already booked') || errorMessage.includes('already has another interview') || errorMessage.includes('Scheduling Conflict')) {
+        toast({
+          title: "Scheduling Conflict",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 7000
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to schedule interview: ${errorMessage}`,
+          variant: "destructive",
+        });
+      }
     }
   }
 
-  const handleSendReminder = async () => {
-    if (!selectedApplication || !interviewData?.interview) {
+  const handleSendReminder = async (interview?: any) => {
+    const targetInterview = interview || interviewData?.interview || (interviewData?.interviews && interviewData.interviews[0]);
+    if (!selectedApplication || !targetInterview) {
       toast({
         title: "Error",
         description: "No interview data available",
@@ -1631,7 +1657,7 @@ export function ApplicationReview() {
         return
       }
 
-      const interviewDate = new Date(interviewData.interview.startTime)
+      const interviewDate = new Date(targetInterview.startTime)
       const formattedDate = interviewDate.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -2637,309 +2663,352 @@ export function ApplicationReview() {
                                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
                                         <span className="ml-2 text-sm text-gray-600">Loading interview data...</span>
                                       </div>
-                                    ) : interviewData?.isScheduled && interviewData?.interview ? (
-                                      <div className="space-y-4">
-                                        {/* Interview Scheduled Banner */}
-                                        <div className={`${interviewData.interview.is_finished ? 'bg-green-50 border-green-400' : 'bg-blue-50 border-blue-400'} border-l-4 p-4`}>
-                                          <div className="flex items-start">
-                                            <div className="flex-shrink-0">
-                                              {interviewData.interview.is_finished ? (
-                                                <CheckCircle className="h-5 w-5 text-green-500" />
-                                              ) : (
-                                                <Calendar className="h-5 w-5 text-blue-400" />
-                                              )}
-                                            </div>
-                                            <div className="ml-3 flex-1">
-                                              <p className={`text-sm ${interviewData.interview.is_finished ? 'text-green-700' : 'text-blue-700'} font-semibold mb-1`}>
-                                                {interviewData.interview.is_finished ? 'Interview Completed' : 'Interview Scheduled'}
-                                              </p>
-                                              <div className="space-y-1">
-                                                <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                  <strong>Interview ID:</strong> {interviewData.interview.interviewId}
-                                                </p>
-                                                <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                  <strong>Date:</strong> {new Date(interviewData.interview.startTime).toLocaleDateString('en-US', {
-                                                    weekday: 'long',
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric'
-                                                  })}
-                                                </p>
-                                                <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                  <strong>Time:</strong> {new Date(interviewData.interview.startTime).toLocaleTimeString('en-US', {
-                                                    hour: 'numeric',
-                                                    minute: '2-digit',
-                                                    hour12: true
-                                                  })} - {new Date(interviewData.interview.endTime).toLocaleTimeString('en-US', {
-                                                    hour: 'numeric',
-                                                    minute: '2-digit',
-                                                    hour12: true
-                                                  })}
-                                                </p>
-                                                {interviewData.interview.interviewer && (
-                                                  <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                    <strong>Interviewer:</strong> {interviewData.interview.interviewer.name || interviewData.interview.interviewer.email}
-                                                  </p>
-                                                )}
+                                    ) : (
+                                      <div className="space-y-6">
+                                        {/* OAS Staff Interview Card */}
+                                        <div className="border rounded-lg p-4 bg-white shadow-sm">
+                                          <h3 className="text-lg font-semibold mb-4 flex items-center">
+                                            <Users className="mr-2 h-5 w-5 text-blue-600" />
+                                            OAS Staff Interview
+                                          </h3>
+                                          {interviewData?.interviews?.find((i: any) => i.type === 'OAS') ? (
+                                            (() => {
+                                              const interview = interviewData.interviews.find((i: any) => i.type === 'OAS');
+                                              return (
+                                                <div className="space-y-4">
+                                                  <div className={`${interview.is_finished ? 'bg-green-50 border-green-400' : 'bg-blue-50 border-blue-400'} border-l-4 p-4`}>
+                                                    <div className="flex items-start">
+                                                      <div className="flex-shrink-0">
+                                                        {interview.is_finished ? (
+                                                          <CheckCircle className="h-5 w-5 text-green-500" />
+                                                        ) : (
+                                                          <Calendar className="h-5 w-5 text-blue-400" />
+                                                        )}
+                                                      </div>
+                                                      <div className="ml-3 flex-1">
+                                                        <p className={`text-sm ${interview.is_finished ? 'text-green-700' : 'text-blue-700'} font-semibold mb-1`}>
+                                                          {interview.is_finished ? 'Interview Completed' : 'Interview Scheduled'}
+                                                        </p>
+                                                        <div className="space-y-1">
+                                                          <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                            <strong>Interview ID:</strong> {interview.interviewId}
+                                                          </p>
+                                                          <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                            <strong>Date:</strong> {new Date(interview.startTime).toLocaleDateString('en-US', {
+                                                              weekday: 'long',
+                                                              year: 'numeric',
+                                                              month: 'long',
+                                                              day: 'numeric'
+                                                            })}
+                                                          </p>
+                                                          <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                            <strong>Time:</strong> {new Date(interview.startTime).toLocaleTimeString('en-US', {
+                                                              hour: 'numeric',
+                                                              minute: '2-digit',
+                                                              hour12: true
+                                                            })} - {new Date(interview.endTime).toLocaleTimeString('en-US', {
+                                                              hour: 'numeric',
+                                                              minute: '2-digit',
+                                                              hour12: true
+                                                            })}
+                                                          </p>
+                                                          {interview.interviewer && (
+                                                            <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                              <strong>Interviewer:</strong> {interview.interviewer.name || interview.interviewer.email}
+                                                            </p>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  
+                                                  {/* Actions for OAS Interview */}
+                                                  <div className="flex gap-3 flex-wrap">
+                                                    <Button
+                                                      variant="outline"
+                                                      onClick={() => handleSendReminder(interview)}
+                                                    >
+                                                      <MessageSquare className="mr-2 h-4 w-4" />
+                                                      Send Reminder
+                                                    </Button>
+                                                    
+                                                    <Button
+                                                      variant={interview.is_finished ? "outline" : "default"}
+                                                      className={interview.is_finished 
+                                                        ? "border-orange-300 text-orange-600 hover:bg-orange-50" 
+                                                        : "bg-green-600 hover:bg-green-700 text-white"
+                                                      }
+                                                      onClick={() => handleFinishInterview(interview._id, interview.is_finished)}
+                                                    >
+                                                      <CheckCircle className="mr-2 h-4 w-4" />
+                                                      {interview.is_finished ? "Revert Interview" : "Finish Interview"}
+                                                    </Button>
+
+                                                      <Button
+                                                        variant="outline"
+                                                        className="border-red-300 text-red-600 hover:bg-red-50"
+                                                        onClick={async () => {
+                                                          const confirmed = await confirm({
+                                                            title: "Delete Interview",
+                                                            description: `Are you sure you want to delete this interview?`,
+                                                            confirmText: "Delete",
+                                                            cancelText: "Cancel",
+                                                            type: "danger"
+                                                          });
+                                                          if (confirmed) {
+                                                            handleDeleteInterview(interview._id);
+                                                          }
+                                                        }}
+                                                      >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                      </Button>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })()
+                                          ) : (
+                                            <div className="space-y-4">
+                                              <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
+                                                <p className="text-sm text-gray-700">No OAS Staff interview scheduled yet.</p>
                                               </div>
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="pt-4">
-                                          {!isRescheduling ? (
-                                            <div className="flex gap-3 flex-wrap">
                                               <Button
-                                                variant="outline"
-                                                onClick={handleSendReminder}
-                                              >
-                                                <MessageSquare className="mr-2 h-4 w-4" />
-                                                Send Reminder
-                                              </Button>
-
-                                              <Button
-                                                variant="outline"
-                                                className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                                className="bg-[#800000] hover:bg-[#600000]"
                                                 onClick={() => {
-                                                  setIsRescheduling(true)
-                                                  if (interviewData.interview.startTime) {
-                                                    const existingStartDate = new Date(interviewData.interview.startTime);
-                                                    setInterviewDate(existingStartDate.toISOString().split('T')[0]);
-                                                    setInterviewTime(existingStartDate.toTimeString().slice(0, 5));
-                                                  } else {
-                                                    setInterviewDate('');
-                                                    setInterviewTime('09:00');
-                                                  }
-                                                  if (interviewData.interview.endTime) {
-                                                    const existingEndDate = new Date(interviewData.interview.endTime);
-                                                    setInterviewEndTime(existingEndDate.toTimeString().slice(0, 5));
-                                                  } else {
-                                                    setInterviewEndTime('10:00');
-                                                  }
-                                                  // Set current interviewer
-                                                  if (interviewData.interview.interviewer?._id) {
-                                                    setSelectedInterviewer(interviewData.interview.interviewer._id);
-                                                  }
+                                                  setSchedulingType('OAS');
+                                                  setInterviewDate('');
+                                                  setInterviewTime('09:00');
+                                                  setInterviewEndTime('10:00');
+                                                  setSelectedInterviewer('');
                                                 }}
                                               >
                                                 <Calendar className="mr-2 h-4 w-4" />
-                                                Reschedule Interview
+                                                Schedule OAS Interview
                                               </Button>
-
-                                              {/* Finish/Revert Interview Button */}
-                                              <Button
-                                                variant={interviewData.interview.is_finished ? "outline" : "default"}
-                                                className={interviewData.interview.is_finished 
-                                                  ? "border-orange-300 text-orange-600 hover:bg-orange-50" 
-                                                  : "bg-green-600 hover:bg-green-700 text-white"
-                                                }
-                                                onClick={() => handleFinishInterview(interviewData.interview._id, interviewData.interview.is_finished)}
-                                              >
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                                {interviewData.interview.is_finished ? "Revert Interview" : "Finish Interview"}
-                                              </Button>
-
-                                              {user?.role?.name === 'admin' && (
-                                              <Button
-                                                variant="outline"
-                                                className="border-red-300 text-red-600 hover:bg-red-50"
-                                                onClick={async () => {
-                                                  const confirmed = await confirm({
-                                                    title: "Delete Interview",
-                                                    description: `Are you sure you want to delete the interview for ${application.firstName} ${application.lastName}? You can restore it later from the Deleted tab.`,
-                                                    confirmText: "Delete",
-                                                    cancelText: "Cancel",
-                                                    type: "danger"
-                                                  });
-                                                  if (confirmed) {
-                                                    handleDeleteInterview(interviewData.interview._id);
-                                                  }
-                                                }}
-                                              >
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                Delete Interview
-                                              </Button>
-                                              )}
-                                            </div>
-                                          ) : (
-                                            <div className="space-y-4">
-                                              <div className="space-y-2">
-                                                <Label htmlFor="reschedule-interviewer">Interviewer</Label>
-                                                <Select
-                                                  value={selectedInterviewer}
-                                                  onValueChange={setSelectedInterviewer}
-                                                >
-                                                  <SelectTrigger id="reschedule-interviewer">
-                                                    <SelectValue placeholder="Select an interviewer" />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    {interviewers.map((interviewer: any) => (
-                                                      <SelectItem key={interviewer._id} value={interviewer._id}>
-                                                        {interviewer.name} ({interviewer.role?.name === 'oas_staff' ? 'OAS Staff' : (interviewer.department?.name || 'Department Head')})
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                              </div>
-                                              <div className="space-y-2">
-                                                <Label htmlFor="reschedule-date">New Interview Date</Label>
-                                                <Input
-                                                  id="reschedule-date"
-                                                  type="date"
-                                                  value={interviewDate}
-                                                  onChange={(e) => setInterviewDate(e.target.value)}
-                                                  min={new Date().toISOString().split('T')[0]}
-                                                />
-                                              </div>
-                                              <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                  <Label htmlFor="reschedule-start-time">Start Time</Label>
-                                                  <Input
-                                                    id="reschedule-start-time"
-                                                    type="time"
-                                                    value={interviewTime}
-                                                    onChange={(e) => {
-                                                      setInterviewTime(e.target.value);
-                                                      // Auto-set end time to 1 hour after start time
-                                                      const [hours, minutes] = e.target.value.split(':').map(Number);
-                                                      const endHours = (hours + 1) % 24;
-                                                      setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
-                                                    }}
-                                                  />
-                                                </div>
-                                                <div className="space-y-2">
-                                                  <Label htmlFor="reschedule-end-time">End Time</Label>
-                                                  <Input
-                                                    id="reschedule-end-time"
-                                                    type="time"
-                                                    value={interviewEndTime}
-                                                    onChange={(e) => setInterviewEndTime(e.target.value)}
-                                                  />
-                                                </div>
-                                              </div>
-
-                                              <div className="flex gap-2">
-                                                <Button
-                                                  className="bg-[#800000] hover:bg-[#600000]"
-                                                  onClick={async () => {
-                                                    setInterviewLoading(true);
-                                                    setIsRescheduling(false);
-                                                    await handleScheduleInterview(application);
-                                                    // Wait a moment for backend to process
-                                                    await new Promise(resolve => setTimeout(resolve, 500));
-                                                    await fetchInterviewData(application._id);
-                                                  }}
-                                                  disabled={!selectedInterviewer || !interviewDate}
-                                                >
-                                                  <Calendar className="mr-2 h-4 w-4" />
-                                                  Confirm Reschedule
-                                                </Button>
-                                                
-                                                <Button
-                                                  variant="outline"
-                                                  onClick={() => {
-                                                    setIsRescheduling(false)
-                                                    setInterviewTime("09:00")
-                                                    setInterviewEndTime("10:00")
-                                                    setSelectedInterviewer("")
-                                                  }}
-                                                >
-                                                  Cancel
-                                                </Button>
-                                              </div>
                                             </div>
                                           )}
                                         </div>
-                                      </div>
-                                    ) : (
-                                      <div className="space-y-4">
-                                        {/* Not Scheduled Banner */}
-                                        <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                                          <div className="flex">
-                                            <div className="flex-shrink-0">
-                                              <Calendar className="h-5 w-5 text-blue-400" />
-                                            </div>
-                                            <div className="ml-3">
-                                              <p className="text-sm text-blue-700">
-                                                <strong>Interview Status:</strong> Not Scheduled
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </div>
 
-                                        {/* Schedule Form */}
-                                        <div className="space-y-4 pt-4">
-                                          <div className="space-y-2">
-                                            <Label htmlFor="interview-interviewer">Interviewer</Label>
-                                            <Select
-                                              value={selectedInterviewer}
-                                              onValueChange={setSelectedInterviewer}
-                                            >
-                                              <SelectTrigger id="interview-interviewer">
-                                                <SelectValue placeholder="Select an interviewer" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {interviewers.map((interviewer: any) => (
-                                                  <SelectItem key={interviewer._id} value={interviewer._id}>
-                                                    {interviewer.name} ({interviewer.role?.name === 'oas_staff' ? 'OAS Staff' : (interviewer.department?.name || 'Department Head')})
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
-                                          </div>
-                                          <div className="space-y-2">
-                                            <Label htmlFor="interview-date">Schedule Interview Date</Label>
-                                            <Input
-                                              id="interview-date"
-                                              type="date"
-                                              value={interviewDate}
-                                              onChange={(e) => setInterviewDate(e.target.value)}
-                                              min={new Date().toISOString().split('T')[0]}
-                                            />
-                                          </div>
-                                          <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                              <Label htmlFor="interview-start-time">Start Time</Label>
-                                              <Input
-                                                id="interview-start-time"
-                                                type="time"
-                                                value={interviewTime}
-                                                onChange={(e) => {
-                                                  setInterviewTime(e.target.value);
-                                                  // Auto-set end time to 1 hour after start time
-                                                  const [hours, minutes] = e.target.value.split(':').map(Number);
-                                                  const endHours = (hours + 1) % 24;
-                                                  setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+                                        {/* Department Head Interview Card */}
+                                        <div className="border rounded-lg p-4 bg-white shadow-sm">
+                                          <h3 className="text-lg font-semibold mb-4 flex items-center">
+                                            <Award className="mr-2 h-5 w-5 text-purple-600" />
+                                            Department Head Interview
+                                          </h3>
+                                          {interviewData?.interviews?.find((i: any) => i.type === 'DepartmentHead') ? (
+                                            (() => {
+                                              const interview = interviewData.interviews.find((i: any) => i.type === 'DepartmentHead');
+                                              return (
+                                                <div className="space-y-4">
+                                                  <div className={`${interview.is_finished ? 'bg-green-50 border-green-400' : 'bg-purple-50 border-purple-400'} border-l-4 p-4`}>
+                                                    <div className="flex items-start">
+                                                      <div className="flex-shrink-0">
+                                                        {interview.is_finished ? (
+                                                          <CheckCircle className="h-5 w-5 text-green-500" />
+                                                        ) : (
+                                                          <Calendar className="h-5 w-5 text-purple-400" />
+                                                        )}
+                                                      </div>
+                                                      <div className="ml-3 flex-1">
+                                                        <p className={`text-sm ${interview.is_finished ? 'text-green-700' : 'text-purple-700'} font-semibold mb-1`}>
+                                                          {interview.is_finished ? 'Interview Completed' : 'Interview Scheduled'}
+                                                        </p>
+                                                        <div className="space-y-1">
+                                                          <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-purple-800'}`}>
+                                                            <strong>Interview ID:</strong> {interview.interviewId}
+                                                          </p>
+                                                          <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-purple-800'}`}>
+                                                            <strong>Date:</strong> {new Date(interview.startTime).toLocaleDateString('en-US', {
+                                                              weekday: 'long',
+                                                              year: 'numeric',
+                                                              month: 'long',
+                                                              day: 'numeric'
+                                                            })}
+                                                          </p>
+                                                          <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-purple-800'}`}>
+                                                            <strong>Time:</strong> {new Date(interview.startTime).toLocaleTimeString('en-US', {
+                                                              hour: 'numeric',
+                                                              minute: '2-digit',
+                                                              hour12: true
+                                                            })} - {new Date(interview.endTime).toLocaleTimeString('en-US', {
+                                                              hour: 'numeric',
+                                                              minute: '2-digit',
+                                                              hour12: true
+                                                            })}
+                                                          </p>
+                                                          {interview.interviewer && (
+                                                            <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-purple-800'}`}>
+                                                              <strong>Interviewer:</strong> {interview.interviewer.name || interview.interviewer.email}
+                                                            </p>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  
+                                                  {/* Actions for Dept Head Interview */}
+                                                  <div className="flex gap-3 flex-wrap">
+                                                    <Button
+                                                      variant="outline"
+                                                      onClick={() => handleSendReminder(interview)}
+                                                    >
+                                                      <MessageSquare className="mr-2 h-4 w-4" />
+                                                      Send Reminder
+                                                    </Button>
+                                                    
+                                                    <Button
+                                                      variant={interview.is_finished ? "outline" : "default"}
+                                                      className={interview.is_finished 
+                                                        ? "border-orange-300 text-orange-600 hover:bg-orange-50" 
+                                                        : "bg-green-600 hover:bg-green-700 text-white"
+                                                      }
+                                                      onClick={() => handleFinishInterview(interview._id, interview.is_finished)}
+                                                    >
+                                                      <CheckCircle className="mr-2 h-4 w-4" />
+                                                      {interview.is_finished ? "Revert Interview" : "Finish Interview"}
+                                                    </Button>
+
+                                                      <Button
+                                                        variant="outline"
+                                                        className="border-red-300 text-red-600 hover:bg-red-50"
+                                                        onClick={async () => {
+                                                          const confirmed = await confirm({
+                                                            title: "Delete Interview",
+                                                            description: `Are you sure you want to delete this interview?`,
+                                                            confirmText: "Delete",
+                                                            cancelText: "Cancel",
+                                                            type: "danger"
+                                                          });
+                                                          if (confirmed) {
+                                                            handleDeleteInterview(interview._id);
+                                                          }
+                                                        }}
+                                                      >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                      </Button>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })()
+                                          ) : (
+                                            <div className="space-y-4">
+                                              <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
+                                                <p className="text-sm text-gray-700">No Department Head interview scheduled yet.</p>
+                                              </div>
+                                              <Button
+                                                className="bg-[#800000] hover:bg-[#600000]"
+                                                onClick={() => {
+                                                  setSchedulingType('DepartmentHead');
+                                                  setInterviewDate('');
+                                                  setInterviewTime('09:00');
+                                                  setInterviewEndTime('10:00');
+                                                  setSelectedInterviewer('');
                                                 }}
-                                              />
+                                              >
+                                                <Calendar className="mr-2 h-4 w-4" />
+                                                Schedule Dept Head Interview
+                                              </Button>
                                             </div>
-                                            <div className="space-y-2">
-                                              <Label htmlFor="interview-end-time">End Time</Label>
-                                              <Input
-                                                id="interview-end-time"
-                                                type="time"
-                                                value={interviewEndTime}
-                                                onChange={(e) => setInterviewEndTime(e.target.value)}
-                                              />
+                                          )}
+                                        </div>
+
+                                        {/* Scheduling Modal/Form */}
+                                        {schedulingType && (
+                                          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                                            <div className="bg-white rounded-lg p-6 w-full max-w-md space-y-4">
+                                              <h3 className="text-lg font-semibold">
+                                                Schedule {schedulingType === 'OAS' ? 'OAS Staff' : 'Department Head'} Interview
+                                              </h3>
+                                              
+                                              <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                  <Label htmlFor="interview-interviewer">Interviewer</Label>
+                                                  <Select
+                                                    value={selectedInterviewer}
+                                                    onValueChange={setSelectedInterviewer}
+                                                  >
+                                                    <SelectTrigger id="interview-interviewer">
+                                                      <SelectValue placeholder="Select an interviewer" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      {interviewers
+                                                        .filter((i: any) => {
+                                                          if (schedulingType === 'OAS') return i.role?.name === 'oas_staff';
+                                                          if (schedulingType === 'DepartmentHead') return i.role?.name === 'department_head';
+                                                          return true;
+                                                        })
+                                                        .map((interviewer: any) => (
+                                                          <SelectItem key={interviewer._id} value={interviewer._id}>
+                                                            {interviewer.name} ({interviewer.role?.name === 'oas_staff' ? 'OAS Staff' : (interviewer.department?.name || 'Department Head')})
+                                                          </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
+                                                
+                                                <div className="space-y-2">
+                                                  <Label htmlFor="interview-date">Date</Label>
+                                                  <Input
+                                                    id="interview-date"
+                                                    type="date"
+                                                    value={interviewDate}
+                                                    onChange={(e) => setInterviewDate(e.target.value)}
+                                                    min={new Date().toISOString().split('T')[0]}
+                                                  />
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-2 gap-4">
+                                                  <div className="space-y-2">
+                                                    <Label htmlFor="interview-start-time">Start Time</Label>
+                                                    <Input
+                                                      id="interview-start-time"
+                                                      type="time"
+                                                      value={interviewTime}
+                                                      onChange={(e) => {
+                                                        setInterviewTime(e.target.value);
+                                                        const [hours, minutes] = e.target.value.split(':').map(Number);
+                                                        const endHours = (hours + 1) % 24;
+                                                        setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+                                                      }}
+                                                    />
+                                                  </div>
+                                                  <div className="space-y-2">
+                                                    <Label htmlFor="interview-end-time">End Time</Label>
+                                                    <Input
+                                                      id="interview-end-time"
+                                                      type="time"
+                                                      value={interviewEndTime}
+                                                      onChange={(e) => setInterviewEndTime(e.target.value)}
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                <div className="flex justify-end gap-2 pt-4">
+                                                  <Button
+                                                    variant="outline"
+                                                    onClick={() => setSchedulingType(null)}
+                                                  >
+                                                    Cancel
+                                                  </Button>
+                                                  <Button
+                                                    className="bg-[#800000] hover:bg-[#600000]"
+                                                    onClick={async () => {
+                                                      setInterviewLoading(true);
+                                                      await handleScheduleInterview(selectedApplication);
+                                                      setSchedulingType(null);
+                                                      await new Promise(resolve => setTimeout(resolve, 500));
+                                                      await fetchInterviewData(selectedApplication._id);
+                                                    }}
+                                                    disabled={!selectedInterviewer || !interviewDate}
+                                                  >
+                                                    Confirm Schedule
+                                                  </Button>
+                                                </div>
+                                              </div>
                                             </div>
                                           </div>
-
-                                          <Button
-                                            className="bg-[#800000] hover:bg-[#600000]"
-                                            onClick={async () => {
-                                              setInterviewLoading(true);
-                                              await handleScheduleInterview(application);
-                                              // Wait a moment for backend to process
-                                              await new Promise(resolve => setTimeout(resolve, 500));
-                                              await fetchInterviewData(application._id);
-                                            }}
-                                            disabled={!selectedInterviewer || !interviewDate}
-                                          >
-                                            <Calendar className="mr-2 h-4 w-4" />
-                                            Schedule Interview
-                                          </Button>
-                                        </div>
+                                        )}
                                       </div>
                                     )}
                                   </>
@@ -2967,6 +3036,11 @@ export function ApplicationReview() {
                                                 </p>
                                                 <p className="text-sm text-gray-600">
                                                   <strong>Application:</strong> {interview.applicationId?.firstName} {interview.applicationId?.lastName}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                  <strong>Type:</strong> <span className={interview.type === 'OAS' ? 'text-blue-600 font-medium' : 'text-purple-600 font-medium'}>
+                                                    {interview.type === 'OAS' ? 'OAS Staff' : 'Department Head'}
+                                                  </span>
                                                 </p>
                                                 <p className="text-sm text-gray-600">
                                                   <strong>Scheduled:</strong> {new Date(interview.startTime).toLocaleDateString('en-US', {

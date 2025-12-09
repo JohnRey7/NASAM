@@ -5,13 +5,17 @@ const interviewSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ApplicationForm',
     required: true,
-    unique: true,
     index: true
   },
   interviewer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  type: {
+    type: String,
+    enum: ['OAS', 'DepartmentHead'],
+    default: 'OAS'
   },
   startTime: {
     type: Date,
@@ -33,6 +37,15 @@ const interviewSchema = new mongoose.Schema({
   is_finished: { type: Boolean, default: false },
   is_deleted: { type: Boolean, default: false }
 }, { timestamps: true });
+
+// Ensure one interview per type per application, but allow multiple deleted ones
+interviewSchema.index(
+  { applicationId: 1, type: 1 }, 
+  { 
+    unique: true, 
+    partialFilterExpression: { is_deleted: false } 
+  }
+);
 
 const Interview = mongoose.model('Interview', interviewSchema);
 

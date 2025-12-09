@@ -14,6 +14,11 @@ const departmentSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  department_head: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   is_deleted: { type: Boolean, default: false }
 }, {
   timestamps: true

@@ -8,6 +8,7 @@ router.post('/', authenticate, checkPermission('interview.create'), InterviewCon
 router.get('/all', authenticate, checkPermission('interview.readAll'), InterviewController.getAllInterviews);
 router.get('/deleted', authenticate, checkPermission('interview.read'), InterviewController.getSoftDeletedInterviews);
 router.get('/application/:applicationId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByApplicationId);
+router.get('/application/:applicationId/all', authenticate, checkPermission('interview.read'), InterviewController.getInterviewsByApplicationId);
 router.get('/:id', authenticate, checkPermission('interview.read'), InterviewController.getInterviewById);
 router.get('/user/:userId', authenticate, checkPermission('interview.read'), InterviewController.getInterviewByUserId);
 router.get('/', authenticate, checkPermission('interview.readOwn'), InterviewController.getMyInterview);

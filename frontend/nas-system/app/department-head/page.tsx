@@ -613,11 +613,23 @@ export default function DepartmentHeadDashboardPage() {
 
     } catch (error) {
       console.error('Error scheduling interview:', error);
-      toast({
-        title: "Error",
-        description: `Failed to schedule interview: ${error instanceof Error ? error.message : String(error)}`,
-        variant: "destructive",
-      });
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes('own academic department')) {
+        toast({
+          title: "Conflict of Interest",
+          description: "You cannot interview an applicant from your own academic department.",
+          variant: "destructive",
+          duration: 7000
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to schedule interview: ${errorMessage}`,
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -1499,238 +1511,245 @@ export default function DepartmentHeadDashboardPage() {
                                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#800000]"></div>
                                           <span className="ml-2 text-sm text-gray-600">Loading interview data...</span>
                                         </div>
-                                      ) : interviewData?.isScheduled && interviewData?.interview ? (
-                                        <div className="space-y-4">
-                                          {/* Interview Scheduled Banner */}
-                                          <div className={`${interviewData.interview.is_finished ? 'bg-green-50 border-green-400' : 'bg-blue-50 border-blue-400'} border-l-4 p-4`}>
-                                            <div className="flex items-start">
-                                              <div className="flex-shrink-0">
-                                                {interviewData.interview.is_finished ? (
-                                                  <CheckCircle className="h-5 w-5 text-green-500" />
+                                      ) : (
+                                        (() => {
+                                          const deptHeadInterview = interviewData?.interviews?.find((i: any) => i.type === 'DepartmentHead') || interviewData?.interview;
+                                          
+                                          if (deptHeadInterview) {
+                                            return (
+                                              <div className="space-y-4">
+                                                {/* Interview Scheduled Banner */}
+                                                <div className={`${deptHeadInterview.is_finished ? 'bg-green-50 border-green-400' : 'bg-blue-50 border-blue-400'} border-l-4 p-4`}>
+                                                  <div className="flex items-start">
+                                                    <div className="flex-shrink-0">
+                                                      {deptHeadInterview.is_finished ? (
+                                                        <CheckCircle className="h-5 w-5 text-green-500" />
+                                                      ) : (
+                                                        <Calendar className="h-5 w-5 text-blue-400" />
+                                                      )}
+                                                    </div>
+                                                    <div className="ml-3 flex-1">
+                                                      <p className={`text-sm ${deptHeadInterview.is_finished ? 'text-green-700' : 'text-blue-700'} font-semibold mb-1`}>
+                                                        {deptHeadInterview.is_finished ? 'Interview Completed' : 'Interview Scheduled'}
+                                                      </p>
+                                                      <div className="space-y-1">
+                                                        <p className={`text-sm font-medium ${deptHeadInterview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                          <strong>Date:</strong> {new Date(deptHeadInterview.startTime).toLocaleDateString('en-US', {
+                                                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                                                          })}
+                                                        </p>
+                                                        <p className={`text-sm font-medium ${deptHeadInterview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                          <strong>Time:</strong> {new Date(deptHeadInterview.startTime).toLocaleTimeString('en-US', {
+                                                            hour: 'numeric', minute: '2-digit', hour12: true
+                                                          })} - {new Date(deptHeadInterview.endTime).toLocaleTimeString('en-US', {
+                                                            hour: 'numeric', minute: '2-digit', hour12: true
+                                                          })}
+                                                        </p>
+                                                        {deptHeadInterview.interviewer && (
+                                                          <p className={`text-sm font-medium ${deptHeadInterview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
+                                                            <strong>Interviewer:</strong> {deptHeadInterview.interviewer.name || deptHeadInterview.interviewer.email}
+                                                          </p>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                {/* Reschedule Form */}
+                                                {!isRescheduling ? (
+                                                  <div className="flex gap-3 flex-wrap">
+                                                    <Button
+                                                      variant="outline"
+                                                      className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                                      onClick={() => {
+                                                        setIsRescheduling(true);
+                                                        if (deptHeadInterview.startTime) {
+                                                          const existingDate = new Date(deptHeadInterview.startTime);
+                                                          setInterviewDate(existingDate.toISOString().split('T')[0]);
+                                                          setInterviewTime(existingDate.toTimeString().slice(0, 5));
+                                                        }
+                                                        if (deptHeadInterview.endTime) {
+                                                          const existingEndDate = new Date(deptHeadInterview.endTime);
+                                                          setInterviewEndTime(existingEndDate.toTimeString().slice(0, 5));
+                                                        }
+                                                      }}
+                                                    >
+                                                      <Calendar className="mr-2 h-4 w-4" />
+                                                      Reschedule Interview
+                                                    </Button>
+
+                                                    {/* Finish/Revert Interview Button */}
+                                                    <Button
+                                                      variant={deptHeadInterview.is_finished ? "outline" : "default"}
+                                                      className={deptHeadInterview.is_finished 
+                                                        ? "border-orange-300 text-orange-600 hover:bg-orange-50" 
+                                                        : "bg-green-600 hover:bg-green-700 text-white"
+                                                      }
+                                                      onClick={async () => {
+                                                        try {
+                                                          const endpoint = deptHeadInterview.is_finished ? 'revert-finish' : 'finish';
+                                                          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${deptHeadInterview._id}/${endpoint}`, {
+                                                            method: 'PATCH',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            credentials: 'include',
+                                                          });
+                                                          const result = await response.json();
+                                                          if (result.success) {
+                                                            toast({
+                                                              title: deptHeadInterview.is_finished ? "Interview Reverted" : "Interview Finished",
+                                                              description: deptHeadInterview.is_finished 
+                                                                ? "Interview has been marked as not finished." 
+                                                                : "Interview has been marked as finished.",
+                                                            });
+
+                                                            if (!deptHeadInterview.is_finished) {
+                                                              window.location.reload();
+                                                              return;
+                                                            }
+
+                                                            if (selectedApplication) {
+                                                              fetchInterviewData(selectedApplication._id);
+                                                            }
+                                                          } else {
+                                                            throw new Error(result.message || 'Failed to update interview status');
+                                                          }
+                                                        } catch (error) {
+                                                          console.error('Error updating interview status:', error);
+                                                          toast({
+                                                            title: "Error",
+                                                            description: `Failed to update interview status: ${error instanceof Error ? error.message : String(error)}`,
+                                                            variant: "destructive",
+                                                          });
+                                                        }
+                                                      }}
+                                                    >
+                                                      <CheckCircle className="mr-2 h-4 w-4" />
+                                                      {deptHeadInterview.is_finished ? "Revert Interview" : "Finish Interview"}
+                                                    </Button>
+                                                  </div>
                                                 ) : (
-                                                  <Calendar className="h-5 w-5 text-blue-400" />
+                                                  <div className="space-y-4 p-4 border rounded-lg">
+                                                    <h4 className="font-medium">Reschedule Interview</h4>
+                                                    <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
+                                                      <p className="text-sm text-blue-700">
+                                                        <strong>Note:</strong> You will be assigned as the interviewer for this applicant.
+                                                      </p>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                      <Label>Date</Label>
+                                                      <Input
+                                                        type="date"
+                                                        value={interviewDate}
+                                                        onChange={(e) => setInterviewDate(e.target.value)}
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                      />
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                      <div className="space-y-2">
+                                                        <Label>Start Time</Label>
+                                                        <Input
+                                                          type="time"
+                                                          value={interviewTime}
+                                                          onChange={(e) => {
+                                                            setInterviewTime(e.target.value);
+                                                            const [hours, minutes] = e.target.value.split(':').map(Number);
+                                                            const endHours = (hours + 1) % 24;
+                                                            setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+                                                          }}
+                                                        />
+                                                      </div>
+                                                      <div className="space-y-2">
+                                                        <Label>End Time</Label>
+                                                        <Input
+                                                          type="time"
+                                                          value={interviewEndTime}
+                                                          onChange={(e) => setInterviewEndTime(e.target.value)}
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                      <Button
+                                                        className="bg-[#800000] hover:bg-[#600000]"
+                                                        onClick={() => handleScheduleInterviewNew(selectedApplication)}
+                                                        disabled={!interviewDate}
+                                                      >
+                                                        Confirm Reschedule
+                                                      </Button>
+                                                      <Button variant="outline" onClick={() => setIsRescheduling(false)}>
+                                                        Cancel
+                                                      </Button>
+                                                    </div>
+                                                  </div>
                                                 )}
                                               </div>
-                                              <div className="ml-3 flex-1">
-                                                <p className={`text-sm ${interviewData.interview.is_finished ? 'text-green-700' : 'text-blue-700'} font-semibold mb-1`}>
-                                                  {interviewData.interview.is_finished ? 'Interview Completed' : 'Interview Scheduled'}
-                                                </p>
-                                                <div className="space-y-1">
-                                                  <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                    <strong>Date:</strong> {new Date(interviewData.interview.startTime).toLocaleDateString('en-US', {
-                                                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                                                    })}
-                                                  </p>
-                                                  <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                    <strong>Time:</strong> {new Date(interviewData.interview.startTime).toLocaleTimeString('en-US', {
-                                                      hour: 'numeric', minute: '2-digit', hour12: true
-                                                    })} - {new Date(interviewData.interview.endTime).toLocaleTimeString('en-US', {
-                                                      hour: 'numeric', minute: '2-digit', hour12: true
-                                                    })}
-                                                  </p>
-                                                  {interviewData.interview.interviewer && (
-                                                    <p className={`text-sm font-medium ${interviewData.interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                      <strong>Interviewer:</strong> {interviewData.interview.interviewer.name || interviewData.interview.interviewer.email}
+                                            );
+                                          } else {
+                                            return (
+                                              <div className="space-y-4">
+                                                <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                                                  <div className="flex">
+                                                    <Calendar className="h-5 w-5 text-blue-400" />
+                                                    <div className="ml-3">
+                                                      <p className="text-sm text-blue-700">
+                                                        <strong>Interview Status:</strong> Not Scheduled
+                                                      </p>
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                {/* Schedule Form */}
+                                                <div className="space-y-4 pt-4">
+                                                  <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-2">
+                                                    <p className="text-sm text-blue-700">
+                                                      <strong>Note:</strong> You will be assigned as the interviewer for this applicant.
                                                     </p>
-                                                  )}
+                                                  </div>
+                                                  <div className="space-y-2">
+                                                    <Label>Schedule Interview Date</Label>
+                                                    <Input
+                                                      type="date"
+                                                      value={interviewDate}
+                                                      onChange={(e) => setInterviewDate(e.target.value)}
+                                                      min={new Date().toISOString().split('T')[0]}
+                                                    />
+                                                  </div>
+                                                  <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                      <Label>Start Time</Label>
+                                                      <Input
+                                                        type="time"
+                                                        value={interviewTime}
+                                                        onChange={(e) => {
+                                                          setInterviewTime(e.target.value);
+                                                          const [hours, minutes] = e.target.value.split(':').map(Number);
+                                                          const endHours = (hours + 1) % 24;
+                                                          setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+                                                        }}
+                                                      />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                      <Label>End Time</Label>
+                                                      <Input
+                                                        type="time"
+                                                        value={interviewEndTime}
+                                                        onChange={(e) => setInterviewEndTime(e.target.value)}
+                                                      />
+                                                    </div>
+                                                  </div>
+
+                                                  <Button
+                                                    className="bg-[#800000] hover:bg-[#600000]"
+                                                    onClick={() => handleScheduleInterviewNew(selectedApplication)}
+                                                    disabled={!interviewDate}
+                                                  >
+                                                    <Calendar className="mr-2 h-4 w-4" />
+                                                    Schedule Interview
+                                                  </Button>
                                                 </div>
                                               </div>
-                                            </div>
-                                          </div>
-
-                                          {/* Reschedule Form */}
-                                          {!isRescheduling ? (
-                                            <div className="flex gap-3 flex-wrap">
-                                              <Button
-                                                variant="outline"
-                                                className="border-orange-300 text-orange-600 hover:bg-orange-50"
-                                                onClick={() => {
-                                                  setIsRescheduling(true);
-                                                  if (interviewData.interview.startTime) {
-                                                    const existingDate = new Date(interviewData.interview.startTime);
-                                                    setInterviewDate(existingDate.toISOString().split('T')[0]);
-                                                    setInterviewTime(existingDate.toTimeString().slice(0, 5));
-                                                  }
-                                                  if (interviewData.interview.endTime) {
-                                                    const existingEndDate = new Date(interviewData.interview.endTime);
-                                                    setInterviewEndTime(existingEndDate.toTimeString().slice(0, 5));
-                                                  }
-                                                  // Department head is always the interviewer, no need to set
-                                                }}
-                                              >
-                                                <Calendar className="mr-2 h-4 w-4" />
-                                                Reschedule Interview
-                                              </Button>
-
-                                              {/* Finish/Revert Interview Button */}
-                                              <Button
-                                                variant={interviewData.interview.is_finished ? "outline" : "default"}
-                                                className={interviewData.interview.is_finished 
-                                                  ? "border-orange-300 text-orange-600 hover:bg-orange-50" 
-                                                  : "bg-green-600 hover:bg-green-700 text-white"
-                                                }
-                                                onClick={async () => {
-                                                  try {
-                                                    const endpoint = interviewData.interview.is_finished ? 'revert-finish' : 'finish';
-                                                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${interviewData.interview._id}/${endpoint}`, {
-                                                      method: 'PATCH',
-                                                      headers: { 'Content-Type': 'application/json' },
-                                                      credentials: 'include',
-                                                    });
-                                                    const result = await response.json();
-                                                    if (result.success) {
-                                                      toast({
-                                                        title: interviewData.interview.is_finished ? "Interview Reverted" : "Interview Finished",
-                                                        description: interviewData.interview.is_finished 
-                                                          ? "Interview has been marked as not finished." 
-                                                          : "Interview has been marked as finished.",
-                                                      });
-
-                                                      // Reload page if finishing interview
-                                                      if (!interviewData.interview.is_finished) {
-                                                        window.location.reload();
-                                                        return;
-                                                      }
-
-                                                      // Refresh interview data
-                                                      if (selectedApplication) {
-                                                        fetchInterviewData(selectedApplication._id);
-                                                      }
-                                                    } else {
-                                                      throw new Error(result.message || 'Failed to update interview status');
-                                                    }
-                                                  } catch (error) {
-                                                    console.error('Error updating interview status:', error);
-                                                    toast({
-                                                      title: "Error",
-                                                      description: `Failed to update interview status: ${error instanceof Error ? error.message : String(error)}`,
-                                                      variant: "destructive",
-                                                    });
-                                                  }
-                                                }}
-                                              >
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                                {interviewData.interview.is_finished ? "Revert Interview" : "Finish Interview"}
-                                              </Button>
-                                            </div>
-                                          ) : (
-                                            <div className="space-y-4 p-4 border rounded-lg">
-                                              <h4 className="font-medium">Reschedule Interview</h4>
-                                              <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
-                                                <p className="text-sm text-blue-700">
-                                                  <strong>Note:</strong> You will be assigned as the interviewer for this applicant.
-                                                </p>
-                                              </div>
-                                              <div className="space-y-2">
-                                                <Label>Date</Label>
-                                                <Input
-                                                  type="date"
-                                                  value={interviewDate}
-                                                  onChange={(e) => setInterviewDate(e.target.value)}
-                                                  min={new Date().toISOString().split('T')[0]}
-                                                />
-                                              </div>
-                                              <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                  <Label>Start Time</Label>
-                                                  <Input
-                                                    type="time"
-                                                    value={interviewTime}
-                                                    onChange={(e) => {
-                                                      setInterviewTime(e.target.value);
-                                                      const [hours, minutes] = e.target.value.split(':').map(Number);
-                                                      const endHours = (hours + 1) % 24;
-                                                      setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
-                                                    }}
-                                                  />
-                                                </div>
-                                                <div className="space-y-2">
-                                                  <Label>End Time</Label>
-                                                  <Input
-                                                    type="time"
-                                                    value={interviewEndTime}
-                                                    onChange={(e) => setInterviewEndTime(e.target.value)}
-                                                  />
-                                                </div>
-                                              </div>
-                                              <div className="flex gap-2">
-                                                <Button
-                                                  className="bg-[#800000] hover:bg-[#600000]"
-                                                  onClick={() => handleScheduleInterviewNew(selectedApplication)}
-                                                  disabled={!interviewDate}
-                                                >
-                                                  Confirm Reschedule
-                                                </Button>
-                                                <Button variant="outline" onClick={() => setIsRescheduling(false)}>
-                                                  Cancel
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <div className="space-y-4">
-                                          <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                                            <div className="flex">
-                                              <Calendar className="h-5 w-5 text-blue-400" />
-                                              <div className="ml-3">
-                                                <p className="text-sm text-blue-700">
-                                                  <strong>Interview Status:</strong> Not Scheduled
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-
-                                          {/* Schedule Form */}
-                                          <div className="space-y-4 pt-4">
-                                            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-2">
-                                              <p className="text-sm text-blue-700">
-                                                <strong>Note:</strong> You will be assigned as the interviewer for this applicant.
-                                              </p>
-                                            </div>
-                                            <div className="space-y-2">
-                                              <Label>Schedule Interview Date</Label>
-                                              <Input
-                                                type="date"
-                                                value={interviewDate}
-                                                onChange={(e) => setInterviewDate(e.target.value)}
-                                                min={new Date().toISOString().split('T')[0]}
-                                              />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                              <div className="space-y-2">
-                                                <Label>Start Time</Label>
-                                                <Input
-                                                  type="time"
-                                                  value={interviewTime}
-                                                  onChange={(e) => {
-                                                    setInterviewTime(e.target.value);
-                                                    const [hours, minutes] = e.target.value.split(':').map(Number);
-                                                    const endHours = (hours + 1) % 24;
-                                                    setInterviewEndTime(`${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
-                                                  }}
-                                                />
-                                              </div>
-                                              <div className="space-y-2">
-                                                <Label>End Time</Label>
-                                                <Input
-                                                  type="time"
-                                                  value={interviewEndTime}
-                                                  onChange={(e) => setInterviewEndTime(e.target.value)}
-                                                />
-                                              </div>
-                                            </div>
-
-                                            <Button
-                                              className="bg-[#800000] hover:bg-[#600000]"
-                                              onClick={() => handleScheduleInterviewNew(selectedApplication)}
-                                              disabled={!interviewDate}
-                                            >
-                                              <Calendar className="mr-2 h-4 w-4" />
-                                              Schedule Interview
-                                            </Button>
-                                          </div>
-                                        </div>
+                                            );
+                                          }
+                                        })()
                                       )}
                                     </TabsContent>
                                   </Tabs>

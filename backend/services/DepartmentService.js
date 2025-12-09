@@ -52,7 +52,8 @@ class DepartmentService {
       // Create department
       const department = new Department({ 
         departmentCode, 
-        name
+        name,
+        department_head: headId || null
       });
       await department.save();
 
@@ -295,6 +296,12 @@ class DepartmentService {
           // Update the user's department reference
           headUser.department = department._id;
           await headUser.save();
+
+          // Update the department's department_head reference
+          department.department_head = headId;
+        } else {
+          // If headId is null/empty string, clear the department_head field
+          department.department_head = null;
         }
       }
 

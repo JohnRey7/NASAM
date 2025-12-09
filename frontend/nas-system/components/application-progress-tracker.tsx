@@ -161,7 +161,14 @@ export function ApplicationProgressTracker() {
   const isApplicationFormComplete = ["form_verified", "document_verification", "approved", "rejected"].includes(applicationStatus)
   const isDocumentsComplete = ["document_verification", "approved", "rejected"].includes(applicationStatus)
   const isPersonalityTestComplete = hasPersonalityTest
-  const isInterviewComplete = interviewData?.interview?.is_finished === true || interviewData?.is_finished === true
+  
+  // Check if all scheduled interviews are finished
+  const isInterviewComplete = interviewData?.interviews?.length > 0 
+    ? interviewData.interviews.every((i: any) => i.is_finished)
+    : (interviewData?.interview?.is_finished === true || interviewData?.is_finished === true);
+    
+  const nextInterview = interviewData?.interviews?.find((i: any) => !i.is_finished) || interviewData?.interviews?.[0] || interviewData?.interview;
+
   const isEvaluationComplete = evaluationStatus?.hasEvaluation
 
   // Application progress steps in order - SEQUENTIAL LOGIC
@@ -201,7 +208,7 @@ export function ApplicationProgressTracker() {
               isInterviewComplete ? "Completed" :
               isPersonalityTestComplete ? "Pending" : "Locked",
       icon: <Calendar className="h-6 w-6" />,
-      interviewDate: interviewData?.interview?.startTime || interviewData?.startTime || null
+      interviewDate: nextInterview?.startTime || interviewData?.startTime || null
     },
     {
       title: "Evaluation",

@@ -12,6 +12,8 @@ const userSchema = new mongoose.Schema({
   disabled: { type: Boolean, default: false },
   verified: { type: Boolean, default: false },
   is_deleted: { type: Boolean, default: false },
+  // Assigned department that the oas staff assigned to
+  assigned_department: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
   emailVerification: {
     code: String,
     expiresAt: Date,
@@ -19,17 +21,6 @@ const userSchema = new mongoose.Schema({
     pendingEmail: String,
     isPasswordReset: { type: Boolean, default: false },
   },
-  // Optional gender field. Restrict new values to 'Male' or 'Female'.
-  gender: {
-    type: String,
-    enum: ['Male', 'Female'],
-    index: true,
-    required: false,
-  },
-  // Personal information fields
-  address: { type: String },
-  phoneNumber: { type: String },
-  birthday: { type: Date }
 });
 
 module.exports = mongoose.model('User', userSchema);
