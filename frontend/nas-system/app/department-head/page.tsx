@@ -576,8 +576,24 @@ export default function DepartmentHeadDashboardPage() {
     }
 
     try {
-      const startDateTime = `${interviewDate}T${interviewTime}:00`;
-      const endDateTime = `${interviewDate}T${interviewEndTime}:00`;
+      // Create Date objects from the local date/time inputs
+      // This ensures the time is interpreted as local time, not UTC
+      const startDate = new Date(`${interviewDate}T${interviewTime}:00`);
+      const endDate = new Date(`${interviewDate}T${interviewEndTime}:00`);
+      
+      // Convert to ISO string (includes timezone offset)
+      const startDateTime = startDate.toISOString();
+      const endDateTime = endDate.toISOString();
+
+      console.log('📅 Scheduling interview:', {
+        inputDate: interviewDate,
+        inputStartTime: interviewTime,
+        inputEndTime: interviewEndTime,
+        startDateTime,
+        endDateTime,
+        localStartTime: startDate.toLocaleString(),
+        localEndTime: endDate.toLocaleString()
+      });
 
       // Use department-head specific endpoint - interviewer is automatically set to the department head
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/interview/schedule`, {
