@@ -1,5 +1,6 @@
 const ApplicationService = require('../services/ApplicationService');
 const ApplicationForm = require('../models/ApplicationForm');
+const AuditLogService = require('../services/AuditLogService');
 
 const ApplicationController = {
   // POST: Create a new application for the authenticated user
@@ -9,6 +10,13 @@ const ApplicationController = {
       const applicationData = req.body;
 
       const application = await ApplicationService.createApplication(userId, applicationData);
+
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Create Application',
+        module: 'Application'
+      });
 
       res.status(201).json({
         message: 'Application created successfully',
@@ -120,6 +128,13 @@ const ApplicationController = {
 
       const updatedApplication = await ApplicationService.updateApplicationById(id, updateData);
 
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update Application',
+        module: 'Application'
+      });
+
       res.json({
         message: 'Application updated successfully',
         application: updatedApplication
@@ -180,6 +195,13 @@ const ApplicationController = {
     try {
       const { id } = req.params;
       const result = await ApplicationService.deleteApplicationById(id);
+
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Application',
+        module: 'Application'
+      });
 
       res.json(result);
     } catch (error) {
@@ -282,6 +304,13 @@ const ApplicationController = {
       const { status } = req.body;
 
       const updatedStatus = await ApplicationService.setStatus(userId, status);
+
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: `Update Application Status to ${status}`,
+        module: 'Application'
+      });
 
       res.json({
         message: 'Status updated successfully',

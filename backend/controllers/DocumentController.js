@@ -1,4 +1,5 @@
 const DocumentService = require('../services/DocumentService');
+const AuditLogService = require('../services/AuditLogService');
 
 const DocumentController = {
   // Upload or update documents for the authenticated user
@@ -27,6 +28,13 @@ const DocumentController = {
       const result = await DocumentService.uploadDocuments(req.user.id, req.files, {
         gradeAverages,
         incomeTaxInfo
+      });
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Upload Documents',
+        module: 'Document'
       });
       
       res.status(201).json(result);
@@ -83,6 +91,13 @@ const DocumentController = {
       const { id } = req.params;
       const result = await DocumentService.softDeleteDocument(id);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Document',
+        module: 'Document'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in softDeleteDocument:', error);
@@ -98,6 +113,13 @@ const DocumentController = {
     try {
       const { id } = req.params;
       const result = await DocumentService.restoreDocument(id);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Restore Document',
+        module: 'Document'
+      });
       
       res.json(result);
     } catch (error) {

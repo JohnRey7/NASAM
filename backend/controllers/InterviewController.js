@@ -1,10 +1,18 @@
 const InterviewService = require('../services/InterviewService');
+const AuditLogService = require('../services/AuditLogService');
 
 const InterviewController = {
   // POST: Create an interview for the authenticated user's application
   async createInterview(req, res) {
     try {
       const result = await InterviewService.createInterview(req.user.id, req.body);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Create Interview',
+        module: 'Interview'
+      });
       
       res.status(201).json(result);
     } catch (error) {
@@ -23,6 +31,13 @@ const InterviewController = {
   async createInterviewForApplicant(req, res) {
     try {
       const result = await InterviewService.createInterviewForApplicant(req.user.id, req.body);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: result.isExisting ? 'Send Interview Reminder' : 'Schedule Interview',
+        module: 'Interview'
+      });
       
       const statusCode = result.isExisting ? 200 : 201;
       res.status(statusCode).json(result);
@@ -43,6 +58,13 @@ const InterviewController = {
     try {
       const { interviewId } = req.params;
       const result = await InterviewService.rescheduleInterviewForDepartmentHead(req.user.id, interviewId, req.body);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Reschedule Interview',
+        module: 'Interview'
+      });
       
       res.json(result);
     } catch (error) {
@@ -66,6 +88,13 @@ const InterviewController = {
       // Force the interviewer to be the department head themselves
       const departmentHeadId = req.user.id;
       const result = await InterviewService.scheduleInterviewForDepartmentHead(departmentHeadId, req.body);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: result.isExisting ? 'Send Interview Reminder' : 'Schedule Interview',
+        module: 'Interview'
+      });
       
       const statusCode = result.isExisting ? 200 : 201;
       res.status(statusCode).json(result);
@@ -168,6 +197,13 @@ const InterviewController = {
       const { id } = req.params;
       const result = await InterviewService.updateInterviewById(id, req.body);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update Interview',
+        module: 'Interview'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in updateInterviewById:', error);
@@ -187,6 +223,13 @@ const InterviewController = {
       const { userId } = req.params;
       const result = await InterviewService.updateInterviewByUserId(userId, req.body);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update Interview',
+        module: 'Interview'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in updateInterviewByUserId:', error);
@@ -205,6 +248,13 @@ const InterviewController = {
     try {
       const result = await InterviewService.updateMyInterview(req.user.id, req.body);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update Interview',
+        module: 'Interview'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in updateMyInterview:', error);
@@ -221,6 +271,13 @@ const InterviewController = {
   async updateStartAndEndTime(req, res) {
     try {
       const result = await InterviewService.updateStartAndEndTime(req.user.id, req.body);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update Interview Time',
+        module: 'Interview'
+      });
       
       res.json(result);
     } catch (error) {
@@ -241,6 +298,13 @@ const InterviewController = {
       const { id } = req.params;
       const result = await InterviewService.deleteInterviewById(id);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Interview',
+        module: 'Interview'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in deleteInterviewById:', error);
@@ -260,6 +324,13 @@ const InterviewController = {
       const { userId } = req.params;
       const result = await InterviewService.deleteInterviewByUserId(userId);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Interview',
+        module: 'Interview'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in deleteInterviewByUserId:', error);
@@ -277,6 +348,13 @@ const InterviewController = {
   async deleteMyInterview(req, res) {
     try {
       const result = await InterviewService.deleteMyInterview(req.user.id);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Interview',
+        module: 'Interview'
+      });
       
       res.json(result);
     } catch (error) {
@@ -325,6 +403,13 @@ const InterviewController = {
       const { id } = req.params;
       const result = await InterviewService.softDeleteInterview(id);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Soft Delete Interview',
+        module: 'Interview'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in softDeleteInterview:', error);
@@ -341,6 +426,13 @@ const InterviewController = {
       const { id } = req.params;
       const result = await InterviewService.restoreInterview(id);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Restore Interview',
+        module: 'Interview'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in restoreInterview:', error);
@@ -356,6 +448,13 @@ const InterviewController = {
     try {
       const { id } = req.params;
       const result = await InterviewService.permanentDeleteInterview(id);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Permanent Delete Interview',
+        module: 'Interview'
+      });
       
       res.json(result);
     } catch (error) {
@@ -384,6 +483,13 @@ const InterviewController = {
     try {
       const { id } = req.params;
       const result = await InterviewService.finishInterview(id);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Mark Interview as Complete',
+        module: 'Interview'
+      });
       
       res.json(result);
     } catch (error) {
