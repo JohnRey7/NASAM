@@ -264,7 +264,7 @@ export function InterviewManagement() {
                 interviews.map((interview) => (
                   <TableRow key={interview._id}>
                     <TableCell className="font-medium">
-                      {interview.applicationId?.user?.name || "Unknown Applicant"}
+                      {interview.applicationId ? `${interview.applicationId.firstName} ${interview.applicationId.lastName}` : "Unknown Applicant"}
                     </TableCell>
                     <TableCell>
                       {interview.interviewer?.name || "Unknown Interviewer"}
