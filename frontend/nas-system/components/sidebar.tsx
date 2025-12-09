@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import {
   Home,
   User,
+  Award,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import {

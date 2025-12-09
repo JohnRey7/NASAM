@@ -82,38 +82,38 @@ body {
   }
   
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
     --primary: 210 40% 98%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 17%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 222.2 47.4% 11.2%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 212 35% 70%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 216 34% 17%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 224 71% 4%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 216 34% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 216 34% 17%;
+    --sidebar-ring: 263.4 70% 50.4%;
   }
 }
 
@@ -140,6 +140,43 @@ body {
   
   h3 {
     @apply text-2xl lg:text-3xl;
+  }
+  
+  /* Force inputs to remain light in dark mode */
+  .dark input,
+  .dark textarea,
+  .dark select,
+  .dark [role="combobox"],
+  .dark [data-radix-select-trigger] {
+    background-color: white !important;
+    color: #1a1a1a !important;
+    border-color: hsl(var(--border)) !important;
+  }
+  
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #6b7280 !important;
+  }
+  
+  .dark input:disabled,
+  .dark textarea:disabled,
+  .dark select:disabled {
+    background-color: hsl(var(--muted)) !important;
+    color: hsl(var(--muted-foreground)) !important;
+  }
+  
+  /* Force select dropdowns and their content to be light */
+  .dark [role="listbox"],
+  .dark [data-radix-select-content],
+  .dark [data-radix-select-viewport],
+  .dark [data-radix-select-item] {
+    background-color: white !important;
+    color: #1a1a1a !important;
+  }
+  
+  .dark [data-radix-select-item][data-highlighted] {
+    background-color: #f3f4f6 !important;
+    color: #1a1a1a !important;
   }
 }
 

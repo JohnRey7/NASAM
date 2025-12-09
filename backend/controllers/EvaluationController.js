@@ -1,4 +1,5 @@
 const EvaluationService = require('../services/EvaluationService');
+const AuditLogService = require('../services/AuditLogService');
 
 // Create a new evaluation for a user by idNumber
 async function createEvaluation(req, res) {
@@ -6,6 +7,13 @@ async function createEvaluation(req, res) {
     const { idNumber } = req.params;
     const evaluationData = { ...req.body, idNumber };
     const evaluation = await EvaluationService.createEvaluation(evaluationData);
+    
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Create Evaluation',
+      module: 'Evaluation'
+    });
     
     res.status(201).json(evaluation);
   } catch (error) {
@@ -91,6 +99,13 @@ async function updateEvaluation(req, res) {
     
     const evaluation = await EvaluationService.updateEvaluation(evaluationId, req.body);
     
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Update Evaluation',
+      module: 'Evaluation'
+    });
+    
     res.status(200).json(evaluation);
   } catch (error) {
     console.error('Error in updateEvaluation:', error);
@@ -119,6 +134,13 @@ async function deleteEvaluation(req, res) {
     
     const result = await EvaluationService.deleteEvaluation(evaluationId);
     
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Delete Evaluation',
+      module: 'Evaluation'
+    });
+    
     res.status(200).json(result);
   } catch (error) {
     console.error('Error in deleteEvaluation:', error);
@@ -146,6 +168,13 @@ async function updateTimeKeepingRecord(req, res) {
     }
     
     const evaluation = await EvaluationService.updateTimeKeepingRecord(evaluationId, req.body);
+    
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Update Timekeeping Record',
+      module: 'Evaluation'
+    });
     
     res.status(200).json(evaluation);
   } catch (error) {
@@ -185,6 +214,13 @@ async function softDeleteEvaluation(req, res) {
     const { evaluationId } = req.params;
     const result = await EvaluationService.softDeleteEvaluation(evaluationId);
     
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Soft Delete Evaluation',
+      module: 'Evaluation'
+    });
+    
     res.json(result);
   } catch (error) {
     console.error('Error in softDeleteEvaluation:', error);
@@ -200,6 +236,13 @@ async function restoreEvaluation(req, res) {
   try {
     const { evaluationId } = req.params;
     const result = await EvaluationService.restoreEvaluation(evaluationId);
+    
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Restore Evaluation',
+      module: 'Evaluation'
+    });
     
     res.json(result);
   } catch (error) {
