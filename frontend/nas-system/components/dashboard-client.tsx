@@ -9,6 +9,7 @@ import { DocumentUpload } from "@/components/document-upload"
 import { PersonalityTest } from "@/components/personality-test"
 import { ApplicationProgressTracker } from "@/components/application-progress-tracker"
 import { ApplicationFormProvider } from "@/contexts/application-form-context"
+import { WelcomeGuideModal } from "@/components/welcome-guide-modal"
 
 export function DashboardClient() {
   const { user } = useAuth()
@@ -44,6 +45,9 @@ function ApplicantDashboard() {
   return (
     <ApplicationFormProvider>
       <div className="space-y-8">
+        {/* Welcome Guide Modal - shows on first visit */}
+        <WelcomeGuideModal />
+        
         <Tabs defaultValue="form" className="w-full" id="application-form">
           <TabsList className="grid w-full grid-cols-4 mb-8 h-12 bg-white shadow-soft border-0 p-1">
             <TabsTrigger value="form" className="data-[state=active]:bg-maroon-50 data-[state=active]:text-[#800000] data-[state=active]:shadow-soft font-medium">Application Form</TabsTrigger>

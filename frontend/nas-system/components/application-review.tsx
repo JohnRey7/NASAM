@@ -3158,7 +3158,7 @@ export function ApplicationReview() {
                           />
                         )}
 
-                        {user?.role?.name === 'admin' && (
+                        {user?.role === 'admin' && (
                         <Button
                           variant="ghost"
                           size="icon"

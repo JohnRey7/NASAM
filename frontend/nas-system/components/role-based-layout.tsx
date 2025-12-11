@@ -202,7 +202,7 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings">
+                  <Link href="/settings-page">
                     <Settings className="h-4 w-4 mr-2" />
                     Settings
                   </Link>
