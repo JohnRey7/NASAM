@@ -60,6 +60,11 @@ const fileUploadSchema = new mongoose.Schema({
         originalName: { type: String, required: true },
         uploadedAt: { type: Date, default: Date.now }
     }],
+    personalityTestPaymentReceipt: [{
+        filePath: { type: String, required: true },
+        originalName: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
     // End of semester updated grade on AIMS
     endTermSemesterGrade: [{
         filePath: { type: String, required: true },

@@ -232,6 +232,26 @@ class NotificationService {
     }
   }
 
+  // Create personality test reviewed notification
+  static async createPersonalityTestReviewedNotification(userId, applicationId) {
+    try {
+      return await NotificationService.createNotification({
+        userId: userId,
+        type: 'personality_test_reviewed',
+        title: 'Personality Test Reviewed',
+        message: 'Your personality test has been reviewed by the OAS staff. You may now proceed to the next stage of your application.',
+        priority: 'medium',
+        metadata: {
+          applicationId: applicationId,
+          action: 'personality_test_reviewed'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating personality test reviewed notification:', error);
+      throw error;
+    }
+  }
+
   // Create message notification
   static async createMessageNotification(receiverId, senderId, messageText, conversationId) {
     try {

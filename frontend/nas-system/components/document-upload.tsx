@@ -18,6 +18,7 @@ export type DocumentType =
   | "goodMoral"
   | "physicalCheckup"
   | "homeLocationSketch"
+  | "personalityTestPaymentReceipt"
 
 const documentTypeInfo: Record<DocumentType, { title: string; description: string; acceptedFormats: string; maxCount: number }> = {
   studentPicture: {
@@ -59,6 +60,12 @@ const documentTypeInfo: Record<DocumentType, { title: string; description: strin
   homeLocationSketch: {
     title: "Home Location Sketch",
     description: "Upload a sketch or map of your home location",
+    acceptedFormats: ".pdf, .jpg, .png",
+    maxCount: 5,
+  },
+  personalityTestPaymentReceipt: {
+    title: "16PF Test Payment Receipt",
+    description: "Upload the official receipt for your 16PF Personality Test payment.",
     acceptedFormats: ".pdf, .jpg, .png",
     maxCount: 5,
   },
@@ -776,6 +783,7 @@ export function DocumentUpload() {
       {renderDocumentSection("goodMoral")}
       {renderDocumentSection("physicalCheckup")}
       {renderDocumentSection("homeLocationSketch")}
+      {renderDocumentSection("personalityTestPaymentReceipt")}
 
       <div className="flex justify-end">
         <Button

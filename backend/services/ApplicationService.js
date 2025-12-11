@@ -1144,10 +1144,17 @@ class ApplicationService {
             originalName: doc.originalName,
             uploadedAt: doc.uploadedAt || documents?.createdAt
           }))
+        : [],
+      personalityTestPaymentReceipt: documents?.personalityTestPaymentReceipt?.length > 0 
+        ? documents.personalityTestPaymentReceipt.map(doc => ({
+            filePath: doc.filePath,
+            originalName: doc.originalName,
+            uploadedAt: doc.uploadedAt || documents?.createdAt
+          }))
         : []
     };
 
-    const totalRequired = 7;
+    const totalRequired = 8;
     // Check if each document type has at least one file
     const totalUploaded = [
       documentStatus.studentPicture.uploaded,
@@ -1156,7 +1163,8 @@ class ApplicationService {
       documentStatus.incomeTaxReturn.length > 0,
       documentStatus.goodMoralCertificate.length > 0,
       documentStatus.physicalCheckup.length > 0,
-      documentStatus.homeLocationSketch.length > 0
+      documentStatus.homeLocationSketch.length > 0,
+      documentStatus.personalityTestPaymentReceipt.length > 0
     ].filter(Boolean).length;
 
     const result = {

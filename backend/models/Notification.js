@@ -23,6 +23,7 @@ const notificationSchema = new mongoose.Schema({
       'interview_reminder',
       'interview_rescheduled',
       'personality_test_available',
+      'personality_test_reviewed',
       'personality_test_completed',
       'scholarship_approved',
       'scholarship_rejected',

@@ -558,6 +558,18 @@ class PersonalityTestService {
         throw new Error('No personality test found for user');
       }
 
+      // Send notification to applicant
+      try {
+        const NotificationService = require('./NotificationService');
+        await NotificationService.createPersonalityTestReviewedNotification(
+          userId,
+          application._id
+        );
+        console.log('✅ Personality test reviewed notification sent to applicant');
+      } catch (notifError) {
+        console.warn('⚠️ Failed to send personality test reviewed notification:', notifError.message);
+      }
+
       return test;
     } catch (error) {
       console.error('Error marking personality test as reviewed:', error);

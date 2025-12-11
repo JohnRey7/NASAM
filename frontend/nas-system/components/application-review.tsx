@@ -657,7 +657,7 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
                 variant={documents?.summary?.isComplete ? "default" : "secondary"}
                 className={documents?.summary?.isComplete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
               >
-                {documents?.summary?.totalUploaded || 0}/{documents?.summary?.totalRequired || 7} Complete
+                {documents?.summary?.totalUploaded || 0}/{documents?.summary?.totalRequired || 8} Complete
               </Badge>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1391,10 +1391,16 @@ export function ApplicationReview() {
   const totalCount = counts?.totalApplicants ?? pagination.totalDocs
   const normalize = (s: any) => (s || '').toString().toLowerCase().replace(/\s+/g, '_')
 
-  const pendingCount = counts?.counts?.pending ?? 0
   const approvedCount = counts?.counts?.approved ?? 0
   const rejectedCount = counts?.counts?.rejected ?? 0
-  const underConsiderationCount = counts?.counts?.under_consideration ?? counts?.counts?.form_verified ?? 0
+  // Under Consideration shows rejected count, since "rejected" status now displays as "Under Consideration"
+  const underConsiderationCount = counts?.counts?.rejected ?? 0
+  // Pending includes: pending + all other statuses (form_verified, document_verification, interview_scheduled, draft, etc.)
+  const pendingCount = (counts?.counts?.pending ?? 0) + 
+                       (counts?.counts?.draft ?? 0) + 
+                       (counts?.counts?.form_verified ?? 0) + 
+                       (counts?.counts?.document_verification ?? 0) + 
+                       (counts?.counts?.interview_scheduled ?? 0)
 
   // Filter only admin applications client-side (server handles search and status)
   const filteredApplications = applications.filter((app) => {
@@ -1450,7 +1456,7 @@ export function ApplicationReview() {
       case "rejected":
         return (
           <Badge variant="outline" className="bg-red-100 text-red-700">
-            Rejected
+            Under Consideration
           </Badge>
         );
       default:
@@ -2191,7 +2197,7 @@ export function ApplicationReview() {
         </CardHeader>
         <CardContent className="pt-6">
           {/* Stats Row */}
-          <div className="grid grid-cols-5 gap-3 mb-4">
+          <div className="grid grid-cols-4 gap-3 mb-4">
             <div className="p-3 bg-white border rounded">
               <p className="text-xs text-gray-500">Total</p>
               <p className="text-xl font-bold text-[#800000]">{totalCount}</p>
@@ -2202,15 +2208,11 @@ export function ApplicationReview() {
             </div>
             <div className="p-3 bg-white border rounded">
               <p className="text-xs text-gray-500">Under Consideration</p>
-              <p className="text-xl font-bold text-blue-600">{underConsiderationCount}</p>
+              <p className="text-xl font-bold text-red-600">{underConsiderationCount}</p>
             </div>
             <div className="p-3 bg-white border rounded">
               <p className="text-xs text-gray-500">Approved</p>
               <p className="text-xl font-bold text-green-600">{approvedCount}</p>
-            </div>
-            <div className="p-3 bg-white border rounded">
-              <p className="text-xs text-gray-500">Rejected</p>
-              <p className="text-xl font-bold text-red-600">{rejectedCount}</p>
             </div>
           </div>
           
@@ -2239,7 +2241,7 @@ export function ApplicationReview() {
                   <SelectItem value="document_verification">Document Verification</SelectItem>
                   <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="rejected">Under Consideration</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2252,7 +2254,7 @@ export function ApplicationReview() {
                   <th className="py-3 px-4 text-left font-medium text-sm">Student Name</th>
                   <th className="py-3 px-4 text-left font-medium text-sm">Student ID</th>
                   <th className="py-3 px-4 text-left font-medium text-sm">Course</th>
-                  <th className="py-3 px-4 text-center font-medium text-sm">Gender</th>
+                  <th className="py-3 pl-0 pr-4 text-center font-medium text-sm">Gender</th>
                   <th 
                     className="py-3 px-4 text-left font-medium text-sm cursor-pointer hover:bg-gray-100 select-none"
                     onClick={() => {
@@ -2264,18 +2266,18 @@ export function ApplicationReview() {
                   >
                     Submission Date {sortOrder === 'asc' ? '↑' : '↓'}
                   </th>
-                  <th className="py-3 px-4 text-left font-medium text-sm">Status</th>
-                  <th className="py-3 px-4 text-center font-medium text-sm">Actions</th>
+                  <th className="py-3 px-6 text-left font-medium text-sm">Status</th>
+                  <th className="py-3 px-4 text-left font-medium text-sm">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredApplications.map((application: any) => (
                   <tr key={application._id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-2 text-sm">{application._id}</td>
-                    <td className="py-3 px-4 text-sm">{application.firstName} {application.lastName}</td>
+                    <td className="py-3 px-4 text-sm whitespace-nowrap">{application.firstName} {application.lastName}</td>
                     <td className="py-3 px-4 text-sm whitespace-nowrap">{application.user?.idNumber}</td>
                     <td className="py-3 px-4 text-sm">{application.programOfStudyAndYear}</td>
-                    <td className="py-3 px-4 text-sm text-center">{application.gender || 'Unknown'}</td>
+                    <td className="py-3 pl-0 pr-4 text-sm text-center">{application.gender || 'Unknown'}</td>
                     <td className="py-3 px-4 text-sm">{application.createdAt ? new Date(application.createdAt).toLocaleDateString() : ''}</td>
                     <td className="py-3 px-4 text-sm">{getStatusBadge(application.status)}</td>
                     <td className="py-3 px-4 text-sm">

@@ -243,10 +243,15 @@ export function DepartmentHeadApplicationReview({ applications = [] }: { applica
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
     const Icon = config.icon
 
+    // Display "Under Consideration" for rejected status
+    const displayText = status === 'rejected' 
+      ? 'Under Consideration' 
+      : status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown'
+
     return (
       <Badge className={`${config.color} hover:${config.color} flex items-center gap-1`}>
         <Icon className="h-3 w-3" />
-        {status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown'}
+        {displayText}
       </Badge>
     )
   }

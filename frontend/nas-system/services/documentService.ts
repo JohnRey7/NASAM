@@ -47,6 +47,7 @@ interface DocumentResponse {
   physicalCheckup: BackendDocument[];
   certificates: BackendDocument[];
   homeLocationSketch: BackendDocument[];
+  personalityTestPaymentReceipt: BackendDocument[];
   gradeAverages?: GradeAverages;
   incomeTaxInfo?: IncomeTaxInfo;
   createdAt: string;
@@ -67,6 +68,7 @@ export const backendFieldMap: Record<DocumentType, string> = {
   goodMoral: "goodMoralCertificate",
   physicalCheckup: "physicalCheckup",
   homeLocationSketch: "homeLocationSketch",
+  personalityTestPaymentReceipt: "personalityTestPaymentReceipt",
 };
 
 export const documentService = {

@@ -1081,7 +1081,7 @@ export default function DepartmentHeadDashboardPage() {
                   <tbody>
                     {interviews.map((interview) => (
                         <tr key={interview._id} className="border-b hover:bg-gray-50">
-                          <td className="p-4">{interview.interviewId}</td>
+                          <td className="p-4 whitespace-nowrap">{interview.interviewId}</td>
                           <td className="p-4 font-medium">{interview.applicantName}</td>
                           <td className="p-4">{interview.course}</td>
                           <td className="p-4">
@@ -1247,7 +1247,7 @@ export default function DepartmentHeadDashboardPage() {
                                                 variant={documents?.summary?.isComplete ? "default" : "secondary"}
                                                 className={documents?.summary?.isComplete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
                                               >
-                                                {documents?.summary?.totalUploaded || 0}/{documents?.summary?.totalRequired || 7} Complete
+                                                {documents?.summary?.totalUploaded || 0}/{documents?.summary?.totalRequired || 8} Complete
                                               </Badge>
                                             </div>
                                             <div className="w-full bg-gray-200 rounded-full h-2">

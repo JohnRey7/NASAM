@@ -38,7 +38,7 @@ export function ApplicationStatus() {
       case "rejected":
         return (
           <Badge variant="outline" className="bg-red-100 text-red-700">
-            Rejected
+            Under Consideration
           </Badge>
         )
       case "incomplete":
@@ -111,7 +111,7 @@ export function ApplicationStatus() {
             {currentStatus === "pending" && "Your application is waiting for review."}
             {currentStatus === "reviewing" && "Your application is currently being reviewed by our staff."}
             {currentStatus === "approved" && "Congratulations! Your application has been approved."}
-            {currentStatus === "rejected" && "Unfortunately, your application was not approved."}
+            {currentStatus === "rejected" && "Your application is under consideration by the scholarship committee."}
             {currentStatus === "incomplete" && "Additional information or documents are required."}
           </div>
         </div>
