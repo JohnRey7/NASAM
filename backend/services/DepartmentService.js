@@ -671,9 +671,15 @@ class DepartmentService {
       const userIds = usersInDepartment.map(u => u._id);
 
       // Build the filter for applications
+      // Filter by users in department AND by assignedDepartment to ensure proper assignment
       const filter = {
         user: { $in: userIds },
-        is_deleted: { $ne: true }
+        is_deleted: { $ne: true },
+        // Also filter by assignedDepartment to ensure explicit assignment
+        $or: [
+          { assignedDepartment: departmentCode },
+          { assignedDepartment: { $exists: false } } // Include if not explicitly assigned yet but user's course is in department
+        ]
       };
 
       // Get total count for pagination

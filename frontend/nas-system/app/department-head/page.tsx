@@ -1069,7 +1069,7 @@ export default function DepartmentHeadDashboardPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-4 font-medium">Interview ID</th>
+                      <th className="text-left p-4 font-medium min-w-[140px]">Interview ID</th>
                       <th className="text-left p-4 font-medium">Applicant Name</th>
                       <th className="text-left p-4 font-medium">Course</th>
                       <th className="text-left p-4 font-medium">Department</th>
@@ -1081,7 +1081,7 @@ export default function DepartmentHeadDashboardPage() {
                   <tbody>
                     {interviews.map((interview) => (
                         <tr key={interview._id} className="border-b hover:bg-gray-50">
-                          <td className="p-4 whitespace-nowrap">{interview.interviewId}</td>
+                          <td className="p-4 whitespace-nowrap text-sm font-mono">{interview.interviewId}</td>
                           <td className="p-4 font-medium">{interview.applicantName}</td>
                           <td className="p-4">{interview.course}</td>
                           <td className="p-4">
@@ -1791,9 +1791,31 @@ export default function DepartmentHeadDashboardPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  title={interview.hasEvaluation ? "View Evaluation (Read Only)" : "Evaluate Scholar"}
+                                  className={
+                                    interview.status === 'approved' || interview.status === 'rejected' || interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected'
+                                      ? "text-gray-400 cursor-not-allowed"
+                                      : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  }
+                                  title={
+                                    interview.status === 'approved' || interview.status === 'rejected' || interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected'
+                                      ? "Cannot evaluate - Final status already set" 
+                                      : interview.hasEvaluation 
+                                        ? "View Evaluation (Read Only)" 
+                                        : "Evaluate Scholar"
+                                  }
+                                  disabled={interview.status === 'approved' || interview.status === 'rejected' || interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected'}
                                   onClick={async () => {
+                                    // Prevent evaluation if applicant has final status
+                                    if (interview.status === 'approved' || interview.status === 'rejected' || 
+                                        interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected') {
+                                      toast({
+                                        title: "Cannot Evaluate",
+                                        description: "This applicant has already received a final status and cannot be re-evaluated.",
+                                        variant: "destructive"
+                                      });
+                                      return;
+                                    }
+                                    
                                     // Find the scholar data for this applicant
                                     const scholar = scholars.find((s: any) => 
                                       s._id === interview._id || 
