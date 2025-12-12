@@ -218,6 +218,8 @@ const evaluationSchema = new mongoose.Schema({
   is_deleted: { type: Boolean, default: false }
 }, { 
   timestamps: true,
+  toJSON: { getters: true },
+  toObject: { getters: true },
   indexes: [
     { key: { evaluateeUser: 1, createdAt: -1 } }
   ]

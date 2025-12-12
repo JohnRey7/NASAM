@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ApplicationReview } from "@/components/application-review"
 import { AnalyticsDashboard } from "@/components/analytics-dashboard"
-import { ScholarEvaluation } from "@/components/scholar-evaluation"
+import { AdminEvaluationTable } from "@/components/admin-evaluation-table"
 import { AuditLogs } from "@/components/audit-logs"
 import { useEffect, useState } from "react"
 import { oasDashboardService } from "@/services/oasDashboardService"
@@ -124,7 +124,7 @@ export default function AdminDashboardPage() {
         </TabsContent>
 
         <TabsContent value="scholar-eval">
-          <ScholarEvaluation />
+          <AdminEvaluationTable />
         </TabsContent>
 
         <TabsContent value="eval-period">

@@ -377,6 +377,174 @@ async function restoreEvaluationsByPeriod(req, res) {
   }
 }
 
+// Admin-specific endpoints for user-based evaluation management
+
+// GET evaluation for specific user (by userId - gets latest evaluation)
+async function getEvaluationForUser(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    const evaluation = await EvaluationService.getEvaluationByUserId(userId);
+    
+    res.status(200).json(evaluation);
+  } catch (error) {
+    console.error('Error in getEvaluationForUser:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+}
+
+// GET all evaluations with pagination (limit 50 per page) for admin
+async function getAllEvaluationsForAdmin(req, res) {
+  try {
+    const { page = 1, limit = 50, search = '', includeDeleted = false } = req.query;
+    
+    // Force limit to max 50
+    const maxLimit = Math.min(parseInt(limit), 50);
+    
+    const result = await EvaluationService.getAllEvaluations({
+      page,
+      limit: maxLimit,
+      search,
+      includeDeleted: includeDeleted === 'true'
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in getAllEvaluationsForAdmin:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+}
+
+// POST create evaluation for specific user (by userId)
+async function createEvaluationForUser(req, res) {
+  try {
+    const { userId } = req.params;
+    const evaluationData = { ...req.body, userId };
+    
+    const evaluation = await EvaluationService.createEvaluationByUserId(userId, evaluationData);
+    
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Create Evaluation for User',
+      module: 'Evaluation'
+    });
+    
+    res.status(201).json(evaluation);
+  } catch (error) {
+    console.error('Error in createEvaluationForUser:', error);
+    if (error.message.includes('required') || error.message.includes('Invalid')) {
+      return res.status(400).json({ message: error.message });
+    }
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(400).json({ message: `Validation error: ${error.message}` });
+  }
+}
+
+// PUT update evaluation for specific user (by userId - updates latest evaluation)
+async function updateEvaluationForUser(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    const evaluation = await EvaluationService.updateEvaluationByUserId(userId, req.body);
+    
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Update Evaluation for User',
+      module: 'Evaluation'
+    });
+    
+    res.status(200).json(evaluation);
+  } catch (error) {
+    console.error('Error in updateEvaluationForUser:', error);
+    if (error.message.includes('Invalid') || error.message.includes('required')) {
+      return res.status(400).json({ message: error.message });
+    }
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(400).json({ message: `Validation error: ${error.message}` });
+  }
+}
+
+// DELETE soft delete evaluation for specific user (by userId - soft deletes latest evaluation)
+async function softDeleteEvaluationForUser(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    const result = await EvaluationService.softDeleteEvaluationByUserId(userId);
+    
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Soft Delete Evaluation for User',
+      module: 'Evaluation'
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in softDeleteEvaluationForUser:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// DELETE permanent delete evaluation for specific user (by userId - permanently deletes latest evaluation)
+async function permanentDeleteEvaluationForUser(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    const result = await EvaluationService.permanentDeleteEvaluationByUserId(userId);
+    
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Permanent Delete Evaluation for User',
+      module: 'Evaluation'
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in permanentDeleteEvaluationForUser:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// POST restore evaluation for specific user (by userId - restores latest soft-deleted evaluation)
+async function restoreEvaluationForUser(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    const result = await EvaluationService.restoreEvaluationByUserId(userId);
+    
+    // Log audit
+    await AuditLogService.createLog({
+      userId: req.user.id,
+      action: 'Restore Evaluation for User',
+      module: 'Evaluation'
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in restoreEvaluationForUser:', error);
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   createEvaluation,
   getAllEvaluations,
@@ -395,5 +563,13 @@ module.exports = {
   getMyLastEvaluation,
   getAvailableSemesters,
   softDeleteEvaluationsByPeriod,
-  restoreEvaluationsByPeriod
+  restoreEvaluationsByPeriod,
+  // Admin-specific user-based methods
+  getAllEvaluationsForAdmin,
+  getEvaluationForUser,
+  createEvaluationForUser,
+  updateEvaluationForUser,
+  softDeleteEvaluationForUser,
+  permanentDeleteEvaluationForUser,
+  restoreEvaluationForUser
 };

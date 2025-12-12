@@ -195,6 +195,8 @@ class EvaluationService {
         // Passed: >= 3.0 (Average or above), Failed: < 3.0
         evaluationStatus: parseFloat(overallRating) >= 3.0 ? 'passed' : 'failed'
       });
+      
+      console.log(`📊 Creating evaluation with status: ${evaluation.evaluationStatus} (Rating: ${overallRating})`);
       await evaluation.save();
 
       // If evaluation passed, update the application status to 'approved'
@@ -243,7 +245,7 @@ class EvaluationService {
 
   static async getAllEvaluations(queryParams) {
     try {
-      const { page = 1, limit = 10, search = '', semester = '' } = queryParams;
+      const { page = 1, limit = 10, search = '', semester = '', includeDeleted = false } = queryParams;
       const pageNum = parseInt(page, 10);
       const limitNum = parseInt(limit, 10);
 
@@ -254,12 +256,23 @@ class EvaluationService {
         throw new Error('Invalid limit');
       }
 
-      // Build query
-      const query = { is_deleted: false };
+      // Build query - handle includeDeleted parameter
+      const query = {};
+      
+      // Filter by deleted status
+      if (includeDeleted === true || includeDeleted === 'true') {
+        query.is_deleted = true; // Only show deleted
+      } else {
+        query.is_deleted = false; // Only show active
+      }
       
       if (search) {
         const users = await User.find({
-          name: { $regex: search, $options: 'i' }
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { idNumber: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } }
+          ]
         }).select('_id');
         const userIds = users.map(user => user._id);
         query.evaluateeUser = { $in: userIds };
@@ -418,6 +431,14 @@ class EvaluationService {
       if (timeKeepingRecord) evaluation.timeKeepingRecord = timeKeepingRecord;
       if (overallRating !== undefined) evaluation.overallRating = overallRating;
       if (semester) evaluation.semester = semester;
+
+      // Automatically calculate and set evaluationStatus based on overallRating
+      // 3.0 and above = passed, below 3.0 = failed
+      if (overallRating !== undefined) {
+        const evaluationPassed = parseFloat(overallRating) >= 3.0;
+        evaluation.evaluationStatus = evaluationPassed ? 'passed' : 'failed';
+        console.log(`📊 Evaluation status automatically set to: ${evaluation.evaluationStatus} (Rating: ${overallRating})`);
+      }
 
       await evaluation.save();
 
@@ -741,6 +762,166 @@ class EvaluationService {
       };
     } catch (error) {
       console.error('Error restoring evaluations by period:', error);
+      throw error;
+    }
+  }
+
+  // Admin-specific user-based evaluation methods
+
+  // Get evaluation by userId (gets the latest evaluation)
+  static async getEvaluationByUserId(userId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Find the latest evaluation for this user
+      const evaluation = await Evaluation.findOne({
+        evaluateeUser: userId,
+        is_deleted: false
+      })
+        .sort({ createdAt: -1 })
+        .populate('evaluateeUser', 'name email idNumber')
+        .lean();
+
+      if (!evaluation) {
+        throw new Error('No evaluation found for this user');
+      }
+
+      // Convert Decimal128 values to numbers
+      return convertDecimal128ToNumber(evaluation);
+    } catch (error) {
+      console.error('Error getting evaluation by userId:', error);
+      throw error;
+    }
+  }
+
+  // Create evaluation by userId
+  static async createEvaluationByUserId(userId, evaluationData) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Find user and get their idNumber
+      const user = await User.findById(userId).select('idNumber role');
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Check if user has applicant role
+      const Role = require('../models/Role');
+      const userRole = await Role.findById(user.role);
+      if (!userRole || userRole.name !== 'applicant') {
+        throw new Error('User must have applicant role to receive evaluations');
+      }
+
+      // Use the existing createEvaluation method with idNumber
+      return await this.createEvaluation({
+        ...evaluationData,
+        idNumber: user.idNumber
+      });
+    } catch (error) {
+      console.error('Error creating evaluation by userId:', error);
+      throw error;
+    }
+  }
+
+  // Update evaluation by userId (updates the latest evaluation)
+  static async updateEvaluationByUserId(userId, updateData) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Find the latest evaluation for this user
+      const evaluation = await Evaluation.findOne({
+        evaluateeUser: userId,
+        is_deleted: false
+      }).sort({ createdAt: -1 });
+
+      if (!evaluation) {
+        throw new Error('No evaluation found for this user');
+      }
+
+      // Use the existing updateEvaluation method
+      return await this.updateEvaluation(evaluation._id, updateData);
+    } catch (error) {
+      console.error('Error updating evaluation by userId:', error);
+      throw error;
+    }
+  }
+
+  // Soft delete evaluation by userId (soft deletes the latest evaluation)
+  static async softDeleteEvaluationByUserId(userId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Find the latest non-deleted evaluation for this user
+      const evaluation = await Evaluation.findOne({
+        evaluateeUser: userId,
+        is_deleted: false
+      }).sort({ createdAt: -1 });
+
+      if (!evaluation) {
+        throw new Error('No active evaluation found for this user');
+      }
+
+      // Use the existing softDeleteEvaluation method
+      return await this.softDeleteEvaluation(evaluation._id);
+    } catch (error) {
+      console.error('Error soft deleting evaluation by userId:', error);
+      throw error;
+    }
+  }
+
+  // Permanently delete evaluation by userId (permanently deletes the latest evaluation)
+  static async permanentDeleteEvaluationByUserId(userId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Find the latest evaluation for this user (including soft-deleted)
+      const evaluation = await Evaluation.findOne({
+        evaluateeUser: userId
+      }).sort({ createdAt: -1 });
+
+      if (!evaluation) {
+        throw new Error('No evaluation found for this user');
+      }
+
+      // Use the existing permanentDeleteEvaluation method
+      return await this.permanentDeleteEvaluation(evaluation._id);
+    } catch (error) {
+      console.error('Error permanently deleting evaluation by userId:', error);
+      throw error;
+    }
+  }
+
+  // Restore evaluation by userId (restores the latest soft-deleted evaluation)
+  static async restoreEvaluationByUserId(userId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Find the latest soft-deleted evaluation for this user
+      const evaluation = await Evaluation.findOne({
+        evaluateeUser: userId,
+        is_deleted: true
+      }).sort({ createdAt: -1 });
+
+      if (!evaluation) {
+        throw new Error('No deleted evaluation found for this user');
+      }
+
+      // Use the existing restoreEvaluation method
+      return await this.restoreEvaluation(evaluation._id);
+    } catch (error) {
+      console.error('Error restoring evaluation by userId:', error);
       throw error;
     }
   }

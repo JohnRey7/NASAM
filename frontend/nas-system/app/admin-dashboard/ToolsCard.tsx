@@ -10,7 +10,7 @@ import DepartmentManagementInline from "@/components/DepartmentManagementInline"
 import CourseManagement from "@/components/CourseManagement";
 import SendNotificationInline from "@/components/SendNotificationInline";
 import { AdminEvaluationControl } from "@/components/admin-evaluation-control";
-import { AdminEvaluationView } from "@/components/admin-evaluation-view";
+import { AdminEvaluationTable } from "@/components/admin-evaluation-table";
 import { AuditLogs } from "@/components/audit-logs";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
@@ -273,8 +273,7 @@ export function ToolsCard() {
             <div className="space-y-6">
               <AdminEvaluationControl />
               <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold mb-4">All Evaluations</h3>
-                <AdminEvaluationView />
+                <AdminEvaluationTable />
               </div>
             </div>
           </div>
