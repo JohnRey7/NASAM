@@ -601,7 +601,8 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
     { key: 'incomeTaxReturn', label: 'Income Tax Return', required: true },
     { key: 'goodMoralCertificate', label: 'Good Moral Certificate', required: true },
     { key: 'physicalCheckup', label: 'Physical Checkup', required: true },
-    { key: 'homeLocationSketch', label: 'Home Location Sketch', required: true }
+    { key: 'homeLocationSketch', label: 'Home Location Sketch', required: true },
+    { key: 'personalityTestPaymentReceipt', label: 'Personality Test Payment Receipt', required: true }
   ];
 
   if (loading) {

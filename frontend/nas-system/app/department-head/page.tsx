@@ -532,7 +532,7 @@ export default function DepartmentHeadDashboardPage() {
         };
         
         // Count uploaded documents
-        const docFields = ['studentPicture', 'nbiClearance', 'gradeReport', 'incomeTaxReturn', 'goodMoralCertificate', 'physicalCheckup', 'homeLocationSketch'];
+        const docFields = ['studentPicture', 'nbiClearance', 'gradeReport', 'incomeTaxReturn', 'goodMoralCertificate', 'physicalCheckup', 'homeLocationSketch', 'personalityTestPaymentReceipt'];
         const totalRequired = docFields.length;
         const totalUploaded = docFields.filter(key => hasDocument(rawDoc[key])).length;
         
@@ -545,7 +545,8 @@ export default function DepartmentHeadDashboardPage() {
             incomeTaxReturn: transformDoc(rawDoc.incomeTaxReturn),
             goodMoralCertificate: transformDoc(rawDoc.goodMoralCertificate),
             physicalCheckup: transformDoc(rawDoc.physicalCheckup),
-            homeLocationSketch: transformDoc(rawDoc.homeLocationSketch)
+            homeLocationSketch: transformDoc(rawDoc.homeLocationSketch),
+            personalityTestPaymentReceipt: transformDoc(rawDoc.personalityTestPaymentReceipt)
           },
           summary: {
             totalUploaded,
@@ -1418,7 +1419,8 @@ export default function DepartmentHeadDashboardPage() {
                                               { key: 'incomeTaxReturn', label: 'Income Tax Return' },
                                               { key: 'goodMoralCertificate', label: 'Good Moral Certificate' },
                                               { key: 'physicalCheckup', label: 'Physical Checkup' },
-                                              { key: 'homeLocationSketch', label: 'Home Location Sketch' }
+                                              { key: 'homeLocationSketch', label: 'Home Location Sketch' },
+                                              { key: 'personalityTestPaymentReceipt', label: 'Personality Test Payment Receipt' }
                                             ].map(({ key, label }) => {
                                               const doc = documents?.documents?.[key];
                                               const isArray = Array.isArray(doc);

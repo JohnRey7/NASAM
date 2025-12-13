@@ -149,6 +149,7 @@ class DocumentUploadService {
           goodMoralCertificate: [],
           physicalCheckup: [],
           homeLocationSketch: [],
+          personalityTestPaymentReceipt: [],
           gradeAverages: null,
           incomeTaxInfo: null,
           createdAt: null,
