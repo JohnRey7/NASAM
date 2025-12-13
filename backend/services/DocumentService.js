@@ -9,9 +9,11 @@ class DocumentService {
   static async uploadDocuments(userId, files, additionalData = {}) {
     try {
       // Validate that at least one file is uploaded
-      if (!files || Object.keys(files).length === 0) {
+      if (!files || files.length === 0) {
         throw new Error('At least one document must be uploaded');
       }
+
+      console.log('📁 Processing files:', files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname })));
 
       // Prepare document data
       const documentData = {
@@ -24,33 +26,39 @@ class DocumentService {
         physicalCheckup: [],
         certificates: [],
         homeLocationSketch: [],
+        personalityTestPaymentReceipt: [],
         // Add grade averages if provided
         gradeAverages: additionalData.gradeAverages || undefined,
         // Add income tax info if provided
         incomeTaxInfo: additionalData.incomeTaxInfo || undefined
       };
 
-      // Process uploaded files
-      for (const field in files) {
-        if (field === 'studentPicture' && files[field].length > 0) {
+      // Process uploaded files (files is now an array from upload.any())
+      files.forEach(file => {
+        const fieldName = file.fieldname;
+        console.log('📁 Processing file for field:', fieldName);
+        
+        if (fieldName === 'studentPicture') {
           // Only take the first file for studentPicture
-          const file = files[field][0];
           documentData.studentPicture = {
             filePath: path.relative(path.join(__dirname, '../'), file.path).replace(/\\/g, '/'),
             originalName: file.originalname,
             uploadedAt: new Date()
           };
-        } else if (documentData.hasOwnProperty(field)) {
+          console.log('📁 Added studentPicture:', documentData.studentPicture);
+        } else if (documentData.hasOwnProperty(fieldName)) {
           // Handle array fields
-          documentData[field] = files[field].map(file => ({
+          const fileData = {
             filePath: path.relative(path.join(__dirname, '../'), file.path).replace(/\\/g, '/'),
             originalName: file.originalname,
             uploadedAt: new Date()
-          }));
+          };
+          documentData[fieldName].push(fileData);
+          console.log(`📁 Added ${fieldName}:`, fileData);
         } else {
-          console.warn(`Unknown field ${field} received in file upload`);
+          console.warn(`Unknown field ${fieldName} received in file upload`);
         }
-      }
+      });
 
       // Check if user already has documents
       let document = await DocumentUpload.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: userId }));
@@ -58,7 +66,7 @@ class DocumentService {
       
       if (document) {
         // For studentPicture (single field): collect old file for deletion if being replaced
-        if (documentData.studentPicture && document.studentPicture) {
+        if (documentData.studentPicture && document.studentPicture && document.studentPicture.filePath) {
           oldFiles.push(path.join(__dirname, '../', document.studentPicture.filePath));
         }
 
@@ -88,6 +96,9 @@ class DocumentService {
       }
 
       await document.save();
+      console.log('✅ Document saved successfully with ID:', document._id);
+      console.log('✅ Document user field:', document.user);
+      console.log('✅ Document is_deleted field:', document.is_deleted);
 
       // Delete old files from storage after successful save
       if (oldFiles.length > 0) {
@@ -110,6 +121,7 @@ class DocumentService {
           physicalCheckup: document.physicalCheckup,
           certificates: document.certificates,
           homeLocationSketch: document.homeLocationSketch,
+          personalityTestPaymentReceipt: document.personalityTestPaymentReceipt,
           gradeAverages: document.gradeAverages,
           incomeTaxInfo: document.incomeTaxInfo,
           createdAt: document.createdAt,
@@ -124,10 +136,25 @@ class DocumentService {
 
   static async getDocuments(userId) {
     try {
-      const document = await DocumentUpload.findOne(SoftDeleteUtils.addSoftDeleteFilter({ user: userId }))
+      console.log('🔍 Getting documents for user ID:', userId);
+      const query = SoftDeleteUtils.addSoftDeleteFilter({ user: userId });
+      console.log('🔍 Query with soft delete filter:', query);
+      
+      const document = await DocumentUpload.findOne(query)
         .populate('user', 'name idNumber email');
 
+      console.log('🔍 Found document:', !!document);
+      if (document) {
+        console.log('🔍 Document fields:', Object.keys(document.toObject()));
+      }
+
       if (!document) {
+        // Check if document exists without soft delete filter
+        const documentWithoutFilter = await DocumentUpload.findOne({ user: userId });
+        console.log('🔍 Document exists without soft delete filter:', !!documentWithoutFilter);
+        if (documentWithoutFilter) {
+          console.log('🔍 Document is_deleted status:', documentWithoutFilter.is_deleted);
+        }
         throw new Error('Documents not found for this user');
       }
 
@@ -143,6 +170,7 @@ class DocumentService {
           physicalCheckup: document.physicalCheckup,
           certificates: document.certificates,
           homeLocationSketch: document.homeLocationSketch,
+          personalityTestPaymentReceipt: document.personalityTestPaymentReceipt,
           gradeAverages: document.gradeAverages,
           incomeTaxInfo: document.incomeTaxInfo,
           createdAt: document.createdAt,
@@ -171,7 +199,8 @@ class DocumentService {
         ...document.goodMoralCertificate,
         ...document.physicalCheckup,
         ...document.certificates,
-        ...document.homeLocationSketch
+        ...document.homeLocationSketch,
+        ...document.personalityTestPaymentReceipt
       ].map(doc => path.join(__dirname, '../', doc.filePath));
 
       await this.deleteFiles(filesToDelete);
@@ -197,14 +226,12 @@ class DocumentService {
   }
 
   static async cleanupUploadedFiles(files) {
-    if (files) {
-      for (const field in files) {
-        for (const file of files[field]) {
-          try {
-            await fs.unlink(file.path);
-          } catch (unlinkError) {
-            console.warn(`Failed to clean up file ${file.path}:`, unlinkError.message);
-          }
+    if (files && Array.isArray(files)) {
+      for (const file of files) {
+        try {
+          await fs.unlink(file.path);
+        } catch (unlinkError) {
+          console.warn(`Failed to clean up file ${file.path}:`, unlinkError.message);
         }
       }
     }
@@ -213,13 +240,25 @@ class DocumentService {
   static async createUploadNotification(userId, files) {
     try {
       const uploadedTypes = [];
-      if (files.studentPicture) uploadedTypes.push('Student Picture');
-      if (files.nbiClearance) uploadedTypes.push('NBI Clearance');
-      if (files.gradeReport) uploadedTypes.push('Grade Report');
-      if (files.incomeTaxReturn) uploadedTypes.push('Income Tax Return');
-      if (files.goodMoralCertificate) uploadedTypes.push('Good Moral Certificate');
-      if (files.physicalCheckup) uploadedTypes.push('Physical Checkup');
-      if (files.homeLocationSketch) uploadedTypes.push('Home Location Sketch');
+      const fieldNameMap = {
+        studentPicture: 'Student Picture',
+        nbiClearance: 'NBI Clearance',
+        gradeReport: 'Grade Report',
+        incomeTaxReturn: 'Income Tax Return',
+        goodMoralCertificate: 'Good Moral Certificate',
+        physicalCheckup: 'Physical Checkup',
+        homeLocationSketch: 'Home Location Sketch',
+        personalityTestPaymentReceipt: 'Personality Test Payment Receipt'
+      };
+
+      // Extract unique field names from files array
+      const uniqueFields = [...new Set(files.map(file => file.fieldname))];
+      
+      uniqueFields.forEach(fieldName => {
+        if (fieldNameMap[fieldName]) {
+          uploadedTypes.push(fieldNameMap[fieldName]);
+        }
+      });
 
       if (uploadedTypes.length > 0) {
         const userApplication = await ApplicationForm.findOne({ user: userId });

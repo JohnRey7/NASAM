@@ -5,6 +5,13 @@ const DocumentController = {
   // Upload or update documents for the authenticated user
   async uploadDocuments(req, res) {
     try {
+      console.log('📥 Backend: Upload request received');
+      console.log('📥 Backend: User ID:', req.user.id);
+      console.log('📥 Backend: Files received:', req.files ? req.files.length : 0);
+      console.log('📥 Backend: File details:', req.files ? req.files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname, size: f.size })) : 'No files');
+      console.log('📥 Backend: Body keys:', Object.keys(req.body));
+      console.log('📥 Backend: Body content:', req.body);
+      
       // Parse grade averages and income tax info from request body
       let gradeAverages = null;
       let incomeTaxInfo = null;
@@ -58,11 +65,15 @@ const DocumentController = {
     // Get documents for the authenticated user
   async getDocuments(req, res) {
     try {
+      console.log('🎯 DocumentController.getDocuments called for user:', req.user.id);
+      console.log('🎯 User object:', { id: req.user.id, idNumber: req.user.idNumber, role: req.user.role });
+      
       const result = await DocumentService.getDocuments(req.user.id);
       
+      console.log('🎯 Successfully retrieved documents');
       res.json(result);
     } catch (error) {
-      console.error('Error in getDocuments:', error);
+      console.error('❌ Error in getDocuments:', error);
       if (error.message.includes('not found')) {
         return res.status(404).json({ message: error.message });
       }

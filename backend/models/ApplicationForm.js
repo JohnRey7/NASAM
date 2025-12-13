@@ -171,8 +171,14 @@ const applicationFormSchema = new mongoose.Schema({
     },
   status: {
     type: String,
-    enum: ['draft', 'pending', 'form_verified', 'document_verification', 'interview_scheduled', 'approved', 'rejected'],
+    enum: ['draft', 'pending', 'form_verified', 'document_verification', 'interview_scheduled', 'pending_evaluation', 'approved', 'rejected'],
     default: 'pending'
+  },
+  // Store previous status for reverting interview finish
+  previousStatus: {
+    type: String,
+    enum: ['draft', 'pending', 'form_verified', 'document_verification', 'interview_scheduled', 'pending_evaluation', 'approved', 'rejected'],
+    default: null
   },
   // Application form verification fields
   verifiedAt: { type: Date },

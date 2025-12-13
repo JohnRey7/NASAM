@@ -23,6 +23,8 @@ interface InterviewData {
   _id: string;
   interviewId: string;
   applicantName: string;
+  applicantEmail?: string;
+  applicantIdNumber?: string;
   course: string;
   courseId?: string;
   department?: string;
@@ -32,6 +34,17 @@ interface InterviewData {
   applicationStatus?: string;
   idNumber?: string;
   hasEvaluation?: boolean;
+  // Backend fields
+  applicationId?: any;
+  interviewer?: any;
+  type?: string;
+  startTime?: string;
+  endTime?: string;
+  is_finished?: boolean;
+  is_deleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  programOfStudyAndYear?: string;
 }
 
 // Helper function to safely extract numeric values from MongoDB $numberDecimal format
@@ -208,19 +221,26 @@ export default function DepartmentHeadDashboardPage() {
   }, [searchTerm]);
 
   // Function to fetch application details
-  const fetchApplicationDetails = async (applicantId: string) => {
+  const fetchApplicationDetails = async (applicationId: string) => {
     try {
-      console.log('🔍 Fetching application details for:', applicantId);
+      console.log('🔍 Fetching application details for applicationId:', applicationId);
       
-      // First, try to find the applicant in the scholars array to get the applicationId
-      const applicant = scholars.find((app: any) => (app.id || app._id) === applicantId);
-      const applicationId = applicant?.applicationId || applicantId;
-      
-      // Fetch full application data from the API
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application/${applicationId}`,
+      // Fetch full application data from the department-head API endpoint
+      let response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/application/${applicationId}`,
         { credentials: 'include' }
       );
+      
+      // Fallback to general application endpoint if department-head endpoint fails
+      if (!response.ok) {
+        console.log('📋 Department head endpoint failed, trying general endpoint...');
+        response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application/${applicationId}`,
+          { credentials: 'include' }
+        );
+      }
+      
+      console.log('📋 Application API response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
@@ -273,21 +293,22 @@ export default function DepartmentHeadDashboardPage() {
           setScholarEvaluations([]);
         }
       } else {
-        console.warn('⚠️ Failed to fetch application data, using fallback');
+        console.warn('⚠️ Failed to fetch application data, using fallback. Status:', response.status);
         // Fallback to interview data
-        const interview = interviews.find(i => i._id === applicantId);
+        const interview = interviews.find(i => i._id === applicationId || i.applicationId?._id === applicationId);
         if (interview) {
           setApplicationDetails({
             _id: interview._id,
-            userId: interview._id,
-            firstName: interview.applicantName.split(' ')[0] || '',
-            lastName: interview.applicantName.split(' ').slice(1).join(' ') || '',
-            idNumber: 'N/A',
-            email: 'N/A',
+            userId: interview.applicationId?.user?._id || interview._id,
+            applicationId: interview.applicationId?._id,
+            firstName: interview.applicantName?.split(' ')[0] || '',
+            lastName: interview.applicantName?.split(' ').slice(1).join(' ') || '',
+            idNumber: interview.applicantIdNumber || 'N/A',
+            email: interview.applicantEmail || 'N/A',
             contactNumber: 'N/A',
             dateOfBirth: 'N/A',
             gender: 'N/A',
-            programOfStudyAndYear: interview.course,
+            programOfStudyAndYear: interview.course || interview.programOfStudyAndYear || 'N/A',
             gpa: 'N/A',
             yearLevel: 'N/A',
             school: 'CIT-University',
@@ -321,8 +342,8 @@ export default function DepartmentHeadDashboardPage() {
         return;
       }
       
-      // Use the /api/evaluations/user/:idNumber endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/evaluations/user/${idNumber}`, {
+      // Use the department-head specific endpoint for fetching evaluations
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/evaluation/user/${idNumber}`, {
         credentials: 'include'
       });
       
@@ -433,38 +454,112 @@ export default function DepartmentHeadDashboardPage() {
     setDocumentsLoading(true);
     setDocuments(null);
     try {
-      let response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents`,
-        { credentials: 'include' }
-      );
+      console.log('📄 Fetching documents:', { applicationId, userId, idNumber });
+      
+      let response: Response | null = null;
+      
+      // Try department-head specific endpoint first (using idNumber)
+      if (idNumber) {
+        response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/documents/${idNumber}`,
+          { credentials: 'include' }
+        );
+        console.log('📄 Department head documents endpoint response:', response.status);
+      }
 
-      if (!response.ok && idNumber) {
+      // Fallback to OAS endpoint
+      if (!response?.ok) {
+        response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/${applicationId}/documents`,
+          { credentials: 'include' }
+        );
+        console.log('📄 OAS documents endpoint response:', response.status);
+      }
+
+      // Fallback to document endpoint
+      if (!response?.ok && idNumber) {
         response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document/${idNumber}`,
           { credentials: 'include' }
         );
+        console.log('📄 Document endpoint response:', response.status);
       }
 
-      if (!response.ok && userId) {
+      // Fallback to document-uploads endpoint
+      if (!response?.ok && userId) {
         response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/user/${userId}`,
           { credentials: 'include' }
         );
+        console.log('📄 Document uploads endpoint response:', response.status);
       }
 
-      if (response.ok) {
+      if (response?.ok) {
         const data = await response.json();
-        if (data.success !== undefined) {
-          setDocuments(data);
-        } else if (data.data) {
-          setDocuments({
-            success: true,
-            documents: data.data,
-            gradeAverages: data.data.gradeAverages,
-            incomeTaxInfo: data.data.incomeTaxInfo,
-            userId: data.data.user
-          });
-        }
+        console.log('📄 Documents raw data:', data);
+        
+        // Transform the data to match frontend expected structure
+        const rawDoc = data.data || data;
+        
+        // Helper function to check if a document field has content
+        const hasDocument = (field: any) => {
+          if (!field) return false;
+          if (Array.isArray(field)) return field.length > 0;
+          if (typeof field === 'object') return field.uploaded || field.filePath || field.filename;
+          return false;
+        };
+        
+        // Helper function to transform document field
+        const transformDoc = (field: any) => {
+          if (!field) return { uploaded: false };
+          if (Array.isArray(field)) {
+            return field.map(f => ({
+              uploaded: true,
+              filePath: f.filePath || f.filename,
+              originalName: f.originalName,
+              uploadedAt: f.uploadedAt || f.createdAt
+            }));
+          }
+          if (typeof field === 'object' && (field.filePath || field.filename)) {
+            return {
+              uploaded: true,
+              filePath: field.filePath || field.filename,
+              originalName: field.originalName,
+              uploadedAt: field.uploadedAt || field.createdAt
+            };
+          }
+          return { uploaded: false };
+        };
+        
+        // Count uploaded documents
+        const docFields = ['studentPicture', 'nbiClearance', 'gradeReport', 'incomeTaxReturn', 'goodMoralCertificate', 'physicalCheckup', 'homeLocationSketch'];
+        const totalRequired = docFields.length;
+        const totalUploaded = docFields.filter(key => hasDocument(rawDoc[key])).length;
+        
+        const transformedData = {
+          success: true,
+          documents: {
+            studentPicture: transformDoc(rawDoc.studentPicture),
+            nbiClearance: transformDoc(rawDoc.nbiClearance),
+            gradeReport: transformDoc(rawDoc.gradeReport),
+            incomeTaxReturn: transformDoc(rawDoc.incomeTaxReturn),
+            goodMoralCertificate: transformDoc(rawDoc.goodMoralCertificate),
+            physicalCheckup: transformDoc(rawDoc.physicalCheckup),
+            homeLocationSketch: transformDoc(rawDoc.homeLocationSketch)
+          },
+          summary: {
+            totalUploaded,
+            totalRequired,
+            completionRate: Math.round((totalUploaded / totalRequired) * 100),
+            isComplete: totalUploaded === totalRequired
+          },
+          gradeAverages: rawDoc.gradeAverages,
+          incomeTaxInfo: rawDoc.incomeTaxInfo,
+          userId: rawDoc.user
+        };
+        
+        console.log('📄 Transformed documents data:', transformedData);
+        setDocuments(transformedData);
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -478,13 +573,27 @@ export default function DepartmentHeadDashboardPage() {
     if (!userId) return;
     setPersonalityTestLoading(true);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/user/${userId}`,
+      console.log('🧠 Fetching personality test for userId:', userId);
+      
+      // Try department-head specific endpoint first
+      let response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/personality-test/user/${userId}`,
         { credentials: 'include' }
       );
+      console.log('🧠 Department head personality test endpoint response:', response.status);
+      
+      // Fallback to general endpoint
+      if (!response.ok) {
+        response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/user/${userId}`,
+          { credentials: 'include' }
+        );
+        console.log('🧠 General personality test endpoint response:', response.status);
+      }
 
       if (response.ok) {
         const data = await response.json();
+        console.log('🧠 Personality test data:', data);
         setPersonalityTestData(data);
       } else if (response.status === 404) {
         setPersonalityTestData(null);
@@ -499,23 +608,29 @@ export default function DepartmentHeadDashboardPage() {
 
   // Fetch interview data for application
   const fetchInterviewData = async (applicationId: string) => {
+    console.log('📅 Fetching interview data for applicationId:', applicationId);
     setInterviewLoading(true);
     setInterviewData(null);
     try {
+      // Use /all endpoint to get all interviews including DepartmentHead type
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/application/${applicationId}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/application/${applicationId}/all`,
         { credentials: 'include' }
       );
       
+      console.log('📅 Interview API response status:', response.status);
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('📅 Interview data received:', result);
         setInterviewData(result);
       } else {
-        setInterviewData({ interview: null, isScheduled: false });
+        console.log('📅 Interview API failed, setting null');
+        setInterviewData({ interviews: [], isScheduled: false });
       }
     } catch (error) {
       console.error('Error fetching interview data:', error);
-      setInterviewData({ interview: null, isScheduled: false });
+      setInterviewData({ interviews: [], isScheduled: false });
     } finally {
       setInterviewLoading(false);
     }
@@ -817,7 +932,7 @@ export default function DepartmentHeadDashboardPage() {
     }
   }, [applicationDetails?.idNumber]);
 
-  // Fetch real data from backend with pagination
+  // Fetch real data from backend with pagination (using new interviews endpoint)
   const fetchApplicants = async (page: number = 1, append: boolean = false) => {
     if (append) {
       setLoadingMore(true);
@@ -826,19 +941,32 @@ export default function DepartmentHeadDashboardPage() {
     }
     
     try {
-      console.log('🔍 Department Head Dashboard: Fetching page', page);
+      console.log('🔍 Department Head Dashboard: Fetching interviews page', page);
       
-      // Fetch applicants with pagination
-      const response = await departmentHeadService.getAssignedApplicants(page, PAGE_SIZE, debouncedSearch);
+      // Fetch interviews with pagination (limit 50 per page)
+      const response = await departmentHeadService.getScheduledInterviews(page, 50, debouncedSearch);
       console.log('🔍 Department Head Dashboard: API response data:', response);
       
-      const { applicants = [], pagination = {} } = response;
+      const { interviews = [], total = 0, page: responsePage = 1, pages = 1, limit = 50 } = response;
       
       // Update pagination state
-      setCurrentPage(pagination.page || page);
-      setTotalPages(pagination.totalPages || 1);
-      setTotalApplicants(pagination.total || 0);
-      setHasMore(pagination.hasNext || false);
+      setCurrentPage(responsePage);
+      setTotalPages(pages);
+      setTotalApplicants(total);
+      setHasMore(responsePage < pages);
+      
+      // Transform interviews to applicants format for scholars state
+      const applicants = interviews.map((interview: any) => ({
+        id: interview.applicationId?.user?._id,
+        _id: interview.applicationId?.user?._id,
+        name: interview.applicantName || interview.applicationId?.user?.name,
+        idNumber: interview.applicantIdNumber || interview.applicationId?.user?.idNumber,
+        email: interview.applicantEmail || interview.applicationId?.user?.email,
+        course: interview.course || interview.programOfStudyAndYear,
+        applicationStatus: interview.applicationId?.status,
+        interview: interview,
+        evaluation: null // Will be loaded separately if needed
+      }));
       
       // Update scholars - append or replace
       if (append) {
@@ -847,33 +975,30 @@ export default function DepartmentHeadDashboardPage() {
         setScholars(applicants);
       }
       
-      // Transform applicants data to interview format
-      // Interview data is now included from backend to avoid N+1 queries
-      const newInterviewsData: InterviewData[] = applicants.map((applicant: any, index: number) => {
+      // Transform interviews data to InterviewData format
+      // Use the backend-provided fields directly
+      const newInterviewsData: InterviewData[] = interviews.map((interview: any) => {
         let schedule = 'To be scheduled';
         let status: InterviewData['status'] = 'not yet scheduled';
         
         // Determine status based on the application process stage
         // Check application status first (approved/rejected takes priority)
-        if (applicant.applicationStatus === 'approved') {
+        if (interview.applicationId?.status === 'approved') {
           status = 'approved';
-        } else if (applicant.applicationStatus === 'rejected') {
+        } else if (interview.applicationId?.status === 'rejected') {
           status = 'rejected';
-        } else if (applicant.evaluation) {
-          // Has evaluation
-          status = 'evaluated';
-        } else if (applicant.interview && applicant.interview.is_finished === true) {
+        } else if (interview.is_finished === true) {
           // Interview completed but no evaluation yet
           status = 'pending evaluation';
-        } else if (applicant.interview && applicant.interview.startTime) {
+        } else if (interview.startTime) {
           // Interview scheduled but not completed
           status = 'pending interview';
         }
         // else: not yet scheduled (default)
         
         // Set schedule if interview exists
-        if (applicant.interview && applicant.interview.startTime) {
-          schedule = new Date(applicant.interview.startTime).toLocaleString('en-US', {
+        if (interview.startTime) {
+          schedule = new Date(interview.startTime).toLocaleString('en-US', {
             year: 'numeric',
             month: 'short', 
             day: 'numeric',
@@ -883,15 +1008,25 @@ export default function DepartmentHeadDashboardPage() {
         }
         
         return {
-          _id: applicant.id || applicant._id,
-          interviewId: `INT-${new Date().getFullYear()}-${String((page - 1) * PAGE_SIZE + index + 1).padStart(3, '0')}`,
-          applicantName: applicant.name || `${applicant.firstName || ''} ${applicant.lastName || ''}`.trim(),
-          course: applicant.course || applicant.programOfStudyAndYear || 'Not specified',
-          courseId: applicant.courseId,
-          department: applicant.department,
-          departmentCode: applicant.departmentCode,
+          _id: interview._id,
+          interviewId: interview.interviewId,
+          applicantName: interview.applicantName,
+          applicantEmail: interview.applicantEmail,
+          applicantIdNumber: interview.applicantIdNumber,
+          course: interview.course,
+          courseId: interview.applicationId?.user?.course?.courseId,
+          department: userDepartment?.name,
+          departmentCode: userDepartment?.departmentCode,
           schedule,
-          status
+          status,
+          // Preserve backend data for fetching details
+          applicationId: interview.applicationId,
+          interviewer: interview.interviewer,
+          type: interview.type,
+          startTime: interview.startTime,
+          endTime: interview.endTime,
+          is_finished: interview.is_finished,
+          programOfStudyAndYear: interview.programOfStudyAndYear
         };
       });
       
@@ -914,7 +1049,7 @@ export default function DepartmentHeadDashboardPage() {
         });
       }
       
-      console.log('📊 Loaded', applicants.length, 'applicants. Total:', pagination.total);
+      console.log('📊 Loaded', applicants.length, 'applicants. Total:', total);
     } catch (error) {
       console.error('Error fetching department applicants:', error);
       toast({
@@ -1120,17 +1255,33 @@ export default function DepartmentHeadDashboardPage() {
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
-                                    onClick={() => {
+                                    onClick={async () => {
                                       setSelectedApplication(interview);
                                       setSelectedEvaluation(null);
-                                      fetchApplicationDetails(interview._id);
-                                      // Fetch additional data
-                                      const appId = applicationDetails?.applicationId || interview._id;
-                                      const userId = applicationDetails?.userId || interview._id;
-                                      const idNumber = applicationDetails?.idNumber;
-                                      fetchDocuments(appId, userId, idNumber);
-                                      fetchPersonalityTestData(userId);
-                                      fetchInterviewData(appId);
+                                      
+                                      // Get the correct IDs from the interview object
+                                      // applicationId is the nested object from backend with _id
+                                      const appId = interview.applicationId?._id;
+                                      const userId = interview.applicationId?.user?._id;
+                                      const idNumber = interview.applicantIdNumber;
+                                      
+                                      console.log('🔍 Opening application details:', {
+                                        interviewId: interview._id,
+                                        applicationId: appId,
+                                        userId: userId,
+                                        idNumber: idNumber,
+                                        fullApplicationId: interview.applicationId
+                                      });
+                                      
+                                      // Fetch application details first
+                                      if (appId) {
+                                        await fetchApplicationDetails(appId);
+                                        fetchDocuments(appId, userId, idNumber);
+                                        fetchInterviewData(appId);
+                                      }
+                                      if (userId) {
+                                        fetchPersonalityTestData(userId);
+                                      }
                                     }}
                                   >
                                     <Eye className="h-4 w-4" />
@@ -1618,13 +1769,10 @@ export default function DepartmentHeadDashboardPage() {
                                                                 : "Interview has been marked as finished.",
                                                             });
 
-                                                            if (!deptHeadInterview.is_finished) {
-                                                              window.location.reload();
-                                                              return;
-                                                            }
-
-                                                            if (selectedApplication) {
-                                                              fetchInterviewData(selectedApplication._id);
+                                                            // Refresh interview data using the correct application ID
+                                                            const appId = selectedApplication?.applicationId?._id || applicationDetails?.applicationId;
+                                                            if (appId) {
+                                                              await fetchInterviewData(appId);
                                                             }
                                                           } else {
                                                             throw new Error(result.message || 'Failed to update interview status');
@@ -1829,7 +1977,8 @@ export default function DepartmentHeadDashboardPage() {
                                     // Check if evaluation exists for this scholar
                                     if (idNumber) {
                                       try {
-                                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/evaluations/user/${idNumber}`, {
+                                        // Use department-head specific endpoint for fetching evaluations
+                                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/evaluation/user/${idNumber}`, {
                                           credentials: 'include'
                                         });
                                         if (response.ok) {

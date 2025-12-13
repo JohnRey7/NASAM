@@ -33,6 +33,12 @@ const storage = multer.diskStorage({
 
 // File filter for allowed mime types
 const fileFilter = (req, file, cb) => {
+  // Skip validation for non-file fields (text fields like gradeAverages, incomeTaxInfo)
+  if (!file.mimetype) {
+    cb(null, true);
+    return;
+  }
+
   const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
@@ -46,16 +52,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-}).fields([
-  { name: 'studentPicture', maxCount: 1 },
-  { name: 'nbiClearance', maxCount: 5 },
-  { name: 'gradeReport', maxCount: 5 },
-  { name: 'incomeTaxReturn', maxCount: 5 },
-  { name: 'goodMoralCertificate', maxCount: 5 },
-  { name: 'physicalCheckup', maxCount: 5 },
-  { name: 'certificates', maxCount: 5 },
-  { name: 'homeLocationSketch', maxCount: 5 }
-]);
+}).any(); // Use any() to accept any field including text fields
 
 
 // Export middleware

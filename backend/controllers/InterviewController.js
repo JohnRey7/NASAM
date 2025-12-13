@@ -540,6 +540,30 @@ const InterviewController = {
       }
       res.status(500).json({ success: false, message: 'Server error' });
     }
+  },
+
+  // GET: Get scheduled interviews for department head (with pagination)
+  async getInterviewsForDepartmentHead(req, res) {
+    try {
+      const { page = 1, limit = 50, search = '' } = req.query;
+      
+      const result = await InterviewService.getInterviewsForDepartmentHead(
+        req.user.id,
+        {
+          page: parseInt(page),
+          limit: Math.min(parseInt(limit), 50), // Max 50 per page
+          search
+        }
+      );
+      
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error in getInterviewsForDepartmentHead:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: `Server error: ${error.message}` });
+    }
   }
 };
 

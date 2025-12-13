@@ -11,7 +11,8 @@ export interface User {
   roleId?: string;
   departmentCode?: string;
   courseId?: string;
-  is_disabled: boolean;
+  disabled: boolean;
+  verified: boolean;
   is_deleted: boolean;
   createdAt: string;
 }
@@ -80,6 +81,16 @@ const userService = {
 
   getDeletedUsers: async () => {
     const response = await axios.get(`${API_URL}/users/deleted`, { withCredentials: true });
+    return response.data;
+  },
+
+  restoreUser: async (id: string) => {
+    const response = await axios.put(`${API_URL}/users/${id}/restore`, {}, { withCredentials: true });
+    return response.data;
+  },
+
+  permanentDeleteUser: async (id: string) => {
+    const response = await axios.delete(`${API_URL}/users/${id}/permanent`, { withCredentials: true });
     return response.data;
   }
 };

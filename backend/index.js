@@ -10,6 +10,7 @@ console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
 
 const express = require('express');
 const mongoose = require('mongoose');
+const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -176,7 +177,7 @@ app.get('/api/notifications-test', (req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  if (err instanceof mongoose.MulterError) {
+  if (err instanceof multer.MulterError) {
     return res.status(400).json({ message: `File upload error: ${err.message}` });
   }
   res.status(500).json({ message: 'Something went wrong!' });

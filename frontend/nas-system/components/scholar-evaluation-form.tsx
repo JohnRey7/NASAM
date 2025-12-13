@@ -143,7 +143,8 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
         }
         
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
-        await axios.post(`${API_URL}/evaluations/${idNumber}`, evaluationPayload, {
+        // Use department-head specific endpoint for creating evaluations
+        await axios.post(`${API_URL}/department-head/evaluation/${idNumber}`, evaluationPayload, {
           withCredentials: true
         })
         

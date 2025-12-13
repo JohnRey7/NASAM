@@ -8,14 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Search, Pencil, Trash2, Ban, CheckCircle } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, Ban, CheckCircle, Undo2, X } from "lucide-react"
 import userService, { User, CreateUserData } from "@/services/userService"
 import roleService, { Role } from "@/services/roleService"
 import departmentService, { Department } from "@/services/departmentService"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function UserList() {
+  const [activeTab, setActiveTab] = useState<"active" | "deleted">("active")
   const [users, setUsers] = useState<User[]>([])
+  const [deletedUsers, setDeletedUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,6 +41,7 @@ export function UserList() {
 
   useEffect(() => {
     fetchUsers()
+    fetchDeletedUsers()
     fetchRoles()
     fetchDepartments()
   }, [])
@@ -59,6 +63,16 @@ export function UserList() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchDeletedUsers = async () => {
+    try {
+      const response = await userService.getDeletedUsers()
+      console.log("Fetched deleted users:", response)
+      setDeletedUsers(response.users || [])
+    } catch (error: any) {
+      console.error("Error fetching deleted users:", error)
     }
   }
 
@@ -135,6 +149,7 @@ export function UserList() {
       await userService.deleteUser(id)
       toast({ title: "Success", description: "User deleted successfully" })
       fetchUsers()
+      fetchDeletedUsers()
     } catch (error) {
       toast({
         title: "Error",
@@ -144,9 +159,40 @@ export function UserList() {
     }
   }
 
+  const handleRestore = async (id: string) => {
+    if (!confirm("Are you sure you want to restore this user?")) return
+    try {
+      await userService.restoreUser(id)
+      toast({ title: "Success", description: "User restored successfully" })
+      fetchUsers()
+      fetchDeletedUsers()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to restore user",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handlePermanentDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to PERMANENTLY delete this user? This action cannot be undone!")) return
+    try {
+      await userService.permanentDeleteUser(id)
+      toast({ title: "Success", description: "User permanently deleted" })
+      fetchDeletedUsers()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to permanently delete user",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleToggleStatus = async (user: User) => {
     try {
-      if (user.is_disabled) {
+      if (user.disabled) {
         await userService.enableUser(user._id)
         toast({ title: "Success", description: "User enabled successfully" })
       } else {
@@ -181,6 +227,118 @@ export function UserList() {
     return selectedRole?.name === "department_head"
   }
 
+  const getStatusBadge = (user: User) => {
+    if (user.disabled) {
+      return <Badge className="bg-red-600 hover:bg-red-700">Disabled</Badge>
+    }
+    if (!user.verified) {
+      return <Badge className="bg-gray-500 hover:bg-gray-600">Not Verified</Badge>
+    }
+    return <Badge className="bg-green-600 hover:bg-green-700">Active</Badge>
+  }
+
+  const renderUserTable = (userList: User[], isDeleted: boolean = false) => (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>ID Number</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-center">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-8">
+                Loading users...
+              </TableCell>
+            </TableRow>
+          ) : userList.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-8">
+                No users found
+              </TableCell>
+            </TableRow>
+          ) : (
+            userList.map((user) => (
+              <TableRow key={user._id}>
+                <TableCell className="font-medium">{user.name}</TableCell>
+                <TableCell>{user.idNumber}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="capitalize">
+                    {typeof user.role === 'object' && user.role !== null ? (user.role as any).name : user.role}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {getStatusBadge(user)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    {!isDeleted && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleStatus(user)}
+                          title={user.disabled ? "Enable User" : "Disable User"}
+                        >
+                          {user.disabled ? (
+                            <Undo2 className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Ban className="h-4 w-4 text-orange-600" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(user)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(user._id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </>
+                    )}
+                    {isDeleted && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRestore(user._id)}
+                          title="Restore User"
+                        >
+                          <Undo2 className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePermanentDelete(user._id)}
+                          title="Permanently Delete User"
+                        >
+                          <X className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+
   return (
     <div className="space-y-4">
       {error && (
@@ -200,189 +358,122 @@ export function UserList() {
             <Search className="h-4 w-4" />
           </Button>
         </form>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open)
-          if (!open) resetForm()
-        }}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#800000] hover:bg-[#600000]">
-              <Plus className="mr-2 h-4 w-4" /> Add User
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="idNumber">ID Number</Label>
-                <Input
-                  id="idNumber"
-                  value={formData.idNumber}
-                  onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
-                  required
-                  disabled={!!editingUser}
-                />
-              </div>
-              {!editingUser && (
+        <div className="flex gap-2 items-center">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "deleted")}>
+            <TabsList>
+              <TabsTrigger value="active">Active Users</TabsTrigger>
+              <TabsTrigger value="deleted">Deleted Users</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open)
+            if (!open) resetForm()
+          }}>
+            <DialogTrigger asChild>
+              <Button className="bg-[#800000] hover:bg-[#600000]">
+                <Plus className="mr-2 h-4 w-4" /> Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="name">Full Name</Label>
                   <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
                 </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={formData.roleId}
-                  onValueChange={(value) => setFormData({ ...formData, roleId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem key={role._id} value={role._id}>
-                        {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {isDepartmentHeadRole() && (
                 <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Select
-                    value={formData.departmentCode}
-                    onValueChange={(value) => setFormData({ ...formData, departmentCode: value })}
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="idNumber">ID Number</Label>
+                  <Input
+                    id="idNumber"
+                    value={formData.idNumber}
+                    onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
+                    required
+                    disabled={!!editingUser}
+                  />
+                </div>
+                {!editingUser && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    value={formData.roleId}
+                    onValueChange={(value) => setFormData({ ...formData, roleId: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
+                      <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept._id} value={dept.departmentCode}>
-                          {dept.name} ({dept.departmentCode})
+                      {roles.map((role) => (
+                        <SelectItem key={role._id} value={role._id}>
+                          {role.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
 
-              <DialogFooter>
-                <Button type="submit" className="bg-[#800000] hover:bg-[#600000]">
-                  {editingUser ? "Update" : "Create"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                {isDepartmentHeadRole() && (
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Select
+                      value={formData.departmentCode}
+                      onValueChange={(value) => setFormData({ ...formData, departmentCode: value })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments.map((dept) => (
+                          <SelectItem key={dept._id} value={dept.departmentCode}>
+                            {dept.name} ({dept.departmentCode})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <DialogFooter>
+                  <Button type="submit" className="bg-[#800000] hover:bg-[#600000]">
+                    {editingUser ? "Update" : "Create"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>ID Number</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  Loading users...
-                </TableCell>
-              </TableRow>
-            ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  No users found
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map((user) => (
-                <TableRow key={user._id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.idNumber}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {typeof user.role === 'object' && user.role !== null ? (user.role as any).name : user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={user.is_disabled ? "destructive" : "default"} className={!user.is_disabled ? "bg-green-600" : ""}>
-                      {user.is_disabled ? "Disabled" : "Active"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleToggleStatus(user)}
-                        title={user.is_disabled ? "Enable User" : "Disable User"}
-                      >
-                        {user.is_disabled ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <Ban className="h-4 w-4 text-orange-600" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(user)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(user._id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {activeTab === "active" && renderUserTable(users, false)}
+      {activeTab === "deleted" && renderUserTable(deletedUsers, true)}
     </div>
   )
 }

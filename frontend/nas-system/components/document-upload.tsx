@@ -352,19 +352,36 @@ export function DocumentUpload() {
         }
       }
       
-      await documentService.uploadDocuments(documents, uploadData.gradeAverages, uploadData.incomeTaxInfo)
+      const result = await documentService.uploadDocuments(documents, uploadData.gradeAverages, uploadData.incomeTaxInfo)
 
       if (interval) clearInterval(interval)
-      setDocuments((prev) =>
-        prev.map((doc) => ({ ...doc, progress: 100, status: "complete" }))
-      )
-
-      const fetchedDocuments = await documentService.getDocuments()
-      setDocuments(fetchedDocuments)
+      
+      // Use the documents returned from upload instead of making another API call
+      setDocuments(result.documents)
+      
+      // Update grade averages and income tax info from the response
+      if (result.gradeAverages) {
+        setGradeAverages({
+          elementary: result.gradeAverages.elementary?.toString() || '',
+          juniorHighSchool: result.gradeAverages.juniorHighSchool?.toString() || '',
+          seniorHighSchool: result.gradeAverages.seniorHighSchool?.toString() || '',
+          college: result.gradeAverages.college?.toString() || ''
+        })
+      }
+      
+      if (result.incomeTaxInfo) {
+        setIncomeTaxInfo({
+          annualIncome: result.incomeTaxInfo.annualIncome?.toString() || '',
+          taxableIncome: result.incomeTaxInfo.taxableIncome?.toString() || '',
+          taxYear: result.incomeTaxInfo.taxYear || '',
+          employerName: result.incomeTaxInfo.employerName || '',
+          tin: result.incomeTaxInfo.tin || ''
+        })
+      }
 
       toast({
-        title: "Documents submitted",
-        description: "Your documents have been submitted successfully.",
+        title: "Documents submitted successfully!",
+        description: `${result.documents.length} document(s) have been uploaded and are now visible below. You can view your submitted documents at any time.`,
       })
     } catch (err) {
       if (interval) clearInterval(interval)

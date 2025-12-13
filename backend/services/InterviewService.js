@@ -1221,6 +1221,18 @@ class InterviewService {
         throw new Error('Interview not found');
       }
 
+      // Update application status to pending_evaluation and store previous status
+      if (interview.applicationId && interview.applicationId._id) {
+        const application = await ApplicationForm.findById(interview.applicationId._id);
+        if (application && application.status !== 'pending_evaluation') {
+          // Store the current status before changing
+          application.previousStatus = application.status;
+          application.status = 'pending_evaluation';
+          await application.save();
+          console.log(`✅ Application status changed from '${application.previousStatus}' to 'pending_evaluation'`);
+        }
+      }
+
       return {
         success: true,
         message: 'Interview marked as finished',
@@ -1251,6 +1263,19 @@ class InterviewService {
         throw new Error('Interview not found');
       }
 
+      // Revert application status to previous status
+      if (interview.applicationId && interview.applicationId._id) {
+        const application = await ApplicationForm.findById(interview.applicationId._id);
+        if (application && application.status === 'pending_evaluation') {
+          // Restore the previous status, default to 'interview_scheduled' if no previous status
+          const previousStatus = application.previousStatus || 'interview_scheduled';
+          application.status = previousStatus;
+          application.previousStatus = null; // Clear the previous status
+          await application.save();
+          console.log(`✅ Application status reverted from 'pending_evaluation' to '${previousStatus}'`);
+        }
+      }
+
       return {
         success: true,
         message: 'Interview finish status reverted',
@@ -1258,6 +1283,116 @@ class InterviewService {
       };
     } catch (error) {
       console.error('Error reverting interview finish status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get scheduled interviews for department head with pagination
+   * @param {string} userId - Department head user ID
+   * @param {object} options - Pagination options (page, limit, search)
+   * @returns {Promise<object>} Paginated interviews
+   */
+  static async getInterviewsForDepartmentHead(userId, options = {}) {
+    try {
+      const { page = 1, limit = 50, search = '' } = options;
+
+      // Find the department head user and get their department
+      const user = await User.findById(userId).populate('department');
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      if (!user.department) {
+        throw new Error('Department head has no assigned department');
+      }
+
+      const departmentCode = user.department.departmentCode;
+
+      // Build query to find interviews assigned to this department head
+      const query = {
+        interviewer: userId,
+        is_deleted: { $ne: true }
+      };
+
+      // If search is provided, find matching applications first
+      let applicationIds = [];
+      if (search) {
+        const users = await User.find({
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { idNumber: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } }
+          ]
+        }).select('_id');
+        
+        const userIds = users.map(u => u._id);
+        
+        const applications = await ApplicationForm.find({
+          user: { $in: userIds }
+        }).select('_id');
+        
+        applicationIds = applications.map(app => app._id);
+        query.applicationId = { $in: applicationIds };
+      }
+
+      // Get total count
+      const total = await Interview.countDocuments(query);
+
+      // Get paginated interviews
+      const interviews = await Interview.find(query)
+        .populate({
+          path: 'applicationId',
+          select: 'firstName lastName programOfStudyAndYear user',
+          populate: {
+            path: 'user',
+            select: 'name email idNumber course',
+            populate: {
+              path: 'course',
+              select: 'courseId name'
+            }
+          }
+        })
+        .populate('interviewer', 'name email')
+        .sort({ startTime: -1, createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+      // Transform interviews to include applicant name and course
+      const transformedInterviews = interviews.map(interview => {
+        const application = interview.applicationId;
+        const user = application?.user;
+        
+        return {
+          _id: interview._id,
+          interviewId: `INT-${new Date(interview.createdAt).getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`,
+          applicationId: interview.applicationId,
+          interviewer: interview.interviewer,
+          type: interview.type,
+          startTime: interview.startTime,
+          endTime: interview.endTime,
+          is_finished: interview.is_finished,
+          is_deleted: interview.is_deleted,
+          createdAt: interview.createdAt,
+          updatedAt: interview.updatedAt,
+          applicantName: application ? `${application.firstName} ${application.lastName}` : 'Unknown',
+          applicantEmail: user?.email || 'N/A',
+          applicantIdNumber: user?.idNumber || 'N/A',
+          course: user?.course ? `${user.course.courseId} - ${user.course.name}` : application?.programOfStudyAndYear || 'N/A',
+          programOfStudyAndYear: application?.programOfStudyAndYear || 'N/A'
+        };
+      });
+
+      return {
+        interviews: transformedInterviews,
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+        limit
+      };
+    } catch (error) {
+      console.error('Error getting interviews for department head:', error);
       throw error;
     }
   }

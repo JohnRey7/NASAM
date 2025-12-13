@@ -23,6 +23,12 @@ const storage = multer.diskStorage({
 
 // File filter function
 const fileFilter = (req, file, cb) => {
+  // Skip validation for non-file fields (text fields like gradeAverages, incomeTaxInfo)
+  if (!file.mimetype) {
+    cb(null, true);
+    return;
+  }
+
   // Define allowed file types
   const allowedPhotoTypes = ['image/jpeg', 'image/jpg', 'image/png'];
   const allowedDocumentTypes = [
@@ -62,21 +68,35 @@ const upload = multer({
 
 // Custom middleware to handle different file size limits
 const uploadDocumentsMiddleware = (req, res, next) => {
+  console.log('📤 Upload middleware - Content-Type:', req.headers['content-type']);
+  
   // Create dynamic upload handler
-  const uploadHandler = upload.fields([
-    { name: 'studentPicture', maxCount: 1 },
-    { name: 'nbiClearance', maxCount: 5 },
-    { name: 'gradeReport', maxCount: 5 },
-    { name: 'incomeTaxReturn', maxCount: 5 },
-    { name: 'goodMoralCertificate', maxCount: 5 },
-    { name: 'physicalCheckup', maxCount: 5 },
-    { name: 'certificates', maxCount: 10 },
-    { name: 'homeLocationSketch', maxCount: 5 },
-    { name: 'gradeDocument', maxCount: 5 }
-  ]);
+  // Use upload.any() to accept any field, then filter in the handler
+  const uploadHandler = upload.any();
+  
+  // Add debugging to log field names
+  const originalHandler = uploadHandler;
+  const debugHandler = (req, res, callback) => {
+    originalHandler(req, res, (err) => {
+      if (req.files) {
+        console.log('📋 Received file fields:', req.files.map(f => f.fieldname));
+      }
+      if (req.body) {
+        console.log('📋 Received body fields:', Object.keys(req.body));
+      }
+      callback(err);
+    });
+  };
 
   uploadHandler(req, res, (err) => {
     if (err instanceof multer.MulterError) {
+      console.log('🚨 MulterError details:', {
+        code: err.code,
+        message: err.message,
+        field: err.field,
+        storageErrors: err.storageErrors
+      });
+      
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({
           success: false,
@@ -89,11 +109,19 @@ const uploadDocumentsMiddleware = (req, res, next) => {
           message: 'Too many files uploaded'
         });
       }
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        console.log('🚨 UNEXPECTED FIELD ERROR - Field name:', err.field);
+        return res.status(400).json({
+          success: false,
+          message: `Unexpected field: ${err.field}. Please check the field name.`
+        });
+      }
       return res.status(400).json({
         success: false,
         message: err.message
       });
     } else if (err) {
+      console.log('🚨 Upload error (not MulterError):', err);
       return res.status(400).json({
         success: false,
         message: err.message

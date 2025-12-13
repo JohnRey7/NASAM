@@ -20,7 +20,7 @@ router.delete('/user/:userId', authenticate, checkPermission('applicationForm.de
 
 router.put('/status', authenticate, checkPermission('applicationForm.status.set'), ApplicationController.setStatus);
 router.put('/approvals', authenticate, checkPermission('applicationForm.approvals.set'), ApplicationController.setApprovalSummary);
-
+s
 // Application Draft routes (for form persistence)
 router.post('/draft', authenticate, ApplicationController.saveDraft);
 router.get('/draft', authenticate, ApplicationController.getDraft);

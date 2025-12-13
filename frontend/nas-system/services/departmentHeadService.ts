@@ -53,6 +53,15 @@ export const departmentHeadService = {
     return response.data;
   },
 
+  async getScheduledInterviews(page: number = 1, limit: number = 50, search: string = '') {
+    const response = await axios.get(`${API_URL}/department-head/interviews`, {
+      params: { page, limit, search },
+      withCredentials: true,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+  },
+
   async getReviews() {
     const response = await axios.get(`${API_URL}/review`, {
       withCredentials: true,

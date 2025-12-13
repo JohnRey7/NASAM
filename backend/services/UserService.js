@@ -101,9 +101,9 @@ class UserService {
       // Build filter query
       let filter = {};
 
-      // Apply soft delete filter
+      // Apply soft delete filter FIRST - always exclude deleted users unless explicitly requested
       if (!includeDeleted) {
-        SoftDeleteUtils.addSoftDeleteFilter(filter);
+        filter.is_deleted = { $ne: true };
       }
 
       // Search filter
@@ -363,17 +363,15 @@ class UserService {
       const { page = 1, limit = 10 } = options;
       const skip = (page - 1) * limit;
 
-      const users = await SoftDeleteUtils.getSoftDeleted(User, {
-        populate: [
-          { path: 'role', select: 'name' },
-          { path: 'course', select: 'name courseId' },
-          { path: 'department', select: 'name departmentCode' }
-        ],
-        select: '-password',
-        skip,
-        limit: parseInt(limit),
-        sort: { deletedAt: -1 }
-      });
+      // Query only soft-deleted users
+      const users = await User.find({ is_deleted: true })
+        .populate('role', 'name')
+        .populate('course', 'name courseId')
+        .populate('department', 'name departmentCode')
+        .select('-password')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
 
       const total = await User.countDocuments({ is_deleted: true });
 

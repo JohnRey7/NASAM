@@ -88,16 +88,29 @@ export const documentService = {
       employerName?: string;
       tin?: string;
     }
-  ): Promise<void> {
+  ): Promise<DocumentsWithMetadata> {
+    console.log('📤 Frontend: Starting upload with documents:', documents);
+    console.log('📤 Frontend: Documents with files:', documents.filter(doc => doc.file));
+    
     const formData = new FormData();
+    let fileCount = 0;
+    
     documents.forEach((doc) => {
+      console.log('📤 Frontend: Processing document:', { type: doc.type, hasFile: !!doc.file, fileName: doc.file?.name });
       if (doc.file) {
         const backendField = backendFieldMap[doc.type];
+        console.log('📤 Frontend: Backend field mapping:', { type: doc.type, backendField });
         if (backendField) {
           formData.append(backendField, doc.file);
+          fileCount++;
+          console.log('📤 Frontend: Added file to FormData:', { backendField, fileName: doc.file.name });
+        } else {
+          console.warn('📤 Frontend: No backend field mapping found for type:', doc.type);
         }
       }
     });
+    
+    console.log('📤 Frontend: Total files added to FormData:', fileCount);
 
     // Add grade averages and income tax info as JSON
     if (gradeAverages) {
@@ -117,6 +130,33 @@ export const documentService = {
       const errorData = await response.json();
       throw new Error(errorData.message || "Failed to upload documents");
     }
+
+    // Parse the upload response and convert it to the same format as getDocumentsWithMetadata
+    const { document }: { document: DocumentResponse } = await response.json();
+    const uploadedDocuments: Document[] = Object.entries(document).flatMap(([key, value]) => {
+      const type = Object.keys(backendFieldMap).find(
+        (k) => backendFieldMap[k as DocumentType] === key
+      ) as DocumentType | undefined;
+      if (!type || key === "_id" || key === "applicationId" || key === "createdAt" || key === "updatedAt" || key === "gradeAverages" || key === "incomeTaxInfo") {
+        return [];
+      }
+      if (!value) return [];
+      return (Array.isArray(value) ? value : [value]).filter(Boolean).map((doc: BackendDocument) => ({
+        id: doc._id || Math.random().toString(36).substring(2, 9),
+        type,
+        name: doc.originalName,
+        size: 0,
+        progress: 100,
+        status: "complete" as const,
+        file: null,
+      }));
+    });
+
+    return {
+      documents: uploadedDocuments,
+      gradeAverages: document.gradeAverages,
+      incomeTaxInfo: document.incomeTaxInfo,
+    };
   },
 
   // Fetch documents with metadata (grade averages and income tax info)
