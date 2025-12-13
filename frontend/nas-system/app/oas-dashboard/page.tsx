@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ApplicationReview } from "@/components/application-review"
 import { AnalyticsDashboard } from "@/components/analytics-dashboard"
-import { ScholarEvaluation } from "@/components/scholar-evaluation"
+import { OasEvaluationTable } from "@/components/oas-evaluation-table"
 import { AuditLogs } from "@/components/audit-logs"
 import { useEffect, useState } from "react"
 import { oasDashboardService } from "@/services/oasDashboardService"
@@ -103,7 +103,7 @@ export default function OASDashboardPage() {
         </TabsContent>
 
         <TabsContent value="evaluation">
-          <ScholarEvaluation />
+          <OasEvaluationTable />
         </TabsContent>
 
         <TabsContent value="audit">

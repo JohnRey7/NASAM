@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ApplicationController = require('../controllers/ApplicationController');
 const AnalyticsExportController = require('../controllers/AnalyticsExportController');
+const EvaluationController = require('../controllers/EvaluationController');
 const authenticate = require('../middleware/authenticate');
 const checkPermission = require('../middleware/checkPermission');
 
@@ -42,5 +43,18 @@ router.get('/application-counts', authenticate, checkPermission('applicationForm
 router.get('/analytics', authenticate, checkPermission('applicationForm.read'), ApplicationController.getAnalytics);
 // Analytics export endpoint (CSV or PDF)
 router.get('/analytics/export', authenticate, checkPermission('applicationForm.read'), AnalyticsExportController.exportAnalytics);
+
+// OAS Evaluation Management Routes
+// GET all evaluations with pagination (limit 50 per page)
+router.get('/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluationsForAdmin);
+
+// GET evaluation for specific user
+router.get('/evaluation/:userId/user', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationForUser);
+
+// POST create evaluation for specific user
+router.post('/evaluation/:userId/user', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluationForUser);
+
+// PUT update evaluation for specific user
+router.put('/evaluation/:userId/user', authenticate, checkPermission('evaluation.update'), EvaluationController.updateEvaluationForUser);
 
 module.exports = router;

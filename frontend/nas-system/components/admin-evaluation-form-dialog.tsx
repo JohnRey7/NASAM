@@ -170,6 +170,7 @@ interface AdminEvaluationFormDialogProps {
   userId: string;
   userName: string;
   onSuccess: () => void;
+  apiPrefix?: string; // Optional: 'admin' or 'oas', defaults to 'admin'
 }
 
 export function AdminEvaluationFormDialog({
@@ -177,7 +178,8 @@ export function AdminEvaluationFormDialog({
   onOpenChange,
   userId,
   userName,
-  onSuccess
+  onSuccess,
+  apiPrefix = 'admin' // Default to 'admin' if not specified
 }: AdminEvaluationFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -230,10 +232,10 @@ export function AdminEvaluationFormDialog({
     setLoading(true);
     try {
       console.log('Fetching evaluation for userId:', userId);
-      console.log('API URL:', `${API_URL}/admin/evaluation/${userId}/user`);
+      console.log('API URL:', `${API_URL}/${apiPrefix}/evaluation/${userId}/user`);
       
       const response = await axios.get(
-        `${API_URL}/admin/evaluation/${userId}/user`,
+        `${API_URL}/${apiPrefix}/evaluation/${userId}/user`,
         { withCredentials: true }
       );
 
@@ -334,7 +336,7 @@ export function AdminEvaluationFormDialog({
       };
 
       await axios.put(
-        `${API_URL}/admin/evaluation/${userId}/user`,
+        `${API_URL}/${apiPrefix}/evaluation/${userId}/user`,
         payload,
         { withCredentials: true }
       );

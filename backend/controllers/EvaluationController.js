@@ -411,7 +411,14 @@ async function getAllEvaluationsForAdmin(req, res) {
       includeDeleted: includeDeleted === 'true'
     });
     
-    res.status(200).json(result);
+    // Transform response to match frontend expectations
+    res.status(200).json({
+      evaluations: result.data,
+      total: result.total,
+      page: result.page,
+      pages: result.pages,
+      limit: maxLimit
+    });
   } catch (error) {
     console.error('Error in getAllEvaluationsForAdmin:', error);
     res.status(500).json({ message: `Server error: ${error.message}` });

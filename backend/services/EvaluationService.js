@@ -256,14 +256,15 @@ class EvaluationService {
         throw new Error('Invalid limit');
       }
 
-      // Build query - handle includeDeleted parameter
+      // Build query - always exclude deleted evaluations unless explicitly requested
       const query = {};
       
-      // Filter by deleted status
+      // Filter by deleted status - only show deleted if explicitly true
       if (includeDeleted === true || includeDeleted === 'true') {
         query.is_deleted = true; // Only show deleted
       } else {
-        query.is_deleted = false; // Only show active
+        // Default: only show non-deleted evaluations
+        query.is_deleted = { $ne: true };
       }
       
       if (search) {
