@@ -27,6 +27,7 @@ import { NotificationDropdown } from "./notification-dropdown"
 import { MessageNotificationBadge } from "./message-notification-badge"
 import { useAuth } from "@/contexts/auth-context"
 import { Breadcrumb } from "./breadcrumb"
+import Image from "next/image"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 
@@ -169,7 +170,18 @@ export function RoleBasedLayout({ children, userRole, userName }: RoleBasedLayou
                 </nav>
               </SheetContent>
             </Sheet>
-            <h1 className="text-xl font-bold ml-2">CIT-U Non-Academic Scholars</h1>
+            <div className="flex items-center gap-2 ml-2">
+              <div className="relative h-10 w-20 flex items-center justify-center">
+                <Image 
+                  src="/LogoNasam.png" 
+                  alt="NASAM Logo" 
+                  fill 
+                  className="object-contain scale-[1.9]" 
+                  priority 
+                />
+              </div>
+              <h1 className="text-xl font-bold">CIT-U Non-Academic Scholars</h1>
+            </div>
           </div>
 
           <div className="flex items-center space-x-4">

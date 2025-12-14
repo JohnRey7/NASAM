@@ -5,6 +5,7 @@ import { MessageNotificationBadge } from "@/components/message-notification-badg
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Award } from "lucide-react"
 import { UserNav } from "@/components/user-nav"
+import Image from "next/image"
 
 export function DashboardHeader() {
   return (
@@ -13,8 +14,16 @@ export function DashboardHeader() {
         <div className="flex items-center gap-2">
           <SidebarTrigger className="md:hidden" />
           <Link href="/" className="flex items-center space-x-2">
-            <Award className="h-6 w-6 text-maroon-600" />
-            <span className="font-bold text-xl hidden md:inline-block">NAS System</span>
+            <div className="relative h-10 w-20 flex items-center justify-center">
+              <Image 
+                src="/LogoNasam.png" 
+                alt="NASAM Logo" 
+                fill 
+                className="object-contain scale-[1.9]" 
+                priority 
+              />
+            </div>
+            <span className="font-bold text-xl hidden md:inline-block">CIT-U Non-Academic Scholars</span>
           </Link>
         </div>
 

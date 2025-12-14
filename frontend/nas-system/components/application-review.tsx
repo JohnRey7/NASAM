@@ -1124,6 +1124,11 @@ export function ApplicationReview() {
   const [selectedInterviewer, setSelectedInterviewer] = useState<string>("")
   const [schedulingType, setSchedulingType] = useState<'OAS' | 'DepartmentHead' | null>(null)
   const [conflictError, setConflictError] = useState<{title: string, message: string} | null>(null)
+
+  const toInterviewDisplayDate = (dateValue: any) => {
+    const d = new Date(dateValue)
+    return new Date(d.getTime() - 8 * 60 * 60 * 1000)
+  }
   
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -2720,7 +2725,7 @@ export function ApplicationReview() {
                                                             <strong>Interview ID:</strong> {interview.interviewId}
                                                           </p>
                                                           <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                            <strong>Date:</strong> {new Date(interview.startTime).toLocaleDateString('en-US', {
+                                                            <strong>Date:</strong> {toInterviewDisplayDate(interview.startTime).toLocaleDateString('en-US', {
                                                               weekday: 'long',
                                                               year: 'numeric',
                                                               month: 'long',
@@ -2728,7 +2733,7 @@ export function ApplicationReview() {
                                                             })}
                                                           </p>
                                                           <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                            <strong>Time:</strong> {new Date(interview.startTime).toLocaleTimeString('en-US', {
+                                                            <strong>Time:</strong> {toInterviewDisplayDate(interview.startTime).toLocaleTimeString('en-US', {
                                                               hour: 'numeric',
                                                               minute: '2-digit',
                                                               hour12: true
@@ -2840,7 +2845,7 @@ export function ApplicationReview() {
                                                             <strong>Interview ID:</strong> {interview.interviewId}
                                                           </p>
                                                           <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-purple-800'}`}>
-                                                            <strong>Date:</strong> {new Date(interview.startTime).toLocaleDateString('en-US', {
+                                                            <strong>Date:</strong> {toInterviewDisplayDate(interview.startTime).toLocaleDateString('en-US', {
                                                               weekday: 'long',
                                                               year: 'numeric',
                                                               month: 'long',
@@ -2848,7 +2853,7 @@ export function ApplicationReview() {
                                                             })}
                                                           </p>
                                                           <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-purple-800'}`}>
-                                                            <strong>Time:</strong> {new Date(interview.startTime).toLocaleTimeString('en-US', {
+                                                            <strong>Time:</strong> {toInterviewDisplayDate(interview.startTime).toLocaleTimeString('en-US', {
                                                               hour: 'numeric',
                                                               minute: '2-digit',
                                                               hour12: true
@@ -3061,12 +3066,12 @@ export function ApplicationReview() {
                                                   </span>
                                                 </p>
                                                 <p className="text-sm text-gray-600">
-                                                  <strong>Scheduled:</strong> {new Date(interview.startTime).toLocaleDateString('en-US', {
+                                                  <strong>Scheduled:</strong> {toInterviewDisplayDate(interview.startTime).toLocaleDateString('en-US', {
                                                     weekday: 'short',
                                                     year: 'numeric',
                                                     month: 'short',
                                                     day: 'numeric'
-                                                  })} at {new Date(interview.startTime).toLocaleTimeString('en-US', {
+                                                  })} at {toInterviewDisplayDate(interview.startTime).toLocaleTimeString('en-US', {
                                                     hour: 'numeric',
                                                     minute: '2-digit',
                                                     hour12: true

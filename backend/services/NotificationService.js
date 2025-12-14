@@ -4,7 +4,7 @@ const User = require('../models/User');
 const SoftDeleteUtils = require('../utils/SoftDeleteUtils');
 
 // Development mode flag - disabled to always save notifications to database
-const DEV_MODE = false;
+const DEV_MODE = process.env.NOTIFICATIONS_DEV_MODE === 'true';
 
 class NotificationService {
   // Create notification

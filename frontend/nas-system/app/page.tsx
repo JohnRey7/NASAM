@@ -11,6 +11,7 @@ import { ScholarshipInfo } from "@/components/scholarship-info"
 import { VerificationHandler } from "@/components/verification-handler"
 import { Suspense } from "react"
 import { useAuth } from "@/contexts/auth-context"
+import Image from "next/image"
 
 export default function Home() {
   const { user, status } = useAuth()
@@ -61,7 +62,16 @@ export default function Home() {
         <VerificationHandler />
       </Suspense>
       <header className="gradient-maroon text-white py-6 shadow-maroon-lg">
-        <div className="container mx-auto px-4 flex justify-left items-center">
+        <div className="container mx-auto px-4 flex justify-left items-center gap-3">
+          <div className="relative h-10 w-20 flex items-center justify-center">
+            <Image 
+              src="/LogoNasam.png" 
+              alt="NASAM Logo" 
+              fill 
+              className="object-contain scale-[1.9]" 
+              priority 
+            />
+          </div>
           <h1 className="text-3xl font-bold tracking-tight">CIT-U Non-Academic Scholars</h1>
         </div>
       </header>

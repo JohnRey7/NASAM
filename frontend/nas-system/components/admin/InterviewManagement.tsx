@@ -33,6 +33,11 @@ export function InterviewManagement() {
     endTime: ""
   })
 
+  const toInterviewDisplayDate = (dateValue: any) => {
+    const d = new Date(dateValue)
+    return new Date(d.getTime() - 8 * 60 * 60 * 1000)
+  }
+
   useEffect(() => {
     fetchInterviews()
     fetchUsers()
@@ -108,8 +113,8 @@ export function InterviewManagement() {
   const handleEdit = (interview: Interview) => {
     setEditingInterview(interview)
     
-    const startDate = new Date(interview.startTime)
-    const endDate = new Date(interview.endTime)
+    const startDate = toInterviewDisplayDate(interview.startTime)
+    const endDate = toInterviewDisplayDate(interview.endTime)
     
     setFormData({
       applicationId: interview.applicationId?._id || interview.applicationId,
@@ -272,10 +277,10 @@ export function InterviewManagement() {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium">
-                          {format(new Date(interview.startTime), "MMM d, yyyy")}
+                          {format(toInterviewDisplayDate(interview.startTime), "MMM d, yyyy")}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {format(new Date(interview.startTime), "h:mm a")} - {format(new Date(interview.endTime), "h:mm a")}
+                          {format(toInterviewDisplayDate(interview.startTime), "h:mm a")} - {format(toInterviewDisplayDate(interview.endTime), "h:mm a")}
                         </span>
                       </div>
                     </TableCell>

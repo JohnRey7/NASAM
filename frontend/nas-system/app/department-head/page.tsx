@@ -59,6 +59,11 @@ const getNumericValue = (value: any): number => {
   return 0;
 };
 
+const toInterviewDisplayDate = (dateValue: any) => {
+  const d = new Date(dateValue)
+  return new Date(d.getTime() - 8 * 60 * 60 * 1000)
+}
+
 export default function DepartmentHeadDashboardPage() {
   const { user } = useAuth();
   const { confirm, ConfirmDialog } = useConfirmation();
@@ -1102,7 +1107,7 @@ export default function DepartmentHeadDashboardPage() {
         
         // Set schedule if interview exists
         if (interview.startTime) {
-          schedule = new Date(interview.startTime).toLocaleString('en-US', {
+          schedule = toInterviewDisplayDate(interview.startTime).toLocaleString('en-US', {
             year: 'numeric',
             month: 'short', 
             day: 'numeric',
@@ -1806,12 +1811,12 @@ export default function DepartmentHeadDashboardPage() {
                                                       </p>
                                                       <div className="space-y-1">
                                                         <p className={`text-sm font-medium ${deptHeadInterview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                          <strong>Date:</strong> {new Date(deptHeadInterview.startTime).toLocaleDateString('en-US', {
+                                                          <strong>Date:</strong> {toInterviewDisplayDate(deptHeadInterview.startTime).toLocaleDateString('en-US', {
                                                             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                                                           })}
                                                         </p>
                                                         <p className={`text-sm font-medium ${deptHeadInterview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
-                                                          <strong>Time:</strong> {new Date(deptHeadInterview.startTime).toLocaleTimeString('en-US', {
+                                                          <strong>Time:</strong> {toInterviewDisplayDate(deptHeadInterview.startTime).toLocaleTimeString('en-US', {
                                                             hour: 'numeric', minute: '2-digit', hour12: true
                                                           })}
                                                         </p>
@@ -1835,12 +1840,12 @@ export default function DepartmentHeadDashboardPage() {
                                                         setIsRescheduling(true);
                                                         setReschedulingInterviewId(deptHeadInterview._id);
                                                         if (deptHeadInterview.startTime) {
-                                                          const existingDate = new Date(deptHeadInterview.startTime);
+                                                          const existingDate = toInterviewDisplayDate(deptHeadInterview.startTime);
                                                           setInterviewDate(existingDate.toISOString().split('T')[0]);
                                                           setInterviewTime(existingDate.toTimeString().slice(0, 5));
                                                         }
                                                         if (deptHeadInterview.endTime) {
-                                                          const existingEndDate = new Date(deptHeadInterview.endTime);
+                                                          const existingEndDate = toInterviewDisplayDate(deptHeadInterview.endTime);
                                                           setInterviewEndTime(existingEndDate.toTimeString().slice(0, 5));
                                                         }
                                                       }}

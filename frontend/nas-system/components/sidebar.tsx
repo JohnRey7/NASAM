@@ -10,6 +10,7 @@ import {
   User,
   Award,
 } from "lucide-react"
+import Image from "next/image"
 import { useAuth } from "@/contexts/auth-context"
 import {
   Sidebar,
@@ -58,8 +59,16 @@ export function AppSidebar() {
     <Sidebar variant="floating" className="border-r">
       <SidebarHeader className="flex items-center justify-center py-4">
         <div className="flex items-center space-x-2">
-          <Award className="h-6 w-6 text-maroon-600" />
-          <span className="text-xl font-bold">NAS System</span>
+          <div className="relative h-10 w-20 flex items-center justify-center">
+            <Image 
+              src="/LogoNasam.png" 
+              alt="NASAM Logo" 
+              fill 
+              className="object-contain scale-[1.9]" 
+              priority 
+            />
+          </div>
+          <span className="text-xl font-bold">CIT-U NAS</span>
         </div>
       </SidebarHeader>
       <SidebarContent>

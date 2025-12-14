@@ -6,11 +6,14 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
+
 import courseService, { Course } from "@/services/courseService"
 
 export function RegisterForm() {
@@ -18,17 +21,22 @@ export function RegisterForm() {
   const [errorMessage, setErrorMessage] = useState("")
   const [idNumberError, setIdNumberError] = useState("")
   const [idNumber, setIdNumber] = useState("")
+
   const [passwordError, setPasswordError] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [confirmPasswordError, setConfirmPasswordError] = useState("")
   const [fullNameError, setFullNameError] = useState("")
   const [fullName, setFullName] = useState("")
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [privacyAcceptedError, setPrivacyAcceptedError] = useState("")
+  const [privacyPolicyOpen, setPrivacyPolicyOpen] = useState(false)
   const { toast } = useToast()
   const { register } = useAuth()
   const [course, setCourse] = useState("")
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoadingCourses, setIsLoadingCourses] = useState(false)
+
   const router = useRouter()
 
   useEffect(() => {
@@ -148,6 +156,7 @@ export function RegisterForm() {
     setPasswordError("")
     setConfirmPasswordError("")
     setFullNameError("")
+    setPrivacyAcceptedError("")
 
     const formData = new FormData(event.currentTarget)
     const email = formData.get("email") as string
@@ -177,6 +186,12 @@ export function RegisterForm() {
     // Validate Confirm Password
     if (password !== confirmPassword) {
       setConfirmPasswordError("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
+
+    if (!privacyAccepted) {
+      setPrivacyAcceptedError("You must agree to the Privacy Policy to create an account")
       setIsLoading(false)
       return
     }
@@ -211,6 +226,7 @@ export function RegisterForm() {
         setFullName("")
         setPassword("")
         setConfirmPassword("")
+        setPrivacyAccepted(false)
       }
       
       // Switch to login tab after 2 seconds
@@ -323,6 +339,95 @@ export function RegisterForm() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="privacyAccepted"
+            checked={privacyAccepted}
+            onCheckedChange={(checked) => {
+              const isChecked = checked === true
+              setPrivacyAccepted(isChecked)
+              if (privacyAcceptedError) {
+                setPrivacyAcceptedError("")
+              }
+            }}
+            className={privacyAcceptedError ? "border-red-500" : ""}
+          />
+          <Label htmlFor="privacyAccepted" className="text-sm leading-5">
+            I agree to the{" "}
+            <Dialog open={privacyPolicyOpen} onOpenChange={setPrivacyPolicyOpen}>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="text-[#800000] hover:underline"
+                  onClick={() => setPrivacyPolicyOpen(true)}
+                >
+                  Privacy Policy
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Privacy Policy</DialogTitle>
+                  <DialogDescription>
+                    This is a sample policy for the CIT-U Non-Academic Scholars portal.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-3 text-sm leading-6">
+                  <p>
+                    We respect your privacy. This portal collects the information you provide during account creation,
+                    application submission, and document upload to process your scholarship application.
+                  </p>
+                  <div>
+                    <div className="font-medium">Information we collect</div>
+                    <div>
+                      Name, CIT ID number, email address, course, application details, and uploaded documents.
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">How we use your information</div>
+                    <div>
+                      To verify your identity, evaluate your scholarship application, communicate status updates, and
+                      manage program requirements.
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Data retention</div>
+                    <div>
+                      We retain your information for as long as necessary to administer the scholarship program and for
+                      audit/record-keeping purposes.
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Data sharing</div>
+                    <div>
+                      Your information may be accessed by authorized staff involved in processing your scholarship
+                      application. We do not sell personal information.
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Your choices</div>
+                    <div>
+                      You may request corrections to your information and inquire about your data by contacting the
+                      program administrators.
+                    </div>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button type="button" className="bg-[#800000] hover:bg-[#600000]" onClick={() => setPrivacyPolicyOpen(false)}>
+                    Close
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </Label>
+        </div>
+        {privacyAcceptedError && (
+          <div className="text-red-500 text-xs mt-1">{privacyAcceptedError}</div>
+        )}
       </div>
       
       {errorMessage && (
