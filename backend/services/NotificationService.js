@@ -192,6 +192,30 @@ class NotificationService {
     }
   }
 
+  // Create document uploaded notification
+  static async createDocumentUploadedNotification(userId, applicationId, uploadedTypes = []) {
+    try {
+      const safeTypes = Array.isArray(uploadedTypes) ? uploadedTypes.filter(Boolean) : [];
+      const typesText = safeTypes.length > 0 ? safeTypes.join(', ') : 'documents';
+
+      return await NotificationService.createNotification({
+        userId: userId,
+        type: 'document_uploaded',
+        title: 'Documents Submitted',
+        message: `You uploaded: ${typesText}. Your documents are now pending verification.`,
+        priority: 'medium',
+        metadata: {
+          applicationId: applicationId,
+          uploadedTypes: safeTypes,
+          action: 'document_uploaded'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating document uploaded notification:', error);
+      throw error;
+    }
+  }
+
   // Create all documents verified notification
   static async createAllDocumentsVerifiedNotification(userId, applicationId) {
     try {
