@@ -241,8 +241,8 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[80vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-5xl max-h-[85vh] h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0 pb-2">
           <DialogTitle className="text-xl">
             {readOnly ? 'View' : existingEvaluation ? 'Edit' : 'Create'} Scholar Evaluation - {scholar?.firstName} {scholar?.lastName}
           </DialogTitle>
@@ -280,7 +280,7 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
             <div className="space-y-4"><div><Label htmlFor="supervisorRemarks">Remarks and Recommendation by Immediate Supervisor</Label><Textarea id="supervisorRemarks" value={supervisorRemarks} onChange={(e) => setSupervisorRemarks(e.target.value)} rows={3} placeholder="Enter your remarks and recommendations..." className="mt-1" disabled={readOnly} /></div><div><Label htmlFor="nasRemarks">Remarks / Comments by the NAS (Optional)</Label><Textarea id="nasRemarks" value={nasRemarks} onChange={(e) => setNasRemarks(e.target.value)} rows={2} placeholder="Optional comments..." className="mt-1" disabled={readOnly} /></div></div>
           </div>
         </ScrollArea>
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t bg-white">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             {readOnly ? 'Close' : 'Cancel'}
           </Button>

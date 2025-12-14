@@ -95,6 +95,8 @@ export default function DepartmentHeadDashboardPage() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<any>(null);
   const [isViewingEvaluation, setIsViewingEvaluation] = useState(false);
   const [loadingEvaluations, setLoadingEvaluations] = useState(false);
+  const [showEvaluationSelector, setShowEvaluationSelector] = useState(false);
+  const [pendingScholarForEvaluation, setPendingScholarForEvaluation] = useState<any>(null);
   
   // Document state
   const [documents, setDocuments] = useState<any>(null);
@@ -265,6 +267,7 @@ export default function DepartmentHeadDashboardPage() {
         }
         
         // Set the application details with real data from the API
+        // Note: Backend uses 'birthDate' not 'dateOfBirth'
         setApplicationDetails({
           _id: application._id,
           userId: application.user?._id || application.user,
@@ -274,17 +277,19 @@ export default function DepartmentHeadDashboardPage() {
           idNumber: application.user?.idNumber || application.idNumber || 'N/A',
           email: application.emailAddress || application.email || 'N/A',
           contactNumber: application.contactNumber || 'N/A',
-          dateOfBirth: application.dateOfBirth ? new Date(application.dateOfBirth).toLocaleDateString() : 'N/A',
+          dateOfBirth: application.birthDate ? new Date(application.birthDate).toLocaleDateString() : 'N/A',
           gender: application.gender || 'N/A',
           programOfStudyAndYear: application.programOfStudyAndYear || 'N/A',
           gpa: gpa,
           yearLevel: application.yearLevel || 'N/A',
           school: 'CIT-University',
-          fatherName: application.familyBackground?.father?.name || 'N/A',
-          motherName: application.familyBackground?.mother?.name || 'N/A',
+          fatherName: application.familyBackground?.father?.firstName ? 
+            `${application.familyBackground.father.firstName} ${application.familyBackground.father.lastName}` : 'N/A',
+          motherName: application.familyBackground?.mother?.firstName ? 
+            `${application.familyBackground.mother.firstName} ${application.familyBackground.mother.lastName}` : 'N/A',
           familyIncome: application.annualFamilyIncome || 'N/A',
           numberOfSiblings: application.familyBackground?.numberOfSiblings || 'N/A',
-          address: application.permanentResidentialAddress || 'N/A'
+          address: application.permanentResidentialAddress || application.currentResidenceAddress || 'N/A'
         });
         
         // Also fetch evaluations for this scholar
@@ -2049,12 +2054,35 @@ export default function DepartmentHeadDashboardPage() {
                                         if (response.ok) {
                                           const data = await response.json();
                                           const evaluations = Array.isArray(data) ? data : (data.evaluations || []);
-                                          if (evaluations.length > 0) {
-                                            // Evaluation exists - set it for read-only view
+                                          setScholarEvaluations(evaluations);
+                                          
+                                          if (evaluations.length > 1) {
+                                            // Multiple evaluations exist - show selector dialog
+                                            const scholarData = scholar ? {
+                                              ...scholar,
+                                              firstName: scholar.firstName || scholar.name?.split(' ')[0] || interview.applicantName?.split(' ')[0] || '',
+                                              lastName: scholar.lastName || scholar.name?.split(' ').slice(1).join(' ') || interview.applicantName?.split(' ').slice(1).join(' ') || '',
+                                              idNumber: idNumber
+                                            } : {
+                                              _id: interview._id,
+                                              name: interview.applicantName,
+                                              firstName: interview.applicantName?.split(' ')[0] || '',
+                                              lastName: interview.applicantName?.split(' ').slice(1).join(' ') || '',
+                                              idNumber: idNumber,
+                                              course: interview.course,
+                                              department: interview.department
+                                            };
+                                            setPendingScholarForEvaluation(scholarData);
+                                            setShowEvaluationSelector(true);
+                                            return;
+                                          } else if (evaluations.length === 1) {
+                                            // Single evaluation exists - set it for read-only view
                                             setSelectedEvaluation(evaluations[0]);
+                                            setIsViewingEvaluation(true);
                                           } else {
                                             // No evaluation - allow creating new one
                                             setSelectedEvaluation(null);
+                                            setIsViewingEvaluation(false);
                                           }
                                         }
                                       } catch (error) {
@@ -2147,6 +2175,61 @@ export default function DepartmentHeadDashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Evaluation Selector Dialog - Shows when multiple evaluations exist */}
+        <Dialog open={showEvaluationSelector} onOpenChange={setShowEvaluationSelector}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Select Evaluation to View</DialogTitle>
+              <DialogDescription>
+                Multiple evaluations found for {pendingScholarForEvaluation?.firstName} {pendingScholarForEvaluation?.lastName}. 
+                Select which evaluation you want to view or create a new one.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              {scholarEvaluations.map((evaluation, index) => (
+                <div 
+                  key={evaluation._id || index}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => {
+                    setSelectedEvaluation(evaluation);
+                    setIsViewingEvaluation(true);
+                    setSelectedScholar(pendingScholarForEvaluation);
+                    setShowEvaluationSelector(false);
+                    setShowEvaluationForm(true);
+                  }}
+                >
+                  <div>
+                    <p className="font-medium">{evaluation.semester} - {evaluation.schoolYear}</p>
+                    <p className="text-sm text-gray-500">
+                      Rating: {typeof evaluation.overallRating === 'object' && evaluation.overallRating.$numberDecimal 
+                        ? parseFloat(evaluation.overallRating.$numberDecimal).toFixed(2) 
+                        : parseFloat(evaluation.overallRating || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <Badge variant={evaluation.evaluationStatus === 'passed' ? 'default' : 'destructive'}>
+                    {evaluation.evaluationStatus}
+                  </Badge>
+                </div>
+              ))}
+              
+              {/* Option to create new evaluation */}
+              <div 
+                className="flex items-center justify-center p-3 border-2 border-dashed border-green-300 rounded-lg hover:bg-green-50 cursor-pointer transition-colors"
+                onClick={() => {
+                  setSelectedEvaluation(null);
+                  setIsViewingEvaluation(false);
+                  setSelectedScholar(pendingScholarForEvaluation);
+                  setShowEvaluationSelector(false);
+                  setShowEvaluationForm(true);
+                }}
+              >
+                <Plus className="h-5 w-5 text-green-600 mr-2" />
+                <span className="text-green-700 font-medium">Create New Evaluation</span>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Scholar Evaluation Form */}
         {selectedScholar && (
