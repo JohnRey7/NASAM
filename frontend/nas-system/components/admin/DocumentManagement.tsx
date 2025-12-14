@@ -69,6 +69,9 @@ export function DocumentManagement() {
     if (doc.incomeTaxReturn?.length) count += doc.incomeTaxReturn.length
     if (doc.goodMoralCertificate?.length) count += doc.goodMoralCertificate.length
     if (doc.physicalCheckup?.length) count += doc.physicalCheckup.length
+    if (doc.certificates?.length) count += doc.certificates.length
+    if (doc.homeLocationSketch?.length) count += doc.homeLocationSketch.length
+    if (doc.personalityTestPaymentReceipt?.length) count += doc.personalityTestPaymentReceipt.length
     return count
   }
 

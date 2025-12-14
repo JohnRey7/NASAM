@@ -11,6 +11,9 @@ export interface DocumentUpload {
   incomeTaxReturn?: any[];
   goodMoralCertificate?: any[];
   physicalCheckup?: any[];
+  certificates?: any[];
+  homeLocationSketch?: any[];
+  personalityTestPaymentReceipt?: any[];
   updatedAt: string;
 }
 

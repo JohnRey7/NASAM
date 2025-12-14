@@ -933,6 +933,16 @@ const ApplicationController = {
           }
         },
         { $unwind: { path: '$userDoc', preserveNullAndEmptyArrays: true } },
+        // Join with document uploads to compute GPA from uploaded grade averages (collegeTerm1-4)
+        {
+          $lookup: {
+            from: 'documentuploads',
+            localField: 'user',
+            foreignField: 'user',
+            as: 'documentUpload'
+          }
+        },
+        { $unwind: { path: '$documentUpload', preserveNullAndEmptyArrays: true } },
         // Project only fields we need
         {
           $project: {
@@ -940,6 +950,7 @@ const ApplicationController = {
             program: '$programOfStudyAndYear',
             annualFamilyIncome: 1,
             collegeLevel: '$education.collegeLevel',
+            gradeAverages: '$documentUpload.gradeAverages',
             // Use application.gender first, then user's gender, then null
             normalizedGender: {
               $cond: [
@@ -976,47 +987,130 @@ const ApplicationController = {
 
             // Compute applicant-level GPA averages
             gpaStats: [
-              // Compute per-applicant average from collegeLevel entries
+              // Compute applicant average GPA from either:
+              // 1) ApplicationForm.education.collegeLevel (semester averages)
+              // 2) DocumentUpload.gradeAverages.collegeTerm1-4 (uploaded GWA terms)
               {
                 $project: {
-                  perEntryAvg: {
-                    $map: {
-                      input: { $ifNull: ['$collegeLevel', []] },
-                      as: 'cl',
-                      in: {
-                        $let: {
-                          vars: {
-                            sum: {
-                              $add: [
-                                { $ifNull: ['$$cl.firstSemesterAverageFinalGrade', null] },
-                                { $ifNull: ['$$cl.secondSemesterAverageFinalGrade', null] },
-                                { $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', null] }
+                  applicantAvg: {
+                    $let: {
+                      vars: {
+                        collegeLevelArr: { $ifNull: ['$collegeLevel', []] },
+                        uploadGrades: {
+                          $map: {
+                            input: {
+                              $ifNull: [
+                                [
+                                  '$gradeAverages.collegeTerm1',
+                                  '$gradeAverages.collegeTerm2',
+                                  '$gradeAverages.collegeTerm3',
+                                  '$gradeAverages.collegeTerm4'
+                                ],
+                                []
                               ]
                             },
-                            cnt: {
-                              $add: [
-                                { $cond: [{ $ifNull: ['$$cl.firstSemesterAverageFinalGrade', false] }, 1, 0] },
-                                { $cond: [{ $ifNull: ['$$cl.secondSemesterAverageFinalGrade', false] }, 1, 0] },
-                                { $cond: [{ $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', false] }, 1, 0] }
-                              ]
+                            as: 'g',
+                            in: {
+                              $convert: {
+                                input: '$$g',
+                                to: 'double',
+                                onError: null,
+                                onNull: null
+                              }
                             }
-                          },
-                          in: {
-                            $cond: [{ $gt: ['$$cnt', 0] }, { $divide: ['$$sum', '$$cnt'] }, null]
                           }
                         }
+                      },
+                      in: {
+                        $cond: [
+                          { $gt: [{ $size: '$$collegeLevelArr' }, 0] },
+                          {
+                            $avg: {
+                              $map: {
+                                input: '$$collegeLevelArr',
+                                as: 'cl',
+                                in: {
+                                  $let: {
+                                    vars: {
+                                      t1: {
+                                        $convert: {
+                                          input: '$$cl.firstSemesterAverageFinalGrade',
+                                          to: 'double',
+                                          onError: null,
+                                          onNull: null
+                                        }
+                                      },
+                                      t2: {
+                                        $convert: {
+                                          input: '$$cl.secondSemesterAverageFinalGrade',
+                                          to: 'double',
+                                          onError: null,
+                                          onNull: null
+                                        }
+                                      },
+                                      t3: {
+                                        $convert: {
+                                          input: '$$cl.thirdSemesterAverageFinalGrade',
+                                          to: 'double',
+                                          onError: null,
+                                          onNull: null
+                                        }
+                                      }
+                                    },
+                                    in: {
+                                      $let: {
+                                        vars: {
+                                          sum: {
+                                            $add: [
+                                              { $ifNull: ['$$t1', 0] },
+                                              { $ifNull: ['$$t2', 0] },
+                                              { $ifNull: ['$$t3', 0] }
+                                            ]
+                                          },
+                                          cnt: {
+                                            $add: [
+                                              { $cond: [{ $ne: ['$$t1', null] }, 1, 0] },
+                                              { $cond: [{ $ne: ['$$t2', null] }, 1, 0] },
+                                              { $cond: [{ $ne: ['$$t3', null] }, 1, 0] }
+                                            ]
+                                          }
+                                        },
+                                        in: { $cond: [{ $gt: ['$$cnt', 0] }, { $divide: ['$$sum', '$$cnt'] }, null] }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          {
+                            $let: {
+                              vars: {
+                                validUploads: {
+                                  $filter: {
+                                    input: '$$uploadGrades',
+                                    as: 'g',
+                                    cond: { $ne: ['$$g', null] }
+                                  }
+                                }
+                              },
+                              in: {
+                                $cond: [
+                                  { $gt: [{ $size: '$$validUploads' }, 0] },
+                                  { $avg: '$$validUploads' },
+                                  null
+                                ]
+                              }
+                            }
+                          }
+                        ]
                       }
                     }
                   }
                 }
               },
-              // compute applicant average across entries
-              {
-                $addFields: {
-                  applicantAvg: { $avg: '$perEntryAvg' }
-                }
-              },
-              { $match: { applicantAvg: { $ne: null } } },
+              // Only include valid 1.0 - 5.0 GPA scale (college)
+              { $match: { applicantAvg: { $ne: null, $gte: 1, $lte: 5 } } },
               {
                 $group: {
                   _id: null,
@@ -1029,50 +1123,131 @@ const ApplicationController = {
 
             // For GPA distribution using explicit buckets (ranges)
             gpaBuckets: [
-              // Recompute per-applicant avg then bucket
               {
                 $project: {
                   applicantAvg: {
                     $let: {
                       vars: {
-                        perEntryAvg: {
+                        collegeLevelArr: { $ifNull: ['$collegeLevel', []] },
+                        uploadGrades: {
                           $map: {
-                            input: { $ifNull: ['$collegeLevel', []] },
-                            as: 'cl',
+                            input: {
+                              $ifNull: [
+                                [
+                                  '$gradeAverages.collegeTerm1',
+                                  '$gradeAverages.collegeTerm2',
+                                  '$gradeAverages.collegeTerm3',
+                                  '$gradeAverages.collegeTerm4'
+                                ],
+                                []
+                              ]
+                            },
+                            as: 'g',
                             in: {
-                              $let: {
-                                vars: {
-                                  sum: {
-                                    $add: [
-                                      { $ifNull: ['$$cl.firstSemesterAverageFinalGrade', null] },
-                                      { $ifNull: ['$$cl.secondSemesterAverageFinalGrade', null] },
-                                      { $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', null] }
-                                    ]
-                                  },
-                                  cnt: {
-                                    $add: [
-                                      { $cond: [{ $ifNull: ['$$cl.firstSemesterAverageFinalGrade', false] }, 1, 0] },
-                                      { $cond: [{ $ifNull: ['$$cl.secondSemesterAverageFinalGrade', false] }, 1, 0] },
-                                      { $cond: [{ $ifNull: ['$$cl.thirdSemesterAverageFinalGrade', false] }, 1, 0] }
-                                    ]
-                                  }
-                                },
-                                in: { $cond: [{ $gt: ['$$cnt', 0] }, { $divide: ['$$sum', '$$cnt'] }, null] }
+                              $convert: {
+                                input: '$$g',
+                                to: 'double',
+                                onError: null,
+                                onNull: null
                               }
                             }
                           }
                         }
                       },
-                      in: { $avg: '$$perEntryAvg' }
+                      in: {
+                        $cond: [
+                          { $gt: [{ $size: '$$collegeLevelArr' }, 0] },
+                          {
+                            $avg: {
+                              $map: {
+                                input: '$$collegeLevelArr',
+                                as: 'cl',
+                                in: {
+                                  $let: {
+                                    vars: {
+                                      t1: {
+                                        $convert: {
+                                          input: '$$cl.firstSemesterAverageFinalGrade',
+                                          to: 'double',
+                                          onError: null,
+                                          onNull: null
+                                        }
+                                      },
+                                      t2: {
+                                        $convert: {
+                                          input: '$$cl.secondSemesterAverageFinalGrade',
+                                          to: 'double',
+                                          onError: null,
+                                          onNull: null
+                                        }
+                                      },
+                                      t3: {
+                                        $convert: {
+                                          input: '$$cl.thirdSemesterAverageFinalGrade',
+                                          to: 'double',
+                                          onError: null,
+                                          onNull: null
+                                        }
+                                      }
+                                    },
+                                    in: {
+                                      $let: {
+                                        vars: {
+                                          sum: {
+                                            $add: [
+                                              { $ifNull: ['$$t1', 0] },
+                                              { $ifNull: ['$$t2', 0] },
+                                              { $ifNull: ['$$t3', 0] }
+                                            ]
+                                          },
+                                          cnt: {
+                                            $add: [
+                                              { $cond: [{ $ne: ['$$t1', null] }, 1, 0] },
+                                              { $cond: [{ $ne: ['$$t2', null] }, 1, 0] },
+                                              { $cond: [{ $ne: ['$$t3', null] }, 1, 0] }
+                                            ]
+                                          }
+                                        },
+                                        in: { $cond: [{ $gt: ['$$cnt', 0] }, { $divide: ['$$sum', '$$cnt'] }, null] }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          {
+                            $let: {
+                              vars: {
+                                validUploads: {
+                                  $filter: {
+                                    input: '$$uploadGrades',
+                                    as: 'g',
+                                    cond: { $ne: ['$$g', null] }
+                                  }
+                                }
+                              },
+                              in: {
+                                $cond: [
+                                  { $gt: [{ $size: '$$validUploads' }, 0] },
+                                  { $avg: '$$validUploads' },
+                                  null
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      }
                     }
                   }
                 }
               },
-              { $match: { applicantAvg: { $ne: null } } },
+              { $match: { applicantAvg: { $ne: null, $gte: 1, $lte: 5 } } },
               {
                 $bucket: {
                   groupBy: '$applicantAvg',
-                  boundaries: [0, 1.6, 2.1, 2.6, 3.1, 3.6, 4.1, 100],
+                  // CIT-U scale: 1.0 (fail) to 5.0 (highest). Emphasize 4.0+ buckets.
+                  boundaries: [0, 1.6, 2.1, 2.6, 3.1, 3.6, 4.1, 4.6, 5.1],
                   default: 'Other',
                   output: { count: { $sum: 1 } }
                 }
@@ -1094,27 +1269,35 @@ const ApplicationController = {
       const incomeCounts = {};
       (facet.incomeCounts || []).forEach(i => { incomeCounts[i._id || 'Unknown'] = i.count; });
 
-  const genderCounts = {};
-  (facet.genderCounts || []).forEach(g => { genderCounts[g._id || 'Prefer not to say'] = g.count; });
+      const genderCounts = {};
+      (facet.genderCounts || []).forEach(g => { genderCounts[g._id || 'Prefer not to say'] = g.count; });
 
       const avgGPA = (facet.gpaStats && facet.gpaStats[0] && facet.gpaStats[0].avgGPA) ? Number((facet.gpaStats[0].avgGPA).toFixed(2)) : null;
       const gpaCount = (facet.gpaStats && facet.gpaStats[0] && facet.gpaStats[0].count) || 0;
 
       // Format GPA buckets with human readable labels
-      const bucketLabels = [
-        '≤ 1.5',
-        '1.6 - 2.0',
-        '2.1 - 2.5',
-        '2.6 - 3.0',
-        '3.1 - 3.5',
-        '3.6 - 4.0',
-        '4.1+'
+      const bucketDefs = [
+        { id: 0, label: '≤ 1.5' },
+        { id: 1.6, label: '1.6 - 2.0' },
+        { id: 2.1, label: '2.1 - 2.5' },
+        { id: 2.6, label: '2.6 - 3.0' },
+        { id: 3.1, label: '3.1 - 3.5' },
+        { id: 3.6, label: '3.6 - 4.0' },
+        { id: 4.1, label: '4.1 - 4.5' },
+        { id: 4.6, label: '4.6 - 5.0' }
       ];
 
       const rawBuckets = facet.gpaBuckets || [];
-      const gpaDistribution = rawBuckets.map((b, idx) => ({
-        range: bucketLabels[idx] || String(b._id),
-        count: b.count || 0
+      const bucketCountById = {};
+      rawBuckets.forEach(b => {
+        if (b && b._id !== undefined && b._id !== null && b._id !== 'Other') {
+          bucketCountById[Number(b._id)] = b.count || 0;
+        }
+      });
+
+      const gpaDistribution = bucketDefs.map(def => ({
+        range: def.label,
+        count: bucketCountById[def.id] || 0
       }));
 
       res.json({
