@@ -529,6 +529,13 @@ const InterviewController = {
       const { id } = req.params;
       const result = await InterviewService.revertFinishInterview(id);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Revert Interview Completion',
+        module: 'Interview'
+      });
+      
       res.json(result);
     } catch (error) {
       console.error('Error in revertFinishInterview:', error);

@@ -206,6 +206,7 @@ export function AuditLogs() {
       'Document': 'bg-purple-100 text-purple-800 border-purple-200',
       'Interview': 'bg-orange-100 text-orange-800 border-orange-200',
       'Evaluation': 'bg-pink-100 text-pink-800 border-pink-200',
+      'Messaging': 'bg-cyan-100 text-cyan-800 border-cyan-200',
     }
     
     return (
@@ -260,6 +261,7 @@ export function AuditLogs() {
                   <SelectItem value="Document">Document</SelectItem>
                   <SelectItem value="Interview">Interview</SelectItem>
                   <SelectItem value="Evaluation">Evaluation</SelectItem>
+                  <SelectItem value="Messaging">Messaging</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -159,6 +159,13 @@ const ApplicationController = {
 
       const updatedApplication = await ApplicationService.updateApplicationByUserId(userId, updateData);
 
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update Application',
+        module: 'Application'
+      });
+
       res.json({
         message: 'Application updated successfully',
         application: updatedApplication
@@ -179,6 +186,13 @@ const ApplicationController = {
       const updateData = req.body;
 
       const updatedApplication = await ApplicationService.updateMyApplication(userId, updateData);
+
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update My Application',
+        module: 'Application'
+      });
 
       res.json({
         message: 'Application updated successfully',
@@ -222,6 +236,13 @@ const ApplicationController = {
       const { userId } = req.params;
       const result = await ApplicationService.deleteApplicationByUserId(userId);
 
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Application',
+        module: 'Application'
+      });
+
       res.json(result);
     } catch (error) {
       console.error('Error in deleteApplicationFormByUserId:', error);
@@ -240,6 +261,13 @@ const ApplicationController = {
 
       const result = await ApplicationService.deleteApplicationFormOnly(applicationId);
       console.log('✅ Application form deleted - Documents preserved');
+
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Application Form Only',
+        module: 'Application'
+      });
 
       res.json({
         success: true,
@@ -264,6 +292,13 @@ const ApplicationController = {
 
       const result = await ApplicationService.deleteDocumentsOnly(applicationId);
       console.log('✅ Documents deleted - Application form preserved');
+
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Documents Only',
+        module: 'Document'
+      });
 
       res.json({
         success: true,
@@ -529,6 +564,13 @@ const ApplicationController = {
 
       const application = await ApplicationService.updateApplicationStatus(id, status);
 
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: `Update Application Status to ${status}`,
+        module: 'Application'
+      });
+
       res.json({ success: true, application });
     } catch (error) {
       console.error('❌ Error updating status:', error);
@@ -559,6 +601,13 @@ const ApplicationController = {
       }
 
       const application = await ApplicationService.updateApplicationStatusByUserId(userId, status, req.user?.id);
+
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: `Update Application Status to ${status} (Evaluation Decision)`,
+        module: 'Application'
+      });
 
       res.json({ success: true, application });
     } catch (error) {

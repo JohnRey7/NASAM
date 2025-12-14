@@ -1,4 +1,5 @@
 const DocumentUploadService = require('../services/DocumentUploadService');
+const AuditLogService = require('../services/AuditLogService');
 
 const DocumentUploadController = {
   // Create document for user by idNumber
@@ -6,6 +7,13 @@ const DocumentUploadController = {
     try {
       const { idNumber } = req.params;
       const result = await DocumentUploadService.createDocumentByIdNumber(idNumber, req.files, req.body);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Create Document',
+        module: 'Document'
+      });
       
       res.status(201).json({
         success: true,
@@ -91,6 +99,13 @@ const DocumentUploadController = {
       const { idNumber } = req.params;
       const result = await DocumentUploadService.updateDocumentByIdNumber(idNumber, req.files, req.body);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update Document',
+        module: 'Document'
+      });
+      
       res.json({
         success: true,
         message: 'Document updated successfully',
@@ -122,6 +137,13 @@ const DocumentUploadController = {
     try {
       const userId = req.user.id;
       const result = await DocumentUploadService.uploadDocuments(userId, req.files, req.body);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Upload Documents',
+        module: 'Document'
+      });
       
       res.status(201).json({
         success: true,
@@ -213,6 +235,13 @@ const DocumentUploadController = {
       const { userId } = req.params;
       const currentUserId = req.user.id;
       const result = await DocumentUploadService.updateDocument(userId, currentUserId, req.files, req.body);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Update Document',
+        module: 'Document'
+      });
       
       res.json({
         success: true,
@@ -306,6 +335,13 @@ const DocumentUploadController = {
       const currentUserId = req.user.id;
       const result = await DocumentUploadService.deleteDocument(userId, currentUserId);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Delete Document',
+        module: 'Document'
+      });
+      
       res.json({
         success: true,
         message: 'Document deleted successfully',
@@ -331,6 +367,13 @@ const DocumentUploadController = {
     try {
       const { userId } = req.params;
       const result = await DocumentUploadService.softDeleteDocument(userId);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Soft Delete Document',
+        module: 'Document'
+      });
       
       res.json({
         success: true,
@@ -358,6 +401,13 @@ const DocumentUploadController = {
       const { userId } = req.params;
       const result = await DocumentUploadService.restoreDocument(userId);
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Restore Document',
+        module: 'Document'
+      });
+      
       res.json({
         success: true,
         message: 'Document restored successfully',
@@ -383,6 +433,13 @@ const DocumentUploadController = {
     try {
       const { userId } = req.params;
       const result = await DocumentUploadService.permanentDeleteDocument(userId);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Permanent Delete Document',
+        module: 'Document'
+      });
       
       res.json({
         success: true,

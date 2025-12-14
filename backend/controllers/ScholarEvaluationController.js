@@ -2,6 +2,7 @@ const ScholarEvaluation = require('../models/ScholarEvaluation');
 const EvaluationPeriod = require('../models/EvaluationPeriod');
 const User = require('../models/User');
 const NotificationService = require('../services/NotificationService');
+const AuditLogService = require('../services/AuditLogService');
 const mongoose = require('mongoose');
 
 const ScholarEvaluationController = {
@@ -107,6 +108,13 @@ const ScholarEvaluationController = {
         // Don't fail the request if notifications fail
       }
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: `Open Evaluation Period: ${ratingPeriod}`,
+        module: 'Evaluation'
+      });
+
       res.json({
         success: true,
         message: `Evaluation period opened for ${ratingPeriod}`,
@@ -144,6 +152,13 @@ const ScholarEvaluationController = {
       period.totalEvaluations = evaluationCount;
       await period.save();
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: `Close Evaluation Period: ${period.ratingPeriod}`,
+        module: 'Evaluation'
+      });
+
       res.json({
         success: true,
         message: `Evaluation period closed for ${period.ratingPeriod}`,
@@ -230,6 +245,13 @@ const ScholarEvaluationController = {
       currentPeriod.totalEvaluations += 1;
       await currentPeriod.save();
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: `Create Scholar Evaluation for ${evaluationData.scholarName || 'Scholar'}`,
+        module: 'Evaluation'
+      });
+
       res.status(201).json({
         success: true,
         message: 'Evaluation created successfully',
@@ -273,6 +295,13 @@ const ScholarEvaluationController = {
       Object.assign(evaluation, updateData);
       await evaluation.save();
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: `Update Scholar Evaluation for ${evaluation.scholarName || 'Scholar'}`,
+        module: 'Evaluation'
+      });
+
       res.json({
         success: true,
         message: 'Evaluation updated successfully',
@@ -464,6 +493,13 @@ const ScholarEvaluationController = {
       evaluation.deleted_at = new Date();
       await evaluation.save();
       
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: `Delete Scholar Evaluation for ${evaluation.scholarName || 'Scholar'}`,
+        module: 'Evaluation'
+      });
+
       res.json({
         success: true,
         message: 'Evaluation deleted successfully'
