@@ -110,7 +110,8 @@ export function AdminEvaluationTable() {
       });
 
       const data = response.data;
-      setEvaluations(data.data || []);
+      // Backend returns 'evaluations' array
+      setEvaluations(data.evaluations || data.data || []);
       setPagination({
         page: data.page || 1,
         pages: data.pages || 1,

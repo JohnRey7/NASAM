@@ -66,6 +66,22 @@ const ApplicationController = {
     }
   },
 
+  // GET: Check if user's application exists and its deletion status
+  async checkMyApplicationStatus(req, res) {
+    try {
+      const userId = req.user.id;
+      const status = await ApplicationService.checkApplicationStatus(userId);
+
+      res.json({
+        success: true,
+        ...status
+      });
+    } catch (error) {
+      console.error('Error in checkMyApplicationStatus:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  },
+
   // GET: Read the authenticated user's application
   async readMyApplicationForm(req, res) {
     try {

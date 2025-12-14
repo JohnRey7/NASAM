@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -8,12 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Search, Pencil, Trash2, Ban, CheckCircle, Undo2, X } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, Ban, CheckCircle, Undo2, X, Loader2 } from "lucide-react"
 import userService, { User, CreateUserData } from "@/services/userService"
 import roleService, { Role } from "@/services/roleService"
 import departmentService, { Department } from "@/services/departmentService"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+const USERS_PER_PAGE = 20;
 
 export function UserList() {
   const [activeTab, setActiveTab] = useState<"active" | "deleted">("active")
@@ -22,10 +24,20 @@ export function UserList() {
   const [roles, setRoles] = useState<Role[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [search, setSearch] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const { toast } = useToast()
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [totalUsers, setTotalUsers] = useState(0)
+
+  // Intersection observer ref for infinite scroll
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   // Form state
   const [formData, setFormData] = useState<CreateUserData>({
@@ -39,20 +51,80 @@ export function UserList() {
 
   const [error, setError] = useState<string | null>(null)
 
+  // Initial load
   useEffect(() => {
-    fetchUsers()
+    fetchUsers(1, true)
     fetchDeletedUsers()
     fetchRoles()
     fetchDepartments()
   }, [])
 
-  const fetchUsers = async () => {
+  // Reset and refetch when search changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setUsers([])
+      setCurrentPage(1)
+      setHasMore(true)
+      fetchUsers(1, true)
+    }, 300) // Debounce search
+
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Setup intersection observer for infinite scroll
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          loadMoreUsers()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current)
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
+  }, [loading, loadingMore, hasMore, currentPage])
+
+  const fetchUsers = async (page: number = 1, reset: boolean = false) => {
     try {
-      setLoading(true)
+      if (reset) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
       setError(null)
-      const response = await userService.getAllUsers({ search })
+
+      const response = await userService.getAllUsers({ 
+        search, 
+        page, 
+        limit: USERS_PER_PAGE 
+      })
+      
       console.log("Fetched users:", response)
-      setUsers(response.users || [])
+      
+      const newUsers = response.users || []
+      const pagination = response.pagination || {}
+      
+      if (reset) {
+        setUsers(newUsers)
+      } else {
+        setUsers(prev => [...prev, ...newUsers])
+      }
+      
+      setCurrentPage(page)
+      setTotalUsers(pagination.totalUsers || 0)
+      setHasMore(pagination.hasNext || false)
+      
     } catch (error: any) {
       console.error("Error fetching users:", error)
       setError(error.message || "Failed to fetch users")
@@ -63,8 +135,15 @@ export function UserList() {
       })
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
+
+  const loadMoreUsers = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      fetchUsers(currentPage + 1, false)
+    }
+  }, [currentPage, loadingMore, hasMore])
 
   const fetchDeletedUsers = async () => {
     try {
@@ -96,7 +175,15 @@ export function UserList() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    fetchUsers()
+    // Search is already handled by the useEffect with debounce
+  }
+
+  // Refresh users list (reset pagination)
+  const refreshUsers = () => {
+    setUsers([])
+    setCurrentPage(1)
+    setHasMore(true)
+    fetchUsers(1, true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,7 +202,7 @@ export function UserList() {
         toast({ title: "Success", description: "User created successfully" })
       }
       setIsDialogOpen(false)
-      fetchUsers()
+      refreshUsers()
       resetForm()
     } catch (error: any) {
       toast({
@@ -148,7 +235,7 @@ export function UserList() {
     try {
       await userService.deleteUser(id)
       toast({ title: "Success", description: "User deleted successfully" })
-      fetchUsers()
+      refreshUsers()
       fetchDeletedUsers()
     } catch (error) {
       toast({
@@ -164,7 +251,7 @@ export function UserList() {
     try {
       await userService.restoreUser(id)
       toast({ title: "Success", description: "User restored successfully" })
-      fetchUsers()
+      refreshUsers()
       fetchDeletedUsers()
     } catch (error) {
       toast({
@@ -199,7 +286,7 @@ export function UserList() {
         await userService.disableUser(user._id)
         toast({ title: "Success", description: "User disabled successfully" })
       }
-      fetchUsers()
+      refreshUsers()
     } catch (error) {
       toast({
         title: "Error",
@@ -238,26 +325,37 @@ export function UserList() {
   }
 
   const renderUserTable = (userList: User[], isDeleted: boolean = false) => (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>ID Number</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-center">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading ? (
+    <div className="space-y-4">
+      {/* User count info */}
+      {!isDeleted && totalUsers > 0 && (
+        <div className="text-sm text-gray-500">
+          Showing {userList.length} of {totalUsers} users
+        </div>
+      )}
+      
+      <div className="rounded-md border max-h-[600px] overflow-y-auto">
+        <Table>
+          <TableHeader className="sticky top-0 bg-white z-10">
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8">
-                Loading users...
-              </TableCell>
+              <TableHead>Name</TableHead>
+              <TableHead>ID Number</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-center">Actions</TableHead>
             </TableRow>
-          ) : userList.length === 0 ? (
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Loading users...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : userList.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="text-center py-8">
                 No users found
@@ -336,6 +434,31 @@ export function UserList() {
           )}
         </TableBody>
       </Table>
+      
+      {/* Infinite scroll trigger - only for active users tab */}
+      {!isDeleted && hasMore && !loading && (
+        <div 
+          ref={loadMoreRef}
+          className="flex items-center justify-center py-4"
+        >
+          {loadingMore ? (
+            <div className="flex items-center gap-2 text-gray-500">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading more users...
+            </div>
+          ) : (
+            <div className="text-gray-400 text-sm">Scroll for more</div>
+          )}
+        </div>
+      )}
+      
+      {/* End of list indicator */}
+      {!isDeleted && !hasMore && userList.length > 0 && (
+        <div className="text-center py-4 text-gray-400 text-sm">
+          All {totalUsers} users loaded
+        </div>
+      )}
+      </div>
     </div>
   )
 

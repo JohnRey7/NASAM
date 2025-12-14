@@ -416,6 +416,40 @@ class ApplicationService {
     return application;
   }
 
+  // Check if user's application exists and its deletion status
+  static async checkApplicationStatus(userId) {
+    // First check if there's a soft-deleted application
+    const deletedApplication = await ApplicationForm.findOne({ user: userId, is_deleted: true });
+    
+    if (deletedApplication) {
+      return {
+        exists: false,
+        isDeleted: true,
+        deletedAt: deletedApplication.updatedAt || deletedApplication.createdAt,
+        message: 'Your application has been withdrawn by the administrator. Please contact the Office of Alumni and Scholarship (OAS) for more information or to submit a new application.'
+      };
+    }
+    
+    // Check for active application
+    const activeApplication = await ApplicationForm.findOne({ user: userId, is_deleted: false });
+    
+    if (activeApplication) {
+      return {
+        exists: true,
+        isDeleted: false,
+        applicationId: activeApplication._id,
+        status: activeApplication.status
+      };
+    }
+    
+    // No application at all
+    return {
+      exists: false,
+      isDeleted: false,
+      message: 'No application found. You can start a new application.'
+    };
+  }
+
   // Get user's own application
   static async getMyApplication(userId) {
     const application = await ApplicationForm.findOne({ user: userId, is_deleted: false });
@@ -424,34 +458,9 @@ class ApplicationService {
       throw new Error('No application found for this user');
     }
 
-    // Check for latest evaluation and sync status if needed
-    try {
-      const latestEvaluation = await Evaluation.findOne({ 
-        evaluateeUser: userId, 
-        is_deleted: false 
-      }).sort({ createdAt: -1 });
-
-      if (latestEvaluation && latestEvaluation.overallRating !== undefined) {
-        const rating = parseFloat(latestEvaluation.overallRating.toString());
-        const evaluationPassed = rating >= 3.0;
-        const correctStatus = evaluationPassed ? 'approved' : 'rejected';
-
-        // Only sync if current status contradicts the evaluation result
-        // e.g. if status is 'approved' but evaluation failed -> change to 'rejected'
-        // e.g. if status is 'rejected' but evaluation passed -> change to 'approved'
-        if ((application.status === 'approved' && !evaluationPassed) || 
-            (application.status === 'rejected' && evaluationPassed)) {
-          
-          console.log(`🔄 Auto-correcting application status for user ${userId}. Old: ${application.status}, New: ${correctStatus} (Rating: ${rating})`);
-          
-          application.status = correctStatus;
-          await application.save();
-        }
-      }
-    } catch (error) {
-      console.error('Error syncing evaluation status in getMyApplication:', error);
-      // Don't fail the request if this sync fails
-    }
+    // NOTE: Status is manually set by OAS staff via Pass/Fail/Awaiting buttons.
+    // Do NOT auto-sync status based on evaluation results.
+    // The database status is the source of truth.
 
     return application;
   }
@@ -1037,8 +1046,16 @@ class ApplicationService {
       throw new Error('Invalid user ID format');
     }
 
+    const filter = SoftDeleteUtils.addSoftDeleteFilter({ user: userId });
+    console.log(`🔍 Updating application status for user ${userId} to '${status}'`);
+    console.log(`🔍 Filter:`, JSON.stringify(filter));
+
+    // First find the application to see current state
+    const existingApp = await ApplicationForm.findOne(filter);
+    console.log(`🔍 Existing application:`, existingApp ? `Found (status: ${existingApp.status})` : 'Not found');
+
     const application = await ApplicationForm.findOneAndUpdate(
-      SoftDeleteUtils.addSoftDeleteFilter({ user: userId }),
+      filter,
       { 
         status, 
         updatedAt: new Date(),
@@ -1050,6 +1067,8 @@ class ApplicationService {
     if (!application) {
       throw new Error('Application not found for this user');
     }
+
+    console.log(`✅ Application status updated. New status: ${application.status}`);
 
     // Create notification based on status
     try {

@@ -3,180 +3,137 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Clock, FileText, Users, Award, Calendar, Star } from "lucide-react"
-import { applicationService } from "@/services/applicationService"
+import { CheckCircle, Clock, FileText, Users, Award, Calendar, Star, Loader2 } from "lucide-react"
 
-interface EvaluationStatus {
-  hasEvaluation: boolean
-  grade?: number
-  status?: 'passed' | 'failed'
-  passingGrade?: number
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+// Comprehensive status interface matching backend response
+interface ComprehensiveStatus {
+  applicationForm: {
+    status: string;
+    message: string;
+    submittedAt?: string;
+    verifiedAt?: string;
+  };
+  documents: {
+    status: string;
+    message: string;
+    uploadedCount: number;
+    requiredCount: number;
+    uploadedDocuments?: string[];
+  };
+  personalityTest: {
+    status: string;
+    message: string;
+    completedAt?: string;
+  };
+  interview: {
+    status: string;
+    message: string;
+    totalInterviews: number;
+    completedInterviews: number;
+    oasInterview?: {
+      scheduledDateTime: string;
+      endDateTime: string;
+      isFinished: boolean;
+    };
+    departmentHeadInterview?: {
+      scheduledDateTime: string;
+      endDateTime: string;
+      isFinished: boolean;
+    };
+    allInterviews?: Array<{
+      id: string;
+      type: string;
+      scheduledDateTime: string;
+      isFinished: boolean;
+    }>;
+  };
+  evaluation: {
+    status: string;
+    message: string;
+    grade: number | null;
+    result: string | null;
+    passingGrade?: number;
+  };
+  applicationStatus: {
+    status: string;
+    message: string;
+    displayStatus: string;
+    updatedAt?: string;
+  };
 }
 
 export function ApplicationProgressTracker() {
-  const [applicationStatus, setApplicationStatus] = useState<string>("None")
-  const [hasApplication, setHasApplication] = useState(false)
-  const [hasDocuments, setHasDocuments] = useState(false)
-  const [hasPersonalityTest, setHasPersonalityTest] = useState(false)
-  const [interviewData, setInterviewData] = useState<any>(null)
-  const [evaluationStatus, setEvaluationStatus] = useState<EvaluationStatus | null>(null)
+  const [status, setStatus] = useState<ComprehensiveStatus | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Fetch application status and documents
+  // Fetch comprehensive status from new endpoint
   useEffect(() => {
-    const fetchApplicationProgress = async () => {
+    const fetchStatus = async () => {
       try {
-        
-        // STEP 1: Check application status FIRST
-        const appResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application`, {
+        setLoading(true)
+        const response = await fetch(`${API_URL}/status/me`, {
           credentials: 'include'
         })
         
-        if (!appResponse.ok || appResponse.status === 404) {
-          // No application exists - don't fetch other statuses
-          setApplicationStatus("None")
-          setHasApplication(false)
-          setHasDocuments(false)
-          setHasPersonalityTest(false)
-          setInterviewData(null)
-          setEvaluationStatus(null)
-          return // Stop here - no need to fetch other statuses
-        }
-        
-        const appData = await appResponse.json()
-        
-        if (!appData.application) {
-          // No application data - stop here
-          setApplicationStatus("None")
-          setHasApplication(false)
-          return
-        }
-        
-        // Application exists - set status and continue
-        const backendStatus = appData.application.status
-        console.log('🔍 DEBUG: Backend returned status:', backendStatus)
-        setApplicationStatus(backendStatus)
-        setHasApplication(true)
-
-        // STEP 2: Only fetch other statuses if application exists
-        // Check documents
-        try {
-          const docResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/documents`, {
-            credentials: 'include'
-          })
-          
-          if (docResponse.ok) {
-            const docData = await docResponse.json()
-            
-            if (docData.document) {
-              const hasAnyDocuments = [
-                docData.document.studentPicture,
-                docData.document.nbiClearance?.length > 0,
-                docData.document.gradeReport?.length > 0,
-                docData.document.incomeTaxReturn?.length > 0,
-                docData.document.goodMoralCertificate?.length > 0,
-                docData.document.physicalCheckup?.length > 0,
-                docData.document.homeLocationSketch?.length > 0
-              ].some(Boolean)
-              
-              setHasDocuments(hasAnyDocuments)
-            } else {
-              setHasDocuments(false)
-            }
-          } else {
-            setHasDocuments(false)
+        if (!response.ok) {
+          if (response.status === 404) {
+            setStatus(null)
+            setError(null)
+            return
           }
-        } catch (docError) {
-          console.error('❌ Document check error:', docError)
-          setHasDocuments(false)
-        }
-
-        // STEP 3: Check personality test (only if application exists)
-        try {
-          console.log('🔍 DEBUG: Checking personality test status...')
-          const personalityResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/personality-test/status`, {
-            credentials: 'include'
-          })
-          
-          if (personalityResponse.ok) {
-            const personalityData = await personalityResponse.json()
-            const testExists = personalityData.hasTest || personalityData.testId
-            setHasPersonalityTest(testExists)
-          } else {
-            setHasPersonalityTest(false)
-          }
-        } catch (personalityError) {
-          console.error('❌ Personality test error:', personalityError)
-          setHasPersonalityTest(false)
-        }
-
-        // STEP 4: Check interview data (only if application exists)
-        try {
-          console.log('🔍 DEBUG: Checking interview data...')
-          const interview = await applicationService.getMyInterview()
-          setInterviewData(interview)
-        } catch (interviewError) {
-          console.error('❌ Interview error:', interviewError)
-          setInterviewData(null)
-        }
-
-        // STEP 5: Check evaluation status (only if application exists)
-        try {
-          console.log('🔍 DEBUG: Checking evaluation status...')
-          const evalResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/evaluation/status/me`, {
-            credentials: 'include'
-          })
-          
-          if (evalResponse.ok) {
-            const evalData = await evalResponse.json()
-            setEvaluationStatus(evalData)
-          } else {
-            setEvaluationStatus({ hasEvaluation: false })
-          }
-        } catch (evalError) {
-          console.error('❌ Evaluation status error:', evalError)
-          setEvaluationStatus({ hasEvaluation: false })
+          throw new Error('Failed to fetch status')
         }
         
-      } catch (error) {
-        console.error('❌ Error fetching application progress:', error)
-        setApplicationStatus("None")
-        setHasApplication(false)
-        setHasDocuments(false)
-        setHasPersonalityTest(false)
+        const data = await response.json()
+        if (data.success && data.data) {
+          setStatus(data.data)
+          setError(null)
+        } else {
+          setStatus(null)
+        }
+      } catch (err) {
+        console.error('Error fetching status:', err)
+        setError('Failed to load application status')
+      } finally {
+        setLoading(false)
       }
     }
     
-    fetchApplicationProgress()
+    fetchStatus()
     
-    // Only poll if we need to (don't poll continuously when no application exists)
-    const interval = setInterval(() => {
-      // Refresh to check for updates
-      fetchApplicationProgress()
-    }, 30000) // Increased to 30 seconds to reduce load
-    
+    // Poll every 30 seconds for updates
+    const interval = setInterval(fetchStatus, 30000)
     return () => clearInterval(interval)
   }, [])
 
-  // Determine if each step is complete for sequential logic
-  const isApplicationFormComplete = ["form_verified", "document_verification", "approved", "rejected"].includes(applicationStatus)
-  const isDocumentsComplete = ["document_verification", "approved", "rejected"].includes(applicationStatus)
-  const isPersonalityTestComplete = hasPersonalityTest
+  // Derive status flags from comprehensive status
+  const hasApplication = status?.applicationForm?.status !== 'not_submitted'
+  // Use the corrected status from backend (which checks evaluation state)
+  const applicationStatusValue = status?.applicationStatus?.status || 'none'
+  const displayStatus = status?.applicationStatus?.displayStatus || applicationStatusValue
   
-  // Check if all scheduled interviews are finished
-  const isInterviewComplete = interviewData?.interviews?.length > 0 
-    ? interviewData.interviews.every((i: any) => i.is_finished)
-    : (interviewData?.interview?.is_finished === true || interviewData?.is_finished === true);
-    
-  const nextInterview = interviewData?.interviews?.find((i: any) => !i.is_finished) || interviewData?.interviews?.[0] || interviewData?.interview;
+  // Determine step completion based on status
+  const isApplicationFormComplete = status?.applicationForm?.status === 'verified'
+  const isDocumentsComplete = status?.documents?.status === 'verified'
+  const isPersonalityTestComplete = status?.personalityTest?.status === 'completed'
+  const isInterviewComplete = status?.interview?.status === 'completed'
+  const isEvaluationComplete = status?.evaluation?.status === 'evaluated'
+  
+  // Get next interview info
+  const nextInterview = status?.interview?.allInterviews?.find(i => !i.isFinished)
 
-  const isEvaluationComplete = evaluationStatus?.hasEvaluation
+  // Check if documents have been uploaded
+  const hasDocumentsUploaded = (status?.documents?.uploadedCount || 0) > 0
 
   // Application progress steps in order - SEQUENTIAL LOGIC
   const progressSteps = [
     {
       title: "Application Form",
       description: "Application form and documents received", 
-      status: applicationStatus === "None" ? "Not Submitted" :
+      status: !hasApplication ? "Not Submitted" :
               isApplicationFormComplete ? "Completed" :
               "Pending",
       icon: <FileText className="h-6 w-6" />
@@ -185,17 +142,17 @@ export function ApplicationProgressTracker() {
       title: "Documents",
       description: "Upload required documents for verification",
       // Documents: Locked until application form is verified, then Pending until document_verification
-      status: applicationStatus === "None" ? "Not Submitted" :
+      status: !hasApplication ? "Not Submitted" :
               isDocumentsComplete ? "Completed" :
               isApplicationFormComplete ? "Pending" :
-              hasDocuments ? "Pending" : "Locked",
+              hasDocumentsUploaded ? "Pending" : "Locked",
       icon: <Users className="h-6 w-6" />
     },
     {
       title: "Personality Test",
       description: "Complete psychological assessment",
       // Personality Test: Locked until documents are verified
-      status: applicationStatus === "None" ? "Not Submitted" :
+      status: !hasApplication ? "Not Submitted" :
               isPersonalityTestComplete ? "Completed" :
               isDocumentsComplete ? "Pending" : "Locked",
       icon: <Users className="h-6 w-6" />
@@ -204,37 +161,74 @@ export function ApplicationProgressTracker() {
       title: "Interview",
       description: "Scheduled interview with department head",
       // Interview: Locked until personality test is complete
-      status: applicationStatus === "None" ? "Not Submitted" :
+      status: !hasApplication ? "Not Submitted" :
               isInterviewComplete ? "Completed" :
               isPersonalityTestComplete ? "Pending" : "Locked",
       icon: <Calendar className="h-6 w-6" />,
-      interviewDate: nextInterview?.startTime || interviewData?.startTime || null
+      interviewDate: nextInterview?.scheduledDateTime || status?.interview?.oasInterview?.scheduledDateTime || null
     },
     {
       title: "Evaluation",
       description: "Performance evaluation by OAS Admin",
       // Evaluation: Locked until interview is complete
-      status: applicationStatus === "None" ? "Not Submitted" :
+      status: !hasApplication ? "Not Submitted" :
               isEvaluationComplete ? "Completed" :
               isInterviewComplete ? "Pending" : "Locked",
       icon: <Star className="h-6 w-6" />,
-      evaluationData: evaluationStatus
+      evaluationData: status?.evaluation
     },
     {
       title: "Application Status",
       description: "Application approval or rejection",
-      // Final status: Only after evaluation is complete
-      status: applicationStatus === "None" ? "Not Submitted" :
-              applicationStatus === "rejected" ? "Completed" :
-              applicationStatus === "approved" ? "Completed" :
-              isEvaluationComplete ? "Pending" : "Locked",
-      icon: <Award className="h-6 w-6" />
+      // Final status: Only show Completed when approved
+      // Rejected and pending_evaluation should show as Pending (Under Consideration)
+      status: !hasApplication ? "Not Submitted" :
+              displayStatus === "approved" ? "Completed" :
+              displayStatus === "rejected" ? "Pending" :
+              displayStatus === "under_consideration" ? "Pending" :
+              applicationStatusValue === "pending_evaluation" ? "Pending" :
+              isInterviewComplete ? "Pending" : "Locked",
+      icon: <Award className="h-6 w-6" />,
+      displayMessage: status?.applicationStatus?.message || ''
     }
   ]
 
   // Calculate overall progress
   const completedSteps = progressSteps.filter(step => step.status === "Completed").length
   const progress = Math.round((completedSteps / progressSteps.length) * 100)
+
+  // Show loading state
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-[#800000]">Application Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-[#800000]" />
+            <span className="ml-3 text-gray-600">Loading your application status...</span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-[#800000]">Application Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-red-500">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   // Show message to complete application form first
   if (!hasApplication) {
@@ -437,13 +431,10 @@ export function ApplicationProgressTracker() {
                   {idx === 5 && (
                     <div className="mt-2 text-xs">
                       {step.status === "Pending" && (
-                        <span className="text-yellow-600">⏳ Awaiting final decision</span>
+                        <span className="text-yellow-600">⏳ Under consideration - awaiting evaluation decision</span>
                       )}
-                      {step.status === "Completed" && applicationStatus === "approved" && (
+                      {step.status === "Completed" && displayStatus === "approved" && (
                         <span className="text-green-600">🎉 Application approved!</span>
-                      )}
-                      {step.status === "Completed" && applicationStatus === "rejected" && (
-                        <span className="text-red-600">😢 Application rejected</span>
                       )}
                       {step.status === "Locked" && (
                         <span className="text-red-600">🔒 Complete all previous steps first</span>

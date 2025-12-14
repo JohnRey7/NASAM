@@ -121,6 +121,8 @@ interface ApplicationFormContextType {
   setIsReadOnly: React.Dispatch<React.SetStateAction<boolean>>;
   hasExistingApplication: boolean;
   setHasExistingApplication: React.Dispatch<React.SetStateAction<boolean>>;
+  isApplicationDeleted: boolean;
+  deletionMessage: string;
   isLoading: boolean;
   draftLoaded: boolean;
   saveDraftToServer: () => Promise<void>;
@@ -144,6 +146,8 @@ export function ApplicationFormProvider({ children }: { children: ReactNode }) {
   // Status state
   const [isReadOnly, setIsReadOnly] = useState(false)
   const [hasExistingApplication, setHasExistingApplication] = useState(false)
+  const [isApplicationDeleted, setIsApplicationDeleted] = useState(false)
+  const [deletionMessage, setDeletionMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [draftLoaded, setDraftLoaded] = useState(false)
   const [initialized, setInitialized] = useState(false)
@@ -154,7 +158,32 @@ export function ApplicationFormProvider({ children }: { children: ReactNode }) {
     
     setIsLoading(true);
     try {
-      // First try to get existing submitted application
+      // First check if application was deleted
+      const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application/check-status`, {
+        credentials: 'include'
+      });
+      
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        
+        if (statusData.isDeleted) {
+          // Application was soft-deleted by admin
+          console.log('⚠️ Application has been deleted by administrator');
+          setIsApplicationDeleted(true);
+          setDeletionMessage(statusData.message || 'Your application has been withdrawn by the administrator.');
+          setHasExistingApplication(false);
+          setIsReadOnly(true);
+          setIsLoading(false);
+          setInitialized(true);
+          return;
+        }
+      }
+      
+      // Reset deletion state if not deleted
+      setIsApplicationDeleted(false);
+      setDeletionMessage('');
+      
+      // Try to get existing submitted application
       const response = await applicationService.getMyApplication();
       
       if (response?.application) {
@@ -387,6 +416,8 @@ export function ApplicationFormProvider({ children }: { children: ReactNode }) {
       setIsReadOnly,
       hasExistingApplication,
       setHasExistingApplication,
+      isApplicationDeleted,
+      deletionMessage,
       isLoading,
       draftLoaded,
       saveDraftToServer,

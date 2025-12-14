@@ -5,6 +5,7 @@ const authenticate = require('../middleware/authenticate');
 const checkPermission = require('../middleware/checkPermission');
 
 router.post('/', authenticate, checkPermission('applicationForm.create'), ApplicationController.createApplicationForm);
+router.get('/check-status', authenticate, ApplicationController.checkMyApplicationStatus);
 router.get('/:idNumber/pdf', authenticate, checkPermission('application.export'), ApplicationController.exportApplicationFormAsPDFByIdNumber);
 router.get('/pdf', authenticate, ApplicationController.exportMyApplicationFormAsPDF);
 router.get('/', authenticate, checkPermission('applicationForm.readOwn'), ApplicationController.readMyApplicationForm);

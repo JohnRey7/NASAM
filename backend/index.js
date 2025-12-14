@@ -41,6 +41,7 @@ const oasRoutes = require('./routes/oasRoutes');
 const scholarEvaluationRoutes = require('./routes/scholarEvaluationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const departmentHeadRoutes = require('./routes/departmentHeadRoutes');
+const statusRoutes = require('./routes/statusRoutes');
 
 process.setMaxListeners(20);
 
@@ -160,6 +161,7 @@ app.use('/api/oas', oasRoutes);
 app.use('/api', scholarEvaluationRoutes); // These routes are mixed, some start with /api/evaluation-period, some /api/scholar-evaluation
 app.use('/api/admin', adminRoutes);
 app.use('/api/department-head', departmentHeadRoutes);
+app.use('/api/status', statusRoutes);
 
 // File download route
 app.get('/api/files/:fileName', authenticate, checkPermission('document.get'), async (req, res) => {
