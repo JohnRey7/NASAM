@@ -1396,12 +1396,13 @@ export function ApplicationReview() {
   const rejectedCount = counts?.counts?.rejected ?? 0
   // Under Consideration shows rejected count, since "rejected" status now displays as "Under Consideration"
   const underConsiderationCount = counts?.counts?.rejected ?? 0
-  // Pending includes: pending + all other statuses (form_verified, document_verification, interview_scheduled, draft, etc.)
+  // Pending includes: pending + all other statuses (form_verified, document_verification, interview_scheduled, pending_evaluation, draft, etc.)
   const pendingCount = (counts?.counts?.pending ?? 0) + 
                        (counts?.counts?.draft ?? 0) + 
                        (counts?.counts?.form_verified ?? 0) + 
                        (counts?.counts?.document_verification ?? 0) + 
-                       (counts?.counts?.interview_scheduled ?? 0)
+                       (counts?.counts?.interview_scheduled ?? 0) +
+                       (counts?.counts?.pending_evaluation ?? 0)
 
   // Filter only admin applications client-side (server handles search and status)
   const filteredApplications = applications.filter((app) => {
@@ -1446,6 +1447,12 @@ export function ApplicationReview() {
         return (
           <Badge variant="outline" className="bg-purple-100 text-purple-700">
             Interview Scheduled
+          </Badge>
+        );
+      case "pending_evaluation":
+        return (
+          <Badge variant="outline" className="bg-orange-100 text-orange-700">
+            Pending Evaluation
           </Badge>
         );
       case "approved":
@@ -1738,19 +1745,16 @@ export function ApplicationReview() {
           title: isCurrentlyFinished ? "Interview Reverted" : "Interview Finished",
           description: isCurrentlyFinished 
             ? "Interview has been marked as not finished." 
-            : "Interview has been marked as finished.",
+            : "Interview has been marked as finished. Application status updated to 'Pending Evaluation'.",
         })
-
-        // Reload page if finishing interview
-        if (!isCurrentlyFinished) {
-          window.location.reload()
-          return
-        }
 
         // Refresh interview data
         if (selectedApplication) {
           fetchInterviewData(selectedApplication._id)
         }
+        
+        // Refresh the applications list to reflect status change
+        await fetchApplications(pagination.page, sortOrder, debouncedSearch, filter)
       } else {
         throw new Error(result.message || 'Failed to update interview status')
       }
@@ -2241,6 +2245,7 @@ export function ApplicationReview() {
                   <SelectItem value="form_verified">Form Verified</SelectItem>
                   <SelectItem value="document_verification">Document Verification</SelectItem>
                   <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                  <SelectItem value="pending_evaluation">Pending Evaluation</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="rejected">Under Consideration</SelectItem>
                 </SelectContent>
@@ -2717,10 +2722,6 @@ export function ApplicationReview() {
                                                               hour: 'numeric',
                                                               minute: '2-digit',
                                                               hour12: true
-                                                            })} - {new Date(interview.endTime).toLocaleTimeString('en-US', {
-                                                              hour: 'numeric',
-                                                              minute: '2-digit',
-                                                              hour12: true
                                                             })}
                                                           </p>
                                                           {interview.interviewer && (
@@ -2838,10 +2839,6 @@ export function ApplicationReview() {
                                                           </p>
                                                           <p className={`text-sm font-medium ${interview.is_finished ? 'text-green-800' : 'text-purple-800'}`}>
                                                             <strong>Time:</strong> {new Date(interview.startTime).toLocaleTimeString('en-US', {
-                                                              hour: 'numeric',
-                                                              minute: '2-digit',
-                                                              hour12: true
-                                                            })} - {new Date(interview.endTime).toLocaleTimeString('en-US', {
                                                               hour: 'numeric',
                                                               minute: '2-digit',
                                                               hour12: true

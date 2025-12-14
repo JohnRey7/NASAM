@@ -237,6 +237,7 @@ export function DepartmentHeadApplicationReview({ applications = [] }: { applica
       'approved': { color: 'bg-green-100 text-green-800', icon: CheckCircle },
       'rejected': { color: 'bg-red-100 text-red-800', icon: XCircle },
       'interview_scheduled': { color: 'bg-indigo-100 text-indigo-800', icon: Calendar },
+      'pending_evaluation': { color: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
       'evaluation_pending': { color: 'bg-orange-100 text-orange-800', icon: AlertTriangle }
     }
 
@@ -397,7 +398,7 @@ export function DepartmentHeadApplicationReview({ applications = [] }: { applica
                 <SelectItem value="document_verification">Document Verification</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
-                <SelectItem value="evaluation_pending">Evaluation Pending</SelectItem>
+                <SelectItem value="pending_evaluation">Pending Evaluation</SelectItem>
               </SelectContent>
             </Select>
           </div>

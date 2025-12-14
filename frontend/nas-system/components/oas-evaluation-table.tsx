@@ -30,7 +30,10 @@ import {
   Edit, 
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CheckCircle,
+  XCircle,
+  Clock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
@@ -82,8 +85,42 @@ export function OasEvaluationTable() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const { toast } = useToast();
+
+  // Handle application status update (Pass/Fail/Awaiting)
+  const handleUpdateApplicationStatus = async (userId: string, status: 'approved' | 'rejected' | 'pending_evaluation', userName: string) => {
+    setUpdatingStatus(true);
+    try {
+      const response = await axios.patch(
+        `${API_URL}/oas/application/user/${userId}/status`,
+        { status },
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        const statusLabel = status === 'approved' ? 'Approved (Pass)' : 
+                           status === 'rejected' ? 'Under Consideration (Fail)' : 
+                           'Awaiting';
+        toast({
+          title: "Status Updated",
+          description: `${userName}'s application status has been updated to ${statusLabel}.`,
+        });
+        setViewDialogOpen(false);
+        fetchEvaluations(pagination.page, debouncedSearch);
+      }
+    } catch (error: any) {
+      console.error("Error updating application status:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update application status",
+        variant: "destructive"
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   // Fetch evaluations
   const fetchEvaluations = async (page: number = 1, search: string = "") => {
@@ -317,7 +354,7 @@ export function OasEvaluationTable() {
                   <p className="text-sm font-bold">{toNumber(selectedEvaluation.overallRating).toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Status</p>
+                  <p className="text-sm font-medium text-gray-500">Evaluation Status</p>
                   <Badge variant={selectedEvaluation.evaluationStatus === 'passed' ? "default" : "destructive"}>
                     {selectedEvaluation.evaluationStatus}
                   </Badge>
@@ -333,6 +370,62 @@ export function OasEvaluationTable() {
                 <div>
                   <p className="text-sm font-medium text-gray-500">Date Created</p>
                   <p className="text-sm font-bold">{formatDate(selectedEvaluation.createdAt)}</p>
+                </div>
+              </div>
+
+              {/* Application Status Decision Buttons */}
+              <div className="border-t pt-4 mt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">Set Application Status:</p>
+                <div className="flex gap-3 flex-wrap">
+                  <Button
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => handleUpdateApplicationStatus(
+                      selectedEvaluation.evaluateeUser._id,
+                      'approved',
+                      selectedEvaluation.evaluateeUser.name
+                    )}
+                    disabled={updatingStatus}
+                  >
+                    {updatingStatus ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                    )}
+                    Pass (Approved)
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleUpdateApplicationStatus(
+                      selectedEvaluation.evaluateeUser._id,
+                      'rejected',
+                      selectedEvaluation.evaluateeUser.name
+                    )}
+                    disabled={updatingStatus}
+                  >
+                    {updatingStatus ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="mr-2 h-4 w-4" />
+                    )}
+                    Fail (Under Consideration)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                    onClick={() => handleUpdateApplicationStatus(
+                      selectedEvaluation.evaluateeUser._id,
+                      'pending_evaluation',
+                      selectedEvaluation.evaluateeUser.name
+                    )}
+                    disabled={updatingStatus}
+                  >
+                    {updatingStatus ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Clock className="mr-2 h-4 w-4" />
+                    )}
+                    Awaiting
+                  </Button>
                 </div>
               </div>
             </div>

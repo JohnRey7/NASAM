@@ -133,7 +133,7 @@ export function DocumentUpload() {
           if (appData.application) {
             // Documents are verified if status is 'document_verification' or beyond
             const status = appData.application.status;
-            const isVerified = ['document_verification', 'interview_scheduled', 'approved', 'rejected'].includes(status);
+            const isVerified = ['document_verification', 'interview_scheduled', 'pending_evaluation', 'approved', 'rejected'].includes(status);
             setDocumentsVerified(isVerified);
           }
         }

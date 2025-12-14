@@ -539,6 +539,37 @@ const ApplicationController = {
     }
   },
 
+  // Update application status by user ID (for evaluation decisions)
+  async updateApplicationStatusByUserId(req, res) {
+    try {
+      const { userId } = req.params;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ success: false, message: 'Status is required' });
+      }
+
+      // Valid statuses for evaluation decisions
+      const validStatuses = ['approved', 'rejected', 'pending_evaluation'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` 
+        });
+      }
+
+      const application = await ApplicationService.updateApplicationStatusByUserId(userId, status, req.user?.id);
+
+      res.json({ success: true, application });
+    } catch (error) {
+      console.error('❌ Error updating status by user ID:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
   // Get application details
   async getApplicationDetails(req, res) {
     try {

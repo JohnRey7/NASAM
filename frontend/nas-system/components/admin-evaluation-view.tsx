@@ -9,7 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { useConfirmation } from "@/components/ui/confirmation-dialog"
 import { scholarEvaluationService } from "@/services/scholarEvaluationService"
-import { Eye, Download, Trash2, Search, Filter } from "lucide-react"
+import { Eye, Download, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
+import axios from "axios"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
@@ -22,6 +25,7 @@ export function AdminEvaluationView() {
   const [loading, setLoading] = useState(true)
   const [selectedEvaluation, setSelectedEvaluation] = useState<any>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("")
@@ -70,6 +74,39 @@ export function AdminEvaluationView() {
   const handleViewEvaluation = (evaluation: any) => {
     setSelectedEvaluation(evaluation)
     setViewDialogOpen(true)
+  }
+
+  // Handle application status update (Pass/Fail/Awaiting)
+  const handleUpdateApplicationStatus = async (userId: string, status: 'approved' | 'rejected' | 'pending_evaluation', userName: string) => {
+    setUpdatingStatus(true)
+    try {
+      const response = await axios.patch(
+        `${API_URL}/oas/application/user/${userId}/status`,
+        { status },
+        { withCredentials: true }
+      )
+
+      if (response.data.success) {
+        const statusLabel = status === 'approved' ? 'Approved (Pass)' : 
+                           status === 'rejected' ? 'Under Consideration (Fail)' : 
+                           'Awaiting'
+        toast({
+          title: "Status Updated",
+          description: `${userName}'s application status has been updated to ${statusLabel}.`,
+        })
+        setViewDialogOpen(false)
+        loadEvaluations()
+      }
+    } catch (error: any) {
+      console.error("Error updating application status:", error)
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update application status",
+        variant: "destructive"
+      })
+    } finally {
+      setUpdatingStatus(false)
+    }
   }
 
   const handleDeleteEvaluation = async (id: string, scholarName: string) => {
@@ -405,6 +442,62 @@ export function AdminEvaluationView() {
                       <p className="text-sm mt-2">{selectedEvaluation.nasRemarks}</p>
                     </div>
                   )}
+
+                  {/* Application Status Decision Buttons */}
+                  <div className="border-t-2 border-gray-200 pt-4 mt-4">
+                    <Label className="font-semibold text-gray-700 mb-3 block">Set Application Status:</Label>
+                    <div className="flex gap-3 flex-wrap">
+                      <Button
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleUpdateApplicationStatus(
+                          selectedEvaluation.scholar,
+                          'approved',
+                          selectedEvaluation.scholarName
+                        )}
+                        disabled={updatingStatus}
+                      >
+                        {updatingStatus ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Pass (Approved)
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleUpdateApplicationStatus(
+                          selectedEvaluation.scholar,
+                          'rejected',
+                          selectedEvaluation.scholarName
+                        )}
+                        disabled={updatingStatus}
+                      >
+                        {updatingStatus ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Fail (Under Consideration)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                        onClick={() => handleUpdateApplicationStatus(
+                          selectedEvaluation.scholar,
+                          'pending_evaluation',
+                          selectedEvaluation.scholarName
+                        )}
+                        disabled={updatingStatus}
+                      >
+                        {updatingStatus ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Clock className="mr-2 h-4 w-4" />
+                        )}
+                        Awaiting
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </ScrollArea>

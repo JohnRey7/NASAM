@@ -44,6 +44,9 @@ router.get('/analytics', authenticate, checkPermission('applicationForm.read'), 
 // Analytics export endpoint (CSV or PDF)
 router.get('/analytics/export', authenticate, checkPermission('applicationForm.read'), AnalyticsExportController.exportAnalytics);
 
+// Update application status by user ID (for evaluation decisions - Pass/Fail/Awaiting)
+router.patch('/application/user/:userId/status', authenticate, checkPermission('applicationForm.update'), ApplicationController.updateApplicationStatusByUserId);
+
 // OAS Evaluation Management Routes
 // GET all evaluations with pagination (limit 50 per page)
 router.get('/evaluations', authenticate, checkPermission('evaluation.read'), EvaluationController.getAllEvaluationsForAdmin);

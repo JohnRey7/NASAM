@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, Users, CheckCircle, Eye, MessageSquare, Search, ClipboardCheck, Bell, Plus, Download, AlertTriangle, XCircle, RefreshCw, X, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { Calendar, Clock, Users, CheckCircle, Eye, MessageSquare, Search, ClipboardCheck, Bell, Plus, Download, AlertTriangle, XCircle, RefreshCw, X, ZoomIn, ZoomOut, RotateCcw, Trash2 } from "lucide-react";
+import { useConfirmation } from "@/components/ui/confirmation-dialog";
 import React, { useState, useEffect } from "react";
 import { departmentHeadService } from "@/services/departmentHeadService";
 import { scholarEvaluationService } from "@/services/scholarEvaluationService";
@@ -60,6 +61,7 @@ const getNumericValue = (value: any): number => {
 
 export default function DepartmentHeadDashboardPage() {
   const { user } = useAuth();
+  const { confirm, ConfirmDialog } = useConfirmation();
   const [interviews, setInterviews] = useState<InterviewData[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -634,6 +636,43 @@ export default function DepartmentHeadDashboardPage() {
       setInterviewData({ interviews: [], isScheduled: false });
     } finally {
       setInterviewLoading(false);
+    }
+  };
+
+  // Delete (soft delete) an interview
+  const handleDeleteInterview = async (interviewId: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${interviewId}/soft`,
+        {
+          method: 'DELETE',
+          credentials: 'include'
+        }
+      );
+      
+      if (response.ok) {
+        toast({
+          title: "Interview Deleted",
+          description: "The interview has been successfully deleted.",
+        });
+        // Refresh interview data
+        const appId = selectedApplication?.applicationId?._id || applicationDetails?.applicationId;
+        if (appId) {
+          fetchInterviewData(appId);
+        }
+        // Refresh the interviews list
+        fetchApplicants(currentPage);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete interview');
+      }
+    } catch (error) {
+      console.error('Error deleting interview:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete interview",
+        variant: "destructive"
+      });
     }
   };
 
@@ -1710,8 +1749,6 @@ export default function DepartmentHeadDashboardPage() {
                                                         <p className={`text-sm font-medium ${deptHeadInterview.is_finished ? 'text-green-800' : 'text-blue-800'}`}>
                                                           <strong>Time:</strong> {new Date(deptHeadInterview.startTime).toLocaleTimeString('en-US', {
                                                             hour: 'numeric', minute: '2-digit', hour12: true
-                                                          })} - {new Date(deptHeadInterview.endTime).toLocaleTimeString('en-US', {
-                                                            hour: 'numeric', minute: '2-digit', hour12: true
                                                           })}
                                                         </p>
                                                         {deptHeadInterview.interviewer && (
@@ -1768,7 +1805,7 @@ export default function DepartmentHeadDashboardPage() {
                                                               title: deptHeadInterview.is_finished ? "Interview Reverted" : "Interview Finished",
                                                               description: deptHeadInterview.is_finished 
                                                                 ? "Interview has been marked as not finished." 
-                                                                : "Interview has been marked as finished.",
+                                                                : "Interview has been marked as finished. Application status updated to 'Pending Evaluation'.",
                                                             });
 
                                                             // Refresh interview data using the correct application ID
@@ -1776,6 +1813,9 @@ export default function DepartmentHeadDashboardPage() {
                                                             if (appId) {
                                                               await fetchInterviewData(appId);
                                                             }
+                                                            
+                                                            // Refresh the main applicant list to reflect status change
+                                                            await fetchApplicants(currentPage);
                                                           } else {
                                                             throw new Error(result.message || 'Failed to update interview status');
                                                           }
@@ -1792,6 +1832,29 @@ export default function DepartmentHeadDashboardPage() {
                                                       <CheckCircle className="mr-2 h-4 w-4" />
                                                       {deptHeadInterview.is_finished ? "Revert Interview" : "Finish Interview"}
                                                     </Button>
+
+                                                    {/* Delete Interview Button - only show if not finished */}
+                                                    {!deptHeadInterview.is_finished && (
+                                                      <Button
+                                                        variant="outline"
+                                                        className="border-red-300 text-red-600 hover:bg-red-50"
+                                                        onClick={async () => {
+                                                          const confirmed = await confirm({
+                                                            title: "Delete Interview",
+                                                            description: "Are you sure you want to delete this interview? This action can be undone by an administrator.",
+                                                            confirmText: "Delete",
+                                                            cancelText: "Cancel",
+                                                            type: "danger"
+                                                          });
+                                                          if (confirmed) {
+                                                            handleDeleteInterview(deptHeadInterview._id);
+                                                          }
+                                                        }}
+                                                      >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete Interview
+                                                      </Button>
+                                                    )}
                                                   </div>
                                                 ) : (
                                                   <div className="space-y-4 p-4 border rounded-lg">
@@ -2199,6 +2262,7 @@ export default function DepartmentHeadDashboardPage() {
           </Dialog>
         )}
       </div>
+      {ConfirmDialog}
     </DashboardLayout>
   );
 }

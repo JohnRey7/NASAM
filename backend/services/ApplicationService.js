@@ -1031,6 +1031,54 @@ class ApplicationService {
     return application;
   }
 
+  // Update application status by user ID (for evaluation decisions)
+  static async updateApplicationStatusByUserId(userId, status, updatedBy) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID format');
+    }
+
+    const application = await ApplicationForm.findOneAndUpdate(
+      SoftDeleteUtils.addSoftDeleteFilter({ user: userId }),
+      { 
+        status, 
+        updatedAt: new Date(),
+        ...(updatedBy && { updatedBy })
+      },
+      { new: true }
+    ).populate('user', 'name email');
+
+    if (!application) {
+      throw new Error('Application not found for this user');
+    }
+
+    // Create notification based on status
+    try {
+      if (status === 'approved') {
+        await NotificationService.createScholarshipApprovedNotification(
+          application.user._id,
+          application._id,
+          application.user.name || `${application.firstName} ${application.lastName}`
+        );
+      } else if (status === 'rejected') {
+        await NotificationService.createScholarshipRejectedNotification(
+          application.user._id,
+          application._id
+        );
+      } else {
+        await NotificationService.createStatusChangeNotification(
+          application.user._id,
+          application._id,
+          status
+        );
+      }
+    } catch (notifError) {
+      console.log('⚠️ Notification creation failed:', notifError.message);
+    }
+
+    console.log(`✅ Application status updated to '${status}' for user ${userId}`);
+    return application;
+  }
+
   // Get application details
   static async getApplicationDetails(applicationId) {
     const application = await ApplicationForm.findOne(SoftDeleteUtils.addSoftDeleteFilter({ _id: applicationId }))
