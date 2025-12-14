@@ -560,20 +560,27 @@ class DocumentUploadService {
         page = 1,
         limit = 10,
         sortBy = 'updatedAt',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
+        userId = null  // Optional filter by specific user
       } = options;
 
       const skip = (page - 1) * limit;
       const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
 
-      const documents = await DocumentUpload.find({ is_deleted: true })
+      // Build query - filter by userId if provided to prevent cross-user data leaks
+      const query = { is_deleted: true };
+      if (userId) {
+        query.user = userId;
+      }
+
+      const documents = await DocumentUpload.find(query)
         .populate('user', 'name email idNumber')
         .sort(sort)
         .skip(skip)
         .limit(parseInt(limit))
         .lean();
 
-      const total = await DocumentUpload.countDocuments({ is_deleted: true });
+      const total = await DocumentUpload.countDocuments(query);
 
       return {
         documents,

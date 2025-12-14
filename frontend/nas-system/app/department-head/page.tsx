@@ -1669,11 +1669,11 @@ export default function DepartmentHeadDashboardPage() {
                                               </span>
                                               <span className="text-gray-400">•</span>
                                               <span className={`font-semibold ${
-                                                personalityTestData.riskLevelIndicator === 'Very Low' ? 'text-blue-600' :
-                                                personalityTestData.riskLevelIndicator === 'Low' ? 'text-green-600' :
+                                                personalityTestData.riskLevelIndicator === 'Very Low' ? 'text-red-600' :
+                                                personalityTestData.riskLevelIndicator === 'Low' ? 'text-orange-600' :
                                                 personalityTestData.riskLevelIndicator === 'Below Average' ? 'text-yellow-600' :
-                                                personalityTestData.riskLevelIndicator === 'Average' ? 'text-orange-600' :
-                                                personalityTestData.riskLevelIndicator === 'Above Average' ? 'text-red-600' : 'text-gray-600'
+                                                personalityTestData.riskLevelIndicator === 'Average' ? 'text-blue-600' :
+                                                personalityTestData.riskLevelIndicator === 'Above Average' ? 'text-green-600' : 'text-gray-600'
                                               }`}>
                                                 {personalityTestData.riskLevelIndicator || 'Unknown'}
                                               </span>

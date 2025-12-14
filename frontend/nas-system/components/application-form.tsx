@@ -976,8 +976,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
     if (hasErrors) {
       toast({
-        title: "Please fix the errors",
-        description: "Some required fields are missing or have invalid values. Fields with errors are highlighted in red.",
+        title: "Required Fields Missing",
+        description: "Please complete all required fields in the Personal Information section. Fields that need attention are highlighted in red.",
         variant: "destructive"
       });
       return false;
@@ -993,6 +993,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     const fatherFields = ['firstName', 'lastName', 'age', 'occupation', 'grossAnnualIncome', 'contactNumber'] as const;
     const newErrors: Record<string, boolean> = {};
     let hasErrors = false;
+    let incomeExceedsLimit = false;
 
     for (const field of fatherFields) {
       if (!formData.familyBackground.father[field]) {
@@ -1010,12 +1011,43 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       }
     }
 
+    // Validate gross annual income limit (₱200,000 max for eligibility)
+    const INCOME_LIMIT = 200000;
+    const parseIncome = (incomeStr: string): number => {
+      if (!incomeStr) return 0;
+      // Remove currency symbols, commas, and spaces, then parse
+      const cleaned = incomeStr.replace(/[₱,\s]/g, '');
+      return parseFloat(cleaned) || 0;
+    };
+
+    const fatherIncome = parseIncome(formData.familyBackground.father.grossAnnualIncome);
+    const motherIncome = parseIncome(formData.familyBackground.mother.grossAnnualIncome);
+
+    if (fatherIncome > INCOME_LIMIT) {
+      newErrors['father_grossAnnualIncome'] = true;
+      incomeExceedsLimit = true;
+    }
+
+    if (motherIncome > INCOME_LIMIT) {
+      newErrors['mother_grossAnnualIncome'] = true;
+      incomeExceedsLimit = true;
+    }
+
     setFieldErrors(prev => ({ ...prev, ...newErrors }));
+
+    if (incomeExceedsLimit) {
+      toast({
+        title: "Income Exceeds Eligibility Limit",
+        description: "Father's or Mother's gross annual income exceeds ₱200,000.00. Applicants with family income above this limit are not eligible for the NAS scholarship.",
+        variant: "destructive"
+      });
+      return false;
+    }
 
     if (hasErrors) {
       toast({
-        title: "Please fix the errors",
-        description: "Some required fields are missing. Fields with errors are highlighted in red.",
+        title: "Required Fields Missing",
+        description: "Please complete all required fields in the Family Background section. Fields that need attention are highlighted in red.",
         variant: "destructive"
       });
       return false;
@@ -1122,8 +1154,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
     if (hasErrors) {
       toast({
-        title: "Please fix the errors",
-        description: "Some required fields are missing or have invalid values. Fields with errors are highlighted in red.",
+        title: "Required Fields Missing",
+        description: "Please complete all required fields in the Education section. Fields that need attention are highlighted in red.",
         variant: "destructive"
       });
       return false;
@@ -1162,8 +1194,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
     if (hasErrors) {
       toast({
-        title: "Please fix the errors",
-        description: "Some required fields are missing. Fields with errors are highlighted in red.",
+        title: "Required Fields Missing",
+        description: "Please provide at least two references with complete information. Fields that need attention are highlighted in red.",
         variant: "destructive"
       });
       return false;

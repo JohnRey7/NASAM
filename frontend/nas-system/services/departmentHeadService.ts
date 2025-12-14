@@ -5,6 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 export const departmentHeadService = {
   async submitEvaluation(data: {
     evaluateeUser: string;
+    idNumber?: string;
     attendanceAndPunctuality: { rating: number; remarks: string };
     qualityOfWorkOutput: { rating: number; remarks: string };
     quantityOfWorkOutput: { rating: number; remarks: string };
@@ -13,7 +14,8 @@ export const departmentHeadService = {
     remarksCommentsByTheNAS?: string;
     overallRating: number;
   }) {
-    const response = await axios.post(`${API_URL}/evaluations`, data, {
+    // Use the department-head specific evaluation endpoint which accepts userId
+    const response = await axios.post(`${API_URL}/department-head/evaluation/${data.evaluateeUser}/user`, data, {
       withCredentials: true,
       headers: { 'Content-Type': 'application/json' },
     });

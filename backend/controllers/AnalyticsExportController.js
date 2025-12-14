@@ -30,7 +30,7 @@ const AnalyticsExportController = {
               $cond: [
                 { $in: [ { $toLower: { $ifNull: ['$gender', '$userDoc.gender'] } }, ['male', 'female'] ] },
                 { $ifNull: ['$gender', '$userDoc.gender'] },
-                'Unknown'
+                null  // Use null instead of 'Unknown' - will be filtered out in analytics
               ]
             }
           }
@@ -167,7 +167,12 @@ const AnalyticsExportController = {
       (facet.incomeCounts || []).forEach(i => { incomeCounts[i._id || 'Unknown'] = i.count; });
       
       const genderCounts = {};
-      (facet.genderCounts || []).forEach(g => { genderCounts[g._id || 'Prefer not to say'] = g.count; });
+      // Filter out null/undefined genders - only show Male and Female in analytics
+      (facet.genderCounts || []).forEach(g => { 
+        if (g._id && (g._id === 'Male' || g._id === 'Female')) {
+          genderCounts[g._id] = g.count; 
+        }
+      });
       
       const avgGPA = (facet.gpaStats && facet.gpaStats[0] && facet.gpaStats[0].avgGPA) ? Number((facet.gpaStats[0].avgGPA).toFixed(2)) : null;
       const gpaCount = (facet.gpaStats && facet.gpaStats[0] && facet.gpaStats[0].count) || 0;

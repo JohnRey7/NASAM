@@ -182,7 +182,7 @@ export function WelcomeGuideModal() {
                     <h4 className="font-bold text-green-900 mb-1">Good luck with your application!</h4>
                     <p className="text-sm text-green-700">
                       Please ensure all information provided is truthful and accurate. If you have any questions, 
-                      feel free to contact the Office of Academic Services (OAS).
+                      feel free to contact the Office of Administration and Scholarship (OAS).
                     </p>
                   </div>
                 </div>

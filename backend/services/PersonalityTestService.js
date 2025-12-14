@@ -150,11 +150,11 @@ class PersonalityTestService {
             answer,
           });
           await answerDoc.save();
-          test.answers.push(answerDoc._id);
+          // Only push to test.answers if it's a new answer (not already in the array)
+          if (!test.answers.includes(answerDoc._id)) {
+            test.answers.push(answerDoc._id);
+          }
         }
-
-        // Update test
-        test.answers.push(answerDoc._id);
 
         // Calculate score and check if test is completed
         if (answer !== null && answer !== undefined) {

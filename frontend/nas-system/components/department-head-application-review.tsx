@@ -490,10 +490,11 @@ export function DepartmentHeadApplicationReview({ applications = [] }: { applica
                                       <h4 className="font-semibold text-gray-900 mb-2">Personal Information</h4>
                                       <div className="bg-gray-50 p-4 rounded-md space-y-2">
                                         <p><strong>Name:</strong> {application.firstName} {application.lastName}</p>
-                                        <p><strong>Email:</strong> {application.email || 'N/A'}</p>
-                                        <p><strong>Phone:</strong> {application.phoneNumber || 'N/A'}</p>
-                                        <p><strong>Address:</strong> {application.address || 'N/A'}</p>
-                                        <p><strong>Date of Birth:</strong> {application.dateOfBirth ? new Date(application.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
+                                        <p><strong>Student ID:</strong> {application.idNumber || application.user?.idNumber || 'N/A'}</p>
+                                        <p><strong>Email:</strong> {application.email || application.emailAddress || application.user?.email || 'N/A'}</p>
+                                        <p><strong>Phone:</strong> {application.phoneNumber || application.contactNumber || 'N/A'}</p>
+                                        <p><strong>Address:</strong> {application.address || application.permanentResidentialAddress || 'N/A'}</p>
+                                        <p><strong>Date of Birth:</strong> {(application.birthDate || application.dateOfBirth) ? new Date(application.birthDate || application.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
                                       </div>
                                     </div>
                                   </div>

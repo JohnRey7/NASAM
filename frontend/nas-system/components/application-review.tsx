@@ -493,12 +493,14 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
     }
   };
 
-  // Fetch deleted documents
+  // Fetch deleted documents - filter by current user being viewed
   const fetchDeletedDocuments = async () => {
     setDeletedDocumentsLoading(true);
     try {
+      // Add userId filter to only get deleted documents for the current application's user
+      const queryParam = userId ? `?userId=${userId}` : '';
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/deleted`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/document-uploads/deleted${queryParam}`,
         { credentials: 'include' }
       );
       
@@ -506,7 +508,18 @@ function DocumentChecker({ applicationId, userId, idNumber }: { applicationId: s
         const result = await response.json();
         console.log('🗑️ Deleted documents fetched:', result);
         // Handle both array and { documents: [...] } formats
-        const docs = Array.isArray(result) ? result : (result.documents || []);
+        let docs = Array.isArray(result) ? result : (result.documents || []);
+        
+        // Additional client-side filter to ensure we only show documents for the current user
+        // This prevents cross-user data leaks even if the backend doesn't filter properly
+        if (userId) {
+          docs = docs.filter((doc: any) => 
+            doc.user?._id === userId || 
+            doc.user === userId ||
+            doc.userId === userId
+          );
+        }
+        
         setDeletedDocuments(docs);
       } else {
         console.log('🗑️ No deleted documents found or error fetching');
@@ -1700,9 +1713,9 @@ export function ApplicationReview() {
           message: `This is a reminder for your upcoming interview scheduled on ${formattedDate} at ${formattedTime}. Please make sure to be available on time.`,
           priority: 'high',
           metadata: {
-            interviewId: interviewData.interview._id,
+            interviewId: targetInterview._id,
             applicationId: selectedApplication._id,
-            scheduledDate: interviewData.interview.startTime
+            scheduledDate: targetInterview.startTime
           }
         })
       })
@@ -2485,15 +2498,15 @@ export function ApplicationReview() {
                                         <span className="text-gray-400">•</span>
                                         <span className={`font-semibold ${
                                           personalityTestData.riskLevelIndicator === 'Very Low' 
-                                            ? 'text-blue-600'
+                                            ? 'text-red-600'
                                             : personalityTestData.riskLevelIndicator === 'Low'
-                                            ? 'text-green-600'
+                                            ? 'text-orange-600'
                                             : personalityTestData.riskLevelIndicator === 'Below Average'
                                             ? 'text-yellow-600'
                                             : personalityTestData.riskLevelIndicator === 'Average'
-                                            ? 'text-orange-600'
+                                            ? 'text-blue-600'
                                             : personalityTestData.riskLevelIndicator === 'Above Average'
-                                            ? 'text-red-600'
+                                            ? 'text-green-600'
                                             : 'text-gray-600'
                                         }`}>
                                           {personalityTestData.riskLevelIndicator || 'Unknown'}

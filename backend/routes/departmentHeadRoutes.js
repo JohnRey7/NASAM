@@ -32,6 +32,8 @@ router.patch('/interview/:interviewId/reschedule', authenticate, checkPermission
 // Department Head: Evaluation routes
 // Create evaluation for a scholar (department heads can only CREATE, not update or delete)
 router.post('/evaluation/:idNumber', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluation);
+// Create evaluation by userId (alternative endpoint for department heads)
+router.post('/evaluation/:userId/user', authenticate, checkPermission('evaluation.create'), EvaluationController.createEvaluationForUser);
 // Get evaluations for a scholar (read-only)
 router.get('/evaluation/user/:idNumber', authenticate, checkPermission('evaluation.read'), EvaluationController.getEvaluationsByIdNumber);
 
