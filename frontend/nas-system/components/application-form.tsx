@@ -952,16 +952,29 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
     // Eligibility validation based on SRS requirements
     
+    // Eligibility checks with specific error messages
+    let eligibilityError = false;
+
     // 1. Year Level Requirement: Must be First Year or Second Year
     if (formData.yearLevel && formData.yearLevel !== 'First Year' && formData.yearLevel !== 'Second Year') {
       newErrors['yearLevel'] = true;
-      hasErrors = true;
+      eligibilityError = true;
+      toast({
+        title: "Eligibility Requirement Not Met",
+        description: "The NAS scholarship is only available to First Year and Second Year students. Please verify your year level.",
+        variant: "destructive"
+      });
     }
 
     // 2. Family Income Requirement: Must not exceed ₱300,000
     if (formData.annualFamilyIncome === '>300k') {
       newErrors['annualFamilyIncome'] = true;
-      hasErrors = true;
+      eligibilityError = true;
+      toast({
+        title: "Eligibility Requirement Not Met",
+        description: "Applicants with annual family income above ₱300,000 are not eligible for the NAS scholarship.",
+        variant: "destructive"
+      });
     }
 
     // 3. Program Restriction: Must not be enrolled in BS Nursing
@@ -969,10 +982,19 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
         (formData.programOfStudyAndYear.toLowerCase().includes('nursing') || 
          formData.programOfStudyAndYear.toLowerCase().includes('bsn'))) {
       newErrors['programOfStudyAndYear'] = true;
-      hasErrors = true;
+      eligibilityError = true;
+      toast({
+        title: "Eligibility Requirement Not Met",
+        description: "BS Nursing students are not eligible for the NAS scholarship program.",
+        variant: "destructive"
+      });
     }
 
     setFieldErrors(prev => ({ ...prev, ...newErrors }));
+
+    if (eligibilityError) {
+      return false;
+    }
 
     if (hasErrors) {
       toast({

@@ -1761,9 +1761,9 @@ export function ApplicationReview() {
             : "Interview has been marked as finished. Application status updated to 'Pending Evaluation'.",
         })
 
-        // Refresh interview data
+        // Refresh interview data - await to ensure UI updates
         if (selectedApplication) {
-          fetchInterviewData(selectedApplication._id)
+          await fetchInterviewData(selectedApplication._id)
         }
         
         // Refresh the applications list to reflect status change

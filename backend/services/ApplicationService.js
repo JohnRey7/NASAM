@@ -58,8 +58,9 @@ class ApplicationService {
     }
 
     // For general text fields - letters, numbers, spaces, and extended punctuation
+    // Includes common symbols used in organization names: dashes (hyphen, en-dash, em-dash), brackets, etc.
     if (options.type === 'text') {
-      const textRegex = /^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\s.,;:()\-/'"&]+$/;
+      const textRegex = /^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\s.,;:()\[\]\-–—/'"&@#*+_]+$/;
       if (!textRegex.test(stringValue)) {
         throw new Error(`${fieldName} contains invalid characters`);
       }

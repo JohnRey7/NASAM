@@ -784,8 +784,11 @@ export default function DepartmentHeadDashboardPage() {
       setInterviewEndTime('10:00');
       setIsRescheduling(false);
       
-      // Refresh interview data
-      fetchInterviewData(applicationId);
+      // Refresh interview data - await to ensure UI updates
+      await fetchInterviewData(applicationId);
+      
+      // Also refresh the applicants list to reflect any status changes
+      await fetchApplicants(currentPage);
 
     } catch (error) {
       console.error('Error scheduling interview:', error);

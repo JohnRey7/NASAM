@@ -23,10 +23,14 @@ const fileUploadSchema = new mongoose.Schema({
         uploadedAt: { type: Date, default: Date.now }
     }],
     gradeAverages: {
-        elementary: { type: Number, min: 0, max: 100 },
-        juniorHighSchool: { type: Number, min: 0, max: 100 },
+        elementary: { type: Number, min: 0, max: 100 }, // Legacy - kept for backward compatibility
+        juniorHighSchool: { type: Number, min: 0, max: 100 }, // Legacy - kept for backward compatibility
         seniorHighSchool: { type: Number, min: 0, max: 100 },
-        college: { type: Number, min: 0, max: 100 } // Optional
+        college: { type: Number, min: 0, max: 100 }, // Legacy - kept for backward compatibility
+        collegeTerm1: { type: Number, min: 1, max: 5 }, // GWA scale 1.0-5.0
+        collegeTerm2: { type: Number, min: 1, max: 5 },
+        collegeTerm3: { type: Number, min: 1, max: 5 },
+        collegeTerm4: { type: Number, min: 1, max: 5 }
     },
     incomeTaxReturn: [{
         filePath: { type: String, required: true },

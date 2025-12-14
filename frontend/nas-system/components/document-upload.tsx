@@ -78,13 +78,20 @@ export function DocumentUpload() {
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
   
-  // Grade averages state
+  // Grade averages state - only SHS and College terms
   const [gradeAverages, setGradeAverages] = useState({
-    elementary: '',
-    juniorHighSchool: '',
+    elementary: '', // Keep for backward compatibility but not displayed
+    juniorHighSchool: '', // Keep for backward compatibility but not displayed
     seniorHighSchool: '',
-    college: ''
+    college: '', // Keep for backward compatibility
+    collegeTerm1: '',
+    collegeTerm2: '',
+    collegeTerm3: '',
+    collegeTerm4: ''
   })
+  
+  // Track number of college terms completed
+  const [collegeTermsCompleted, setCollegeTermsCompleted] = useState(1)
   
   // Income tax info state
   const [incomeTaxInfo, setIncomeTaxInfo] = useState({
@@ -104,12 +111,23 @@ export function DocumentUpload() {
         
         // Load existing grade averages
         if (result.gradeAverages) {
+          const ga = result.gradeAverages as Record<string, unknown>;
           setGradeAverages({
-            elementary: result.gradeAverages.elementary?.toString() || '',
-            juniorHighSchool: result.gradeAverages.juniorHighSchool?.toString() || '',
-            seniorHighSchool: result.gradeAverages.seniorHighSchool?.toString() || '',
-            college: result.gradeAverages.college?.toString() || ''
+            elementary: ga.elementary?.toString() || '',
+            juniorHighSchool: ga.juniorHighSchool?.toString() || '',
+            seniorHighSchool: ga.seniorHighSchool?.toString() || '',
+            college: ga.college?.toString() || '',
+            collegeTerm1: ga.collegeTerm1?.toString() || '',
+            collegeTerm2: ga.collegeTerm2?.toString() || '',
+            collegeTerm3: ga.collegeTerm3?.toString() || '',
+            collegeTerm4: ga.collegeTerm4?.toString() || ''
           })
+          // Count how many terms have grades
+          let termsCount = 1;
+          if (ga.collegeTerm2) termsCount = 2;
+          if (ga.collegeTerm3) termsCount = 3;
+          if (ga.collegeTerm4) termsCount = 4;
+          setCollegeTermsCompleted(termsCount);
         }
         
         // Load existing income tax info
@@ -361,11 +379,16 @@ export function DocumentUpload() {
       
       // Update grade averages and income tax info from the response
       if (result.gradeAverages) {
+        const ga = result.gradeAverages as Record<string, unknown>;
         setGradeAverages({
-          elementary: result.gradeAverages.elementary?.toString() || '',
-          juniorHighSchool: result.gradeAverages.juniorHighSchool?.toString() || '',
-          seniorHighSchool: result.gradeAverages.seniorHighSchool?.toString() || '',
-          college: result.gradeAverages.college?.toString() || ''
+          elementary: ga.elementary?.toString() || '',
+          juniorHighSchool: ga.juniorHighSchool?.toString() || '',
+          seniorHighSchool: ga.seniorHighSchool?.toString() || '',
+          college: ga.college?.toString() || '',
+          collegeTerm1: ga.collegeTerm1?.toString() || '',
+          collegeTerm2: ga.collegeTerm2?.toString() || '',
+          collegeTerm3: ga.collegeTerm3?.toString() || '',
+          collegeTerm4: ga.collegeTerm4?.toString() || ''
         })
       }
       
@@ -471,35 +494,41 @@ export function DocumentUpload() {
         })}
 
         {/* Show grade averages in read-only mode */}
-        {(gradeAverages.elementary || gradeAverages.juniorHighSchool || gradeAverages.seniorHighSchool || gradeAverages.college) && (
+        {(gradeAverages.seniorHighSchool || gradeAverages.collegeTerm1) && (
           <Card className="mb-6">
             <CardHeader className="bg-green-50 border-b border-green-200">
               <CardTitle className="text-green-800">Grade Averages (Verified)</CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="grid grid-cols-2 gap-4">
-                {gradeAverages.elementary && (
-                  <div className="p-3 bg-gray-50 rounded">
-                    <Label className="text-gray-600">Elementary Average</Label>
-                    <p className="font-medium">{gradeAverages.elementary}%</p>
-                  </div>
-                )}
-                {gradeAverages.juniorHighSchool && (
-                  <div className="p-3 bg-gray-50 rounded">
-                    <Label className="text-gray-600">Junior High School Average</Label>
-                    <p className="font-medium">{gradeAverages.juniorHighSchool}%</p>
-                  </div>
-                )}
                 {gradeAverages.seniorHighSchool && (
                   <div className="p-3 bg-gray-50 rounded">
                     <Label className="text-gray-600">Senior High School Average</Label>
                     <p className="font-medium">{gradeAverages.seniorHighSchool}%</p>
                   </div>
                 )}
-                {gradeAverages.college && (
+                {gradeAverages.collegeTerm1 && (
                   <div className="p-3 bg-gray-50 rounded">
-                    <Label className="text-gray-600">College Average</Label>
-                    <p className="font-medium">{gradeAverages.college}%</p>
+                    <Label className="text-gray-600">College Term 1 GWA</Label>
+                    <p className="font-medium">{gradeAverages.collegeTerm1}</p>
+                  </div>
+                )}
+                {gradeAverages.collegeTerm2 && (
+                  <div className="p-3 bg-gray-50 rounded">
+                    <Label className="text-gray-600">College Term 2 GWA</Label>
+                    <p className="font-medium">{gradeAverages.collegeTerm2}</p>
+                  </div>
+                )}
+                {gradeAverages.collegeTerm3 && (
+                  <div className="p-3 bg-gray-50 rounded">
+                    <Label className="text-gray-600">College Term 3 GWA</Label>
+                    <p className="font-medium">{gradeAverages.collegeTerm3}</p>
+                  </div>
+                )}
+                {gradeAverages.collegeTerm4 && (
+                  <div className="p-3 bg-gray-50 rounded">
+                    <Label className="text-gray-600">College Term 4 GWA</Label>
+                    <p className="font-medium">{gradeAverages.collegeTerm4}</p>
                   </div>
                 )}
               </div>
@@ -534,58 +563,121 @@ export function DocumentUpload() {
           <CardDescription>Upload your latest grade report or transcript and provide your grade averages</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          {/* Grade Average Input Fields */}
+          {/* Grade Average Input Fields - Only SHS and College */}
           <div className="mb-6 p-4 bg-blue-50 rounded-lg">
             <h4 className="font-semibold text-blue-900 mb-3">Grade Averages</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="elementary">Elementary Average (%)</Label>
-                <Input
-                  id="elementary"
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="e.g., 85"
-                  value={gradeAverages.elementary}
-                  onChange={(e) => setGradeAverages({...gradeAverages, elementary: e.target.value})}
-                />
+            <p className="text-sm text-blue-700 mb-4">
+              Enter your Senior High School average and College term grades. Upload the corresponding grade documents below for OAS verification.
+            </p>
+            
+            {/* Senior High School */}
+            <div className="mb-4">
+              <Label htmlFor="seniorHS" className="text-base font-medium">Senior High School Average (%)</Label>
+              <p className="text-xs text-gray-500 mb-2">Enter your SHS general average and upload your SHS grade report below</p>
+              <Input
+                id="seniorHS"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="e.g., 89.5"
+                value={gradeAverages.seniorHighSchool}
+                onChange={(e) => setGradeAverages({...gradeAverages, seniorHighSchool: e.target.value})}
+                className="max-w-xs"
+              />
+            </div>
+            
+            {/* College Terms */}
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <Label className="text-base font-medium">College Term Grades</Label>
+                  <p className="text-xs text-gray-500">Enter grades for each completed term at CIT-U</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="termsCompleted" className="text-sm">Terms Completed:</Label>
+                  <select
+                    id="termsCompleted"
+                    value={collegeTermsCompleted}
+                    onChange={(e) => setCollegeTermsCompleted(Number(e.target.value))}
+                    className="border rounded px-2 py-1 text-sm"
+                  >
+                    <option value={1}>1 Term</option>
+                    <option value={2}>2 Terms</option>
+                    <option value={3}>3 Terms</option>
+                    <option value={4}>4 Terms</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="juniorHS">Junior High School Average (%)</Label>
-                <Input
-                  id="juniorHS"
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="e.g., 87"
-                  value={gradeAverages.juniorHighSchool}
-                  onChange={(e) => setGradeAverages({...gradeAverages, juniorHighSchool: e.target.value})}
-                />
+              
+              <div className="grid grid-cols-2 gap-4">
+                {/* Term 1 - Always shown */}
+                <div>
+                  <Label htmlFor="collegeTerm1">Term 1 GWA</Label>
+                  <Input
+                    id="collegeTerm1"
+                    type="number"
+                    min="1"
+                    max="5"
+                    step="0.01"
+                    placeholder="e.g., 1.75"
+                    value={gradeAverages.collegeTerm1}
+                    onChange={(e) => setGradeAverages({...gradeAverages, collegeTerm1: e.target.value})}
+                  />
+                </div>
+                
+                {/* Term 2 - Shown if 2+ terms */}
+                {collegeTermsCompleted >= 2 && (
+                  <div>
+                    <Label htmlFor="collegeTerm2">Term 2 GWA</Label>
+                    <Input
+                      id="collegeTerm2"
+                      type="number"
+                      min="1"
+                      max="5"
+                      step="0.01"
+                      placeholder="e.g., 1.80"
+                      value={gradeAverages.collegeTerm2}
+                      onChange={(e) => setGradeAverages({...gradeAverages, collegeTerm2: e.target.value})}
+                    />
+                  </div>
+                )}
+                
+                {/* Term 3 - Shown if 3+ terms */}
+                {collegeTermsCompleted >= 3 && (
+                  <div>
+                    <Label htmlFor="collegeTerm3">Term 3 GWA</Label>
+                    <Input
+                      id="collegeTerm3"
+                      type="number"
+                      min="1"
+                      max="5"
+                      step="0.01"
+                      placeholder="e.g., 1.85"
+                      value={gradeAverages.collegeTerm3}
+                      onChange={(e) => setGradeAverages({...gradeAverages, collegeTerm3: e.target.value})}
+                    />
+                  </div>
+                )}
+                
+                {/* Term 4 - Shown if 4 terms */}
+                {collegeTermsCompleted >= 4 && (
+                  <div>
+                    <Label htmlFor="collegeTerm4">Term 4 GWA</Label>
+                    <Input
+                      id="collegeTerm4"
+                      type="number"
+                      min="1"
+                      max="5"
+                      step="0.01"
+                      placeholder="e.g., 1.90"
+                      value={gradeAverages.collegeTerm4}
+                      onChange={(e) => setGradeAverages({...gradeAverages, collegeTerm4: e.target.value})}
+                    />
+                  </div>
+                )}
               </div>
-              <div>
-                <Label htmlFor="seniorHS">Senior High School Average (%)</Label>
-                <Input
-                  id="seniorHS"
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="e.g., 89"
-                  value={gradeAverages.seniorHighSchool}
-                  onChange={(e) => setGradeAverages({...gradeAverages, seniorHighSchool: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="college">College Average (%) - Optional</Label>
-                <Input
-                  id="college"
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="e.g., 90"
-                  value={gradeAverages.college}
-                  onChange={(e) => setGradeAverages({...gradeAverages, college: e.target.value})}
-                />
-              </div>
+              <p className="text-xs text-gray-500 mt-2">Upload your college grade report/transcript below for each term</p>
             </div>
           </div>
           
