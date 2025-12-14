@@ -115,6 +115,7 @@ export default function DepartmentHeadDashboardPage() {
   const [interviewTime, setInterviewTime] = useState("09:00");
   const [interviewEndTime, setInterviewEndTime] = useState("10:00");
   const [isRescheduling, setIsRescheduling] = useState(false);
+  const [reschedulingInterviewId, setReschedulingInterviewId] = useState<string | null>(null);
   
   // Image preview state
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
@@ -784,11 +785,8 @@ export default function DepartmentHeadDashboardPage() {
       setInterviewEndTime('10:00');
       setIsRescheduling(false);
       
-      // Refresh interview data - await to ensure UI updates
+      // Refresh only interview data inside the tab (not the whole page)
       await fetchInterviewData(applicationId);
-      
-      // Also refresh the applicants list to reflect any status changes
-      await fetchApplicants(currentPage);
 
     } catch (error) {
       console.error('Error scheduling interview:', error);
@@ -809,6 +807,64 @@ export default function DepartmentHeadDashboardPage() {
           variant: "destructive",
         });
       }
+    }
+  };
+
+  // Handle rescheduling an existing interview
+  const handleRescheduleInterview = async (interviewId: string) => {
+    if (!interviewDate || !interviewTime) {
+      toast({
+        title: "Error",
+        description: "Please fill in date and time",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log('📅 Rescheduling interview:', { interviewId, date: interviewDate, time: interviewTime });
+
+      // Backend expects date and time as separate fields
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/department-head/interview/${interviewId}/reschedule`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: interviewDate,  // e.g., "2025-12-15"
+          time: interviewTime,  // e.g., "11:00"
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      toast({
+        title: "Interview Rescheduled",
+        description: `Interview rescheduled to ${new Date(`${interviewDate}T${interviewTime}`).toLocaleString()}.`,
+      });
+
+      // Reset form
+      setInterviewDate('');
+      setInterviewTime('09:00');
+      setInterviewEndTime('10:00');
+      setIsRescheduling(false);
+      setReschedulingInterviewId(null);
+      
+      // Refresh only interview data inside the tab
+      const applicationId = selectedApplication?.applicationId?._id || applicationDetails?.applicationId;
+      if (applicationId) {
+        await fetchInterviewData(applicationId);
+      }
+
+    } catch (error) {
+      console.error('Error rescheduling interview:', error);
+      toast({
+        title: "Error",
+        description: `Failed to reschedule interview: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -1777,6 +1833,7 @@ export default function DepartmentHeadDashboardPage() {
                                                       className="border-orange-300 text-orange-600 hover:bg-orange-50"
                                                       onClick={() => {
                                                         setIsRescheduling(true);
+                                                        setReschedulingInterviewId(deptHeadInterview._id);
                                                         if (deptHeadInterview.startTime) {
                                                           const existingDate = new Date(deptHeadInterview.startTime);
                                                           setInterviewDate(existingDate.toISOString().split('T')[0]);
@@ -1816,14 +1873,11 @@ export default function DepartmentHeadDashboardPage() {
                                                                 : "Interview has been marked as finished. Application status updated to 'Pending Evaluation'.",
                                                             });
 
-                                                            // Refresh interview data using the correct application ID
+                                                            // Refresh only interview data inside the tab (not the whole page)
                                                             const appId = selectedApplication?.applicationId?._id || applicationDetails?.applicationId;
                                                             if (appId) {
                                                               await fetchInterviewData(appId);
                                                             }
-                                                            
-                                                            // Refresh the main applicant list to reflect status change
-                                                            await fetchApplicants(currentPage);
                                                           } else {
                                                             throw new Error(result.message || 'Failed to update interview status');
                                                           }
@@ -1907,12 +1961,19 @@ export default function DepartmentHeadDashboardPage() {
                                                     <div className="flex gap-2">
                                                       <Button
                                                         className="bg-[#800000] hover:bg-[#600000]"
-                                                        onClick={() => handleScheduleInterviewNew(selectedApplication)}
+                                                        onClick={() => {
+                                                          if (reschedulingInterviewId) {
+                                                            handleRescheduleInterview(reschedulingInterviewId);
+                                                          }
+                                                        }}
                                                         disabled={!interviewDate}
                                                       >
                                                         Confirm Reschedule
                                                       </Button>
-                                                      <Button variant="outline" onClick={() => setIsRescheduling(false)}>
+                                                      <Button variant="outline" onClick={() => {
+                                                        setIsRescheduling(false);
+                                                        setReschedulingInterviewId(null);
+                                                      }}>
                                                         Cancel
                                                       </Button>
                                                     </div>
@@ -1996,6 +2057,7 @@ export default function DepartmentHeadDashboardPage() {
                                       <Button variant="outline" onClick={() => {
                                         setSelectedApplication(null);
                                         setIsRescheduling(false);
+                                        setReschedulingInterviewId(null);
                                         setInterviewData(null);
                                         setDocuments(null);
                                         setPersonalityTestData(null);

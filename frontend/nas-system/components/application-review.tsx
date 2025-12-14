@@ -1761,13 +1761,10 @@ export function ApplicationReview() {
             : "Interview has been marked as finished. Application status updated to 'Pending Evaluation'.",
         })
 
-        // Refresh interview data - await to ensure UI updates
+        // Refresh only interview data inside the tab (not the whole page)
         if (selectedApplication) {
           await fetchInterviewData(selectedApplication._id)
         }
-        
-        // Refresh the applications list to reflect status change
-        await fetchApplications(pagination.page, sortOrder, debouncedSearch, filter)
       } else {
         throw new Error(result.message || 'Failed to update interview status')
       }

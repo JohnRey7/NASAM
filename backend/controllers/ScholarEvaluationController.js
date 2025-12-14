@@ -1,6 +1,7 @@
 const ScholarEvaluation = require('../models/ScholarEvaluation');
 const EvaluationPeriod = require('../models/EvaluationPeriod');
 const User = require('../models/User');
+const ApplicationForm = require('../models/ApplicationForm');
 const NotificationService = require('../services/NotificationService');
 const AuditLogService = require('../services/AuditLogService');
 const mongoose = require('mongoose');
@@ -294,6 +295,19 @@ const ScholarEvaluationController = {
       // Update fields
       Object.assign(evaluation, updateData);
       await evaluation.save();
+      
+      // Sync application status based on overall rating
+      // 3.0 and above = approved (passed), below 3.0 = rejected (failed)
+      if (evaluation.overallRating !== undefined && evaluation.scholar) {
+        const evaluationPassed = parseFloat(evaluation.overallRating) >= 3.0;
+        const newStatus = evaluationPassed ? 'approved' : 'rejected';
+        
+        const application = await ApplicationForm.findOne({ user: evaluation.scholar });
+        if (application && application.status !== newStatus) {
+          await ApplicationForm.findByIdAndUpdate(application._id, { status: newStatus });
+          console.log(`✅ Application status synced to ${newStatus} for scholar evaluation (Rating: ${evaluation.overallRating})`);
+        }
+      }
       
       // Log audit
       await AuditLogService.createLog({

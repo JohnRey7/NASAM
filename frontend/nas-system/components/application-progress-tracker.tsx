@@ -409,8 +409,8 @@ export function ApplicationProgressTracker() {
                       {step.status === "Completed" && step.evaluationData && (
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className={step.evaluationData.status === 'passed' ? 'text-green-600' : 'text-red-600'}>
-                              {step.evaluationData.status === 'passed' ? '✓ Passed' : '✗ Failed'}
+                            <span className={step.evaluationData.result === 'passed' ? 'text-green-600' : 'text-red-600'}>
+                              {step.evaluationData.result === 'passed' ? '✓ Passed' : '✗ Failed'}
                             </span>
                             <span className="text-gray-500">
                               (Grade: {step.evaluationData.grade?.toFixed(2)} / 5.00)

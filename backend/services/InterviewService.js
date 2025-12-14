@@ -568,15 +568,29 @@ class InterviewService {
       }
 
       // Combine date and time into a proper datetime
-      const newDateTime = new Date(`${date}T${time}`);
+      // Ensure time has seconds (e.g., "11:00" -> "11:00:00")
+      const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+      const newDateTime = new Date(`${date}T${timeWithSeconds}`);
       if (isNaN(newDateTime.getTime())) {
         throw new Error('Invalid date or time format');
       }
 
       // Set end time to 1 hour after start time
       const newEndTime = new Date(newDateTime.getTime() + 60 * 60 * 1000);
+      
+      console.log('📅 Reschedule times:', { 
+        input: { date, time }, 
+        parsed: { startTime: newDateTime.toISOString(), endTime: newEndTime.toISOString() }
+      });
+
+      // Validate end time is after start time (do this before update since model validator has issues with findByIdAndUpdate)
+      if (newEndTime <= newDateTime) {
+        throw new Error('End time must be after start time');
+      }
 
       // Update the interview - always force department head as interviewer
+      // Note: runValidators is disabled because the endTime validator uses this.startTime which 
+      // refers to the OLD startTime during findByIdAndUpdate, causing false validation failures
       const updatedInterview = await Interview.findByIdAndUpdate(
         interviewId,
         {
@@ -586,7 +600,7 @@ class InterviewService {
           notes: notes || interview.notes,
           updatedAt: new Date()
         },
-        { new: true, runValidators: true }
+        { new: true, runValidators: false }
       ).populate('applicationId').populate('interviewer', 'name email');
 
       console.log('✅ Interview rescheduled successfully:', {
