@@ -22,4 +22,7 @@ router.delete('/scholar-evaluation/:id', authenticate, checkPermission('evaluati
 router.get('/scholar-evaluation/all/list', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getAllEvaluations);
 router.get('/scholar-evaluation/statistics/summary', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getEvaluationStatistics);
 
+// Get applicants ready for evaluation (for evaluation management page)
+router.get('/scholar-evaluation/ready-for-evaluation', authenticate, checkPermission('evaluation.read'), ScholarEvaluationController.getApplicantsReadyForEvaluation);
+
 module.exports = router;

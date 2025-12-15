@@ -1357,14 +1357,24 @@ class InterviewService {
       const interviews = await Interview.find(query)
         .populate({
           path: 'applicationId',
-          select: 'firstName lastName programOfStudyAndYear user',
+          select: 'firstName lastName programOfStudyAndYear user status',
           populate: {
             path: 'user',
-            select: 'name email idNumber course',
-            populate: {
-              path: 'course',
-              select: 'courseId name'
-            }
+            select: 'name email idNumber course department',
+            populate: [
+              {
+                path: 'course',
+                select: 'courseId name departmentId',
+                populate: {
+                  path: 'departmentId',
+                  select: 'departmentCode name'
+                }
+              },
+              {
+                path: 'department',
+                select: 'departmentCode name'
+              }
+            ]
           }
         })
         .populate('interviewer', 'name email')

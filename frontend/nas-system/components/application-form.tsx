@@ -31,7 +31,7 @@ const defaultFormData: ApplicationFormData = {
   existingScholarship: '',
   remainingUnitsIncludingThisTerm: 0,
   remainingTermsToGraduate: 0,
-  citizenship: '',
+  citizenship: 'Filipino',
   civilStatus: '',
   annualFamilyIncome: '',
   currentResidenceAddress: '',
@@ -273,22 +273,45 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   useEffect(() => {
     if (userRegistrationData && !hasExistingApplication && !initialData && !applicationId) {
       setFormData(prev => {
-        // Only update if the fields are empty (not already filled by existing application)
+        // Always update email and program if they're empty
         const newEmailAddress = prev.emailAddress || userRegistrationData.email || '';
         const newProgramOfStudy = prev.programOfStudyAndYear || (userRegistrationData.course ? `${userRegistrationData.course.name} (${userRegistrationData.course.courseId})` : '');
+        const newCitizenship = prev.citizenship || 'Filipino';
         
-        // Only update if there's actually something to update
-        if (newEmailAddress !== prev.emailAddress || newProgramOfStudy !== prev.programOfStudyAndYear) {
+        // Force update if program is empty but we have course data
+        if (!prev.programOfStudyAndYear && userRegistrationData.course) {
+          console.log('Auto-filling Program of Study:', newProgramOfStudy);
           return {
             ...prev,
             emailAddress: newEmailAddress,
-            programOfStudyAndYear: newProgramOfStudy
+            programOfStudyAndYear: newProgramOfStudy,
+            citizenship: newCitizenship
+          };
+        }
+        
+        // Only update if there's actually something to update
+        if (newEmailAddress !== prev.emailAddress || newProgramOfStudy !== prev.programOfStudyAndYear || newCitizenship !== prev.citizenship) {
+          return {
+            ...prev,
+            emailAddress: newEmailAddress,
+            programOfStudyAndYear: newProgramOfStudy,
+            citizenship: newCitizenship
           };
         }
         return prev;
       });
     }
   }, [userRegistrationData, hasExistingApplication, initialData, applicationId]);
+
+  // Ensure citizenship defaults to Filipino if empty
+  useEffect(() => {
+    if (!formData.citizenship && !hasExistingApplication) {
+      setFormData(prev => ({
+        ...prev,
+        citizenship: 'Filipino'
+      }));
+    }
+  }, [formData.citizenship, hasExistingApplication]);
 
   // Validation functions
   const validateNameField = (value: string): boolean => {
@@ -395,7 +418,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
             },
             collegeLevel: appData.education?.collegeLevel?.length > 0
               ? appData.education.collegeLevel
-              : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }],
+              : [{ yearLevel: 1, firstSemesterAverageFinalGrade: '', secondSemesterAverageFinalGrade: '', thirdSemesterAverageFinalGrade: '' }],
             currentMembershipInOrganizations: appData.education?.currentMembershipInOrganizations?.length > 0
               ? appData.education.currentMembershipInOrganizations
               : [{ nameOfOrganization: "", position: "" }], // Always show at least one
@@ -409,7 +432,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
           : [{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
         setCollegeLevels(appData.education?.collegeLevel?.length > 0
           ? appData.education.collegeLevel
-          : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+          : [{ yearLevel: 1, firstSemesterAverageFinalGrade: '', secondSemesterAverageFinalGrade: '', thirdSemesterAverageFinalGrade: '' }]);
         setOrganizations(appData.education?.currentMembershipInOrganizations?.length > 0
           ? appData.education.currentMembershipInOrganizations
           : [{ nameOfOrganization: "", position: "" }]);
@@ -481,7 +504,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
             },
             collegeLevel: draftData.education?.collegeLevel?.length > 0
               ? draftData.education.collegeLevel
-              : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }],
+              : [{ yearLevel: 1, firstSemesterAverageFinalGrade: '', secondSemesterAverageFinalGrade: '', thirdSemesterAverageFinalGrade: '' }],
             currentMembershipInOrganizations: draftData.education?.currentMembershipInOrganizations?.length > 0
               ? draftData.education.currentMembershipInOrganizations
               : [{ nameOfOrganization: "", position: "" }],
@@ -497,7 +520,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
           : [{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
         setCollegeLevels(draftData.education?.collegeLevel?.length > 0
           ? draftData.education.collegeLevel
-          : [{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+          : [{ yearLevel: 1, firstSemesterAverageFinalGrade: '', secondSemesterAverageFinalGrade: '', thirdSemesterAverageFinalGrade: '' }]);
         setOrganizations(draftData.education?.currentMembershipInOrganizations?.length > 0
           ? draftData.education.currentMembershipInOrganizations
           : [{ nameOfOrganization: "", position: "" }]);
@@ -1383,11 +1406,12 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="program-study">Program of Study</Label>
+                  <Label htmlFor="program-study">Program of Study <span className="text-red-500">*</span></Label>
                   <Select
                     value={formData.programOfStudyAndYear}
                     onValueChange={(value) => { setFormData({ ...formData, programOfStudyAndYear: value }); setFieldErrors(prev => ({ ...prev, programOfStudyAndYear: false })); }}
                     disabled={isReadOnly || coursesLoading || !!userRegistrationData?.course}
+                    required
                   >
                     <SelectTrigger id="program-study" className={`${userRegistrationData?.course ? "bg-gray-100 cursor-not-allowed" : ""} ${getErrorClass('programOfStudyAndYear')}`}>
                       <SelectValue placeholder={coursesLoading ? "Loading courses..." : "Select your program"} />
@@ -1402,6 +1426,9 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                   </Select>
                   {userRegistrationData?.course && (
                     <p className="text-xs text-muted-foreground">This field is auto-filled from your registration.</p>
+                  )}
+                  {fieldErrors.programOfStudyAndYear && (
+                    <p className="text-xs text-red-500">Program of Study is required</p>
                   )}
                 </div>
                 
@@ -1548,8 +1575,15 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                 <div className="space-y-2">
                   <Label htmlFor="residing-at">Residing At</Label>
                   <Select
-                    value={formData.residingAt}
-                    onValueChange={(value) => { setFormData({ ...formData, residingAt: value }); setFieldErrors(prev => ({ ...prev, residingAt: false })); }}
+                    value={formData.residingAt === 'Others' || (formData.residingAt && !['Boarding House', "Parent's House", "Relative's House"].includes(formData.residingAt)) ? 'Others' : formData.residingAt}
+                    onValueChange={(value) => { 
+                      if (value === 'Others') {
+                        setFormData({ ...formData, residingAt: '' }); 
+                      } else {
+                        setFormData({ ...formData, residingAt: value }); 
+                      }
+                      setFieldErrors(prev => ({ ...prev, residingAt: false })); 
+                    }}
                     disabled={isReadOnly}
                     required
                   >
@@ -1560,8 +1594,20 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       <SelectItem value="Boarding House">Boarding House</SelectItem>
                       <SelectItem value="Parent's House">Parent's House</SelectItem>
                       <SelectItem value="Relative's House">Relative's House</SelectItem>
+                      <SelectItem value="Others">Others</SelectItem>
                     </SelectContent>
                   </Select>
+                  {(formData.residingAt === 'Others' || (formData.residingAt && !['Boarding House', "Parent's House", "Relative's House"].includes(formData.residingAt))) && (
+                    <Input
+                      id="residing-at-others"
+                      value={formData.residingAt === 'Others' ? '' : formData.residingAt}
+                      onChange={(e) => { setFormData({ ...formData, residingAt: e.target.value }); setFieldErrors(prev => ({ ...prev, residingAt: false })); }}
+                      placeholder="Please specify your living arrangement"
+                      disabled={isReadOnly}
+                      required
+                      className={getErrorClass('residingAt')}
+                    />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="permanent-address">Permanent Residential Address</Label>

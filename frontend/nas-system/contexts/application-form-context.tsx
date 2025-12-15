@@ -196,6 +196,7 @@ export function ApplicationFormProvider({ children }: { children: ReactNode }) {
           ...app,
           emailAddress: app.emailAddress || user.email || '',
           programOfStudyAndYear: app.programOfStudyAndYear || user.course || '',
+          citizenship: app.citizenship || 'Filipino',
         });
         
         // Set array states
@@ -247,6 +248,7 @@ export function ApplicationFormProvider({ children }: { children: ReactNode }) {
           ...draftData,
           emailAddress: draftData.emailAddress || prev.emailAddress || '',
           programOfStudyAndYear: draftData.programOfStudyAndYear || prev.programOfStudyAndYear || '',
+          citizenship: draftData.citizenship || 'Filipino',
           familyBackground: {
             ...defaultFormData.familyBackground,
             ...draftData.familyBackground,
@@ -311,11 +313,23 @@ export function ApplicationFormProvider({ children }: { children: ReactNode }) {
         const courseStr: string = typeof user?.course === 'object' && user?.course 
           ? `${user.course.name} (${user.course.courseId})` 
           : (typeof user?.course === 'string' ? user.course : '');
-        setFormData({
+        
+        console.log('📚 Initializing form with user course data:', {
+          userCourse: user?.course,
+          courseStr,
+          email: user?.email,
+          userObject: user
+        });
+        
+        const initialData = {
           ...defaultFormData,
           emailAddress: user?.email || '',
           programOfStudyAndYear: courseStr
-        });
+        };
+        
+        console.log('📝 Setting initial form data:', initialData);
+        
+        setFormData(initialData);
         setIsReadOnly(false);
       }
     } catch (error) {
@@ -324,6 +338,13 @@ export function ApplicationFormProvider({ children }: { children: ReactNode }) {
       const courseStr: string = typeof user?.course === 'object' && user?.course 
         ? `${user.course.name} (${user.course.courseId})` 
         : (typeof user?.course === 'string' ? user.course : '');
+      
+      console.log('📚 Error recovery - initializing with user course data:', {
+        userCourse: user?.course,
+        courseStr,
+        email: user?.email
+      });
+      
       setFormData({
         ...defaultFormData,
         emailAddress: user?.email || '',

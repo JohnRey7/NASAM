@@ -522,6 +522,150 @@ const ScholarEvaluationController = {
       console.error('Error deleting evaluation:', error);
       res.status(500).json({ success: false, message: 'Server error' });
     }
+  },
+  
+  // Get applicants ready for evaluation (for evaluation management page)
+  async getApplicantsReadyForEvaluation(req, res) {
+    try {
+      const { page = 1, limit = 20, search = '' } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      
+      // Find applications with status 'approved' (ready for evaluation)
+      const query = {
+        status: 'approved',
+        is_deleted: { $ne: true }
+      };
+      
+      // Add search filter if provided
+      if (search) {
+        query.$or = [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { idNumber: { $regex: search, $options: 'i' } }
+        ];
+      }
+      
+      const total = await ApplicationForm.countDocuments(query);
+      const totalPages = Math.ceil(total / parseInt(limit));
+      
+      const applications = await ApplicationForm.find(query)
+        .populate({
+          path: 'user',
+          select: 'name idNumber email course department',
+          populate: [
+            {
+              path: 'course',
+              select: 'courseId name departmentId',
+              populate: {
+                path: 'departmentId',
+                select: 'departmentCode name'
+              }
+            },
+            {
+              path: 'department',
+              select: 'departmentCode name'
+            }
+          ]
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+      
+      // Get user IDs to check for existing evaluations
+      const userIds = applications.map(app => app.user?._id).filter(Boolean);
+      
+      const evaluations = await ScholarEvaluation.find({
+        scholar: { $in: userIds },
+        is_deleted: false
+      }).select('scholar overallRating interpretation status createdAt updatedAt evaluatedBy evaluatorPosition attendanceAndPunctuality qualityOfWorkOutput quantityOfWorkOutput personalQualities timekeepingRecord supervisorRemarks nasRemarks semester schoolYear')
+        .populate('evaluatedBy', 'name email department');
+      
+      const evaluationMap = new Map();
+      evaluations.forEach(eval => {
+        evaluationMap.set(eval.scholar.toString(), eval);
+      });
+      
+      // Transform applicants data
+      const applicants = applications.map(app => {
+        const userId = app.user?._id?.toString();
+        const evaluation = userId ? evaluationMap.get(userId) : null;
+        
+        // Get department from user's course or user's department field
+        const department = app.user?.course?.departmentId?.name || 
+                          app.user?.department?.name || 
+                          app.user?.course?.departmentId?.departmentCode ||
+                          app.user?.department?.departmentCode ||
+                          'N/A';
+        
+        const departmentCode = app.user?.course?.departmentId?.departmentCode || 
+                              app.user?.department?.departmentCode || 
+                              '';
+        
+        return {
+          _id: userId,
+          applicationId: app._id,
+          scholarId: userId,
+          idNumber: app.user?.idNumber || app.idNumber,
+          name: `${app.firstName} ${app.lastName}`.trim(),
+          firstName: app.firstName,
+          lastName: app.lastName,
+          email: app.user?.email || app.emailAddress,
+          course: app.programOfStudyAndYear || app.user?.course?.name || 'N/A',
+          yearLevel: app.yearLevel || 'N/A',
+          department: department,
+          departmentCode: departmentCode,
+          applicationStatus: app.status,
+          interviewsFinishedAt: app.interviewsFinishedAt,
+          hasEvaluation: !!evaluation,
+          evaluationStatus: evaluation?.status || null,
+          finalDecision: evaluation?.finalDecision || null,
+          evaluation: evaluation ? {
+            _id: evaluation._id,
+            overallRating: evaluation.overallRating,
+            interpretation: evaluation.interpretation,
+            status: evaluation.status,
+            finalDecision: evaluation.finalDecision,
+            evaluatedBy: evaluation.evaluatedBy,
+            evaluatorDepartment: evaluation.evaluatedBy?.department,
+            createdAt: evaluation.createdAt,
+            updatedAt: evaluation.updatedAt,
+            evaluatorPosition: evaluation.evaluatorPosition,
+            attendanceAndPunctuality: evaluation.attendanceAndPunctuality,
+            qualityOfWorkOutput: evaluation.qualityOfWorkOutput,
+            quantityOfWorkOutput: evaluation.quantityOfWorkOutput,
+            personalQualities: evaluation.personalQualities,
+            timekeepingRecord: evaluation.timekeepingRecord,
+            supervisorRemarks: evaluation.supervisorRemarks,
+            nasRemarks: evaluation.nasRemarks,
+            semester: evaluation.semester,
+            schoolYear: evaluation.schoolYear
+          } : undefined
+        };
+      });
+      
+      const summary = {
+        totalReadyForEvaluation: total,
+        evaluated: applicants.filter(a => a.hasEvaluation).length,
+        pending: applicants.filter(a => !a.hasEvaluation).length
+      };
+      
+      res.json({
+        success: true,
+        applicants,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages,
+          hasNextPage: parseInt(page) < totalPages,
+          hasPrevPage: parseInt(page) > 1
+        },
+        summary
+      });
+    } catch (error) {
+      console.error('Error getting applicants ready for evaluation:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
   }
 };
 

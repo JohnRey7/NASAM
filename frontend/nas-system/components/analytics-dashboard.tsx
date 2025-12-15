@@ -166,10 +166,25 @@ export function AnalyticsDashboard() {
             <CardTitle className="text-lg">Income Brackets</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-gray-700">
-              {analytics?.incomeCounts ? Object.entries(analytics.incomeCounts).map(([k, v]) => (
-                <div key={k} className="flex justify-between"><span className="capitalize">{k}</span><span>{String(v)}</span></div>
-              )) : (loading ? 'Loading...' : 'No data')}
+            <div style={{ width: '100%', height: 200 }}>
+              {analytics?.incomeCounts ? (
+                <ResponsiveContainer>
+                  <BarChart data={Object.entries(analytics.incomeCounts).map(([k, v]) => ({ 
+                    name: k.replace('<', '< ').replace('>', '> '), 
+                    count: v 
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                  {loading ? 'Loading...' : 'No data'}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

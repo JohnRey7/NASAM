@@ -53,8 +53,11 @@ export function NotificationDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const fetchNotifications = async () => {
-    setLoading(true)
+  const fetchNotifications = async (silent = false) => {
+    // Only show loading spinner on manual fetch, not during heartbeat
+    if (!silent) {
+      setLoading(true)
+    }
     try {
       console.log('🔔 Fetching notifications from:', `${API_URL}/notifications?limit=10`)
       const response = await fetch(`${API_URL}/notifications?limit=10`, {
@@ -70,25 +73,39 @@ export function NotificationDropdown() {
         const data = await response.json()
         console.log('🔔 Notifications received:', data)
         setNotifications(data.notifications || [])
-        setUnreadCount(data.notifications.filter((n: Notification) => !n.isRead).length)
+        const newUnreadCount = data.notifications.filter((n: Notification) => !n.isRead).length
+        setUnreadCount(newUnreadCount)
+        
+        // Log heartbeat updates
+        if (silent) {
+          console.log(`🔔 Heartbeat update: ${newUnreadCount} unread notification(s)`)
+        }
       } else {
         const errorData = await response.json().catch(() => null)
         console.error('🔔 Failed to fetch notifications:', response.status, errorData)
-        toast({
-          title: "Error",
-          description: `Failed to load notifications: ${errorData?.message || response.statusText}`,
-          variant: "destructive"
-        })
+        // Only show error toast on manual fetch, not during silent heartbeat
+        if (!silent) {
+          toast({
+            title: "Error",
+            description: `Failed to load notifications: ${errorData?.message || response.statusText}`,
+            variant: "destructive"
+          })
+        }
       }
     } catch (error) {
       console.error('🔔 Error fetching notifications:', error)
-      toast({
-        title: "Connection Error",
-        description: "Could not connect to notification service. Please check your connection.",
-        variant: "destructive"
-      })
+      // Only show error toast on manual fetch, not during silent heartbeat
+      if (!silent) {
+        toast({
+          title: "Connection Error",
+          description: "Could not connect to notification service. Please check your connection.",
+          variant: "destructive"
+        })
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }
 
@@ -98,6 +115,24 @@ export function NotificationDropdown() {
       fetchNotifications()
     }
   }, [isOpen])
+
+  // Heartbeat polling: Auto-refresh notifications every 8 seconds
+  useEffect(() => {
+    // Initial fetch
+    fetchNotifications()
+    
+    // Set up polling interval
+    const intervalId = setInterval(() => {
+      console.log('🔔 Heartbeat: Auto-refreshing notifications...')
+      fetchNotifications(true)
+    }, 8000) // 8 seconds
+    
+    // Cleanup interval on unmount
+    return () => {
+      console.log('🔔 Heartbeat: Cleaning up notification polling')
+      clearInterval(intervalId)
+    }
+  }, [])
 
   const fetchAllNotifications = async () => {
     setAllLoading(true)

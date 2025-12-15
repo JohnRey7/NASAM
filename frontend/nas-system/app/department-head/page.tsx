@@ -1065,17 +1065,30 @@ export default function DepartmentHeadDashboardPage() {
       setHasMore(responsePage < pages);
       
       // Transform interviews to applicants format for scholars state
-      const applicants = interviews.map((interview: any) => ({
-        id: interview.applicationId?.user?._id,
-        _id: interview.applicationId?.user?._id,
-        name: interview.applicantName || interview.applicationId?.user?.name,
-        idNumber: interview.applicantIdNumber || interview.applicationId?.user?.idNumber,
-        email: interview.applicantEmail || interview.applicationId?.user?.email,
-        course: interview.course || interview.programOfStudyAndYear,
-        applicationStatus: interview.applicationId?.status,
-        interview: interview,
-        evaluation: null // Will be loaded separately if needed
-      }));
+      const applicants = interviews.map((interview: any) => {
+        // Get department from user's course or user's department field
+        const userCourse = interview.applicationId?.user?.course;
+        const userDept = interview.applicationId?.user?.department;
+        const department = userCourse?.departmentId?.name || 
+                          userCourse?.department?.name ||
+                          userDept?.name || 
+                          userCourse?.departmentId?.departmentCode ||
+                          userDept?.departmentCode ||
+                          'N/A';
+        
+        return {
+          id: interview.applicationId?.user?._id,
+          _id: interview.applicationId?.user?._id,
+          name: interview.applicantName || interview.applicationId?.user?.name,
+          idNumber: interview.applicantIdNumber || interview.applicationId?.user?.idNumber,
+          email: interview.applicantEmail || interview.applicationId?.user?.email,
+          course: interview.course || interview.programOfStudyAndYear,
+          department: department,
+          applicationStatus: interview.applicationId?.status,
+          interview: interview,
+          evaluation: null // Will be loaded separately if needed
+        };
+      });
       
       // Update scholars - append or replace
       if (append) {
@@ -2104,15 +2117,13 @@ export default function DepartmentHeadDashboardPage() {
                                       return;
                                     }
                                     
-                                    // Find the scholar data for this applicant
+                                    // Find the scholar data for this applicant by matching idNumber
                                     const scholar = scholars.find((s: any) => 
-                                      s._id === interview._id || 
-                                      s.id === interview._id ||
-                                      s.applicationId === interview._id ||
-                                      s.userId === interview._id
+                                      s.idNumber === interview.applicantIdNumber ||
+                                      s._id === interview.applicationId?.user?._id
                                     );
                                     
-                                    const idNumber = scholar?.idNumber || interview.idNumber || applicationDetails?.idNumber;
+                                    const idNumber = interview.applicantIdNumber || scholar?.idNumber || applicationDetails?.idNumber;
                                     
                                     // Check if evaluation exists for this scholar
                                     if (idNumber) {
@@ -2162,12 +2173,13 @@ export default function DepartmentHeadDashboardPage() {
                                     }
                                     
                                     if (scholar) {
-                                      // Ensure firstName/lastName are set for the form
+                                      // Ensure firstName/lastName and department are set for the form
                                       const scholarData = {
                                         ...scholar,
                                         firstName: scholar.firstName || scholar.name?.split(' ')[0] || interview.applicantName?.split(' ')[0] || '',
                                         lastName: scholar.lastName || scholar.name?.split(' ').slice(1).join(' ') || interview.applicantName?.split(' ').slice(1).join(' ') || '',
-                                        idNumber: idNumber
+                                        idNumber: idNumber,
+                                        department: scholar.department || interview.department || 'N/A'
                                       };
                                       setSelectedScholar(scholarData);
                                       setShowEvaluationForm(true);
@@ -2181,7 +2193,7 @@ export default function DepartmentHeadDashboardPage() {
                                         lastName: nameParts.slice(1).join(' ') || '',
                                         idNumber: idNumber,
                                         course: interview.course,
-                                        department: interview.department
+                                        department: interview.department || 'N/A'
                                       });
                                       setShowEvaluationForm(true);
                                     }

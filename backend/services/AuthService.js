@@ -216,7 +216,12 @@ class AuthService {
       message: email ? 'Registration successful, please verify your email.' : 'Registration successful',
       user: { 
         id: user._id, 
-        idNumber: user.idNumber, 
+        idNumber: user.idNumber,
+        email: user.email,
+        course: {
+          courseId: course.courseId,
+          name: course.name
+        },
         role: { 
           id: role._id, 
           name: role.name 
