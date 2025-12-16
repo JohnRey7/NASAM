@@ -286,9 +286,10 @@ class PersonalityTestService {
         throw new Error('No application found for user');
       }
 
-      // Find test
+      // Find test (exclude soft-deleted)
       const test = await PersonalityTest.findOne({
         applicationId: application._id,
+        is_deleted: { $ne: true }
       })
         .populate({
           path: 'questions',
@@ -319,7 +320,8 @@ class PersonalityTestService {
       const limit = Math.min(parseInt(queryParams.limit) || 10, 25);
       const skip = (page - 1) * limit;
 
-      const filter = {};
+      // Start with soft delete filter
+      const filter = { is_deleted: { $ne: true } };
       const queryFields = queryParams;
 
       // Handle filters
@@ -380,9 +382,10 @@ class PersonalityTestService {
         throw error;
       }
 
-      // Find test
+      // Find test (exclude soft-deleted)
       const test = await PersonalityTest.findOne({
         applicationId: application._id,
+        is_deleted: { $ne: true }
       })
         .populate({
           path: 'questions',
@@ -718,9 +721,10 @@ class PersonalityTestService {
         throw new Error('No application found for user');
       }
 
-      // Check if user has ever taken a test (same logic as startPersonalityTest)
+      // Check if user has ever taken a test (same logic as startPersonalityTest, exclude soft-deleted)
       const existingTest = await PersonalityTest.findOne({
         applicationId: application._id,
+        is_deleted: { $ne: true }
       });
 
       if (existingTest) {
@@ -747,8 +751,8 @@ class PersonalityTestService {
 
   static async getAllPersonalityTests() {
     try {
-      // Find all personality tests with populated application data
-      const tests = await PersonalityTest.find({})
+      // Find all personality tests with populated application data (exclude soft-deleted)
+      const tests = await PersonalityTest.find({ is_deleted: { $ne: true } })
         .populate({
           path: 'applicationId',
           populate: {

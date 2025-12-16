@@ -2031,17 +2031,23 @@ class ApplicationService {
         { is_deleted: true }
       );
       
-      // Soft delete related interviews
+      // Soft delete related interviews (by applicationId)
       const Interview = require('../models/Interview');
       await Interview.updateMany(
-        { user: userId, is_deleted: false },
+        { applicationId: applicationId, is_deleted: false },
         { is_deleted: true }
       );
       
-      // Soft delete related evaluations (ScholarEvaluation)
+      // Soft delete related evaluations (ScholarEvaluation - OAS staff evaluations)
       const ScholarEvaluation = require('../models/ScholarEvaluation');
       await ScholarEvaluation.updateMany(
         { scholar: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      // Soft delete related evaluations (Evaluation - Department head evaluations)
+      await Evaluation.updateMany(
+        { evaluateeUser: userId, is_deleted: false },
         { is_deleted: true }
       );
       
@@ -2059,6 +2065,7 @@ class ApplicationService {
           personalityTest: true,
           personalityTestAnswers: true,
           interviews: true,
+          scholarEvaluations: true,
           evaluations: true
         }
       };
@@ -2102,17 +2109,23 @@ class ApplicationService {
         { is_deleted: false }
       );
       
-      // Restore related interviews
+      // Restore related interviews (by applicationId)
       const Interview = require('../models/Interview');
       await Interview.updateMany(
-        { user: userId, is_deleted: true },
+        { applicationId: applicationId, is_deleted: true },
         { is_deleted: false }
       );
       
-      // Restore related evaluations (ScholarEvaluation)
+      // Restore related evaluations (ScholarEvaluation - OAS staff evaluations)
       const ScholarEvaluation = require('../models/ScholarEvaluation');
       await ScholarEvaluation.updateMany(
         { scholar: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      // Restore related evaluations (Evaluation - Department head evaluations)
+      await Evaluation.updateMany(
+        { evaluateeUser: userId, is_deleted: true },
         { is_deleted: false }
       );
       
@@ -2130,6 +2143,7 @@ class ApplicationService {
           personalityTest: true,
           personalityTestAnswers: true,
           interviews: true,
+          scholarEvaluations: true,
           evaluations: true
         }
       };
@@ -2161,13 +2175,16 @@ class ApplicationService {
       const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
       await PersonalityAssessmentAnswers.deleteMany({ applicationId: applicationId });
       
-      // Permanently delete related interviews
+      // Permanently delete related interviews (by applicationId)
       const Interview = require('../models/Interview');
-      await Interview.deleteMany({ user: userId });
+      await Interview.deleteMany({ applicationId: applicationId });
       
-      // Permanently delete related evaluations (ScholarEvaluation)
+      // Permanently delete related evaluations (ScholarEvaluation - OAS staff evaluations)
       const ScholarEvaluation = require('../models/ScholarEvaluation');
       await ScholarEvaluation.deleteMany({ scholar: userId });
+      
+      // Permanently delete related evaluations (Evaluation - Department head evaluations)
+      await Evaluation.deleteMany({ evaluateeUser: userId });
       
       // Finally, permanently delete the application form
       const result = await SoftDeleteUtils.permanentDeleteById(ApplicationForm, applicationId);
@@ -2180,6 +2197,7 @@ class ApplicationService {
           personalityTest: true,
           personalityTestAnswers: true,
           interviews: true,
+          scholarEvaluations: true,
           evaluations: true
         }
       };

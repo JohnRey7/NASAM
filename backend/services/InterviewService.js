@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Department = require('../models/Department');
 const Role = require('../models/Role');
 const Course = require('../models/Course');
+const Evaluation = require('../models/Evaluation');
 const sendInterviewReminderEmail = require('../utils/sendInterviewReminderEmail');
 
 class InterviewService {
@@ -1407,7 +1408,8 @@ class InterviewService {
         .lean();
 
       // Transform interviews to include applicant name and course
-      const transformedInterviews = interviews.map(interview => {
+      // Use Promise.all to check for evaluations asynchronously
+      const transformedInterviews = await Promise.all(interviews.map(async (interview) => {
         const application = interview.applicationId;
         const user = application?.user;
         
@@ -1440,6 +1442,17 @@ class InterviewService {
           }
         }
         
+        // Check if evaluation exists for this applicant (by evaluator - the department head)
+        let hasEvaluation = false;
+        if (user?._id) {
+          const evaluation = await Evaluation.findOne({
+            evaluateeUser: user._id,
+            evaluator: userId,
+            is_deleted: { $ne: true }
+          });
+          hasEvaluation = !!evaluation;
+        }
+        
         return {
           _id: interview._id,
           interviewId: `INT-${new Date(interview.createdAt).getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`,
@@ -1457,9 +1470,10 @@ class InterviewService {
           applicantIdNumber: user?.idNumber || 'N/A',
           course: user?.course ? `${user.course.courseId} - ${user.course.name}` : application?.programOfStudyAndYear || 'N/A',
           programOfStudyAndYear: application?.programOfStudyAndYear || 'N/A',
-          applicantDepartment: applicantDepartment
+          applicantDepartment: applicantDepartment,
+          hasEvaluation: hasEvaluation
         };
-      });
+      }));
 
       return {
         interviews: transformedInterviews,

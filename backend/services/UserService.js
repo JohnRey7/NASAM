@@ -313,10 +313,82 @@ class UserService {
     }
   }
 
-  // Delete user (soft delete)
+  // Delete user (soft delete) - cascades to all related data
   static async deleteUser(userId) {
     try {
-      return await SoftDeleteUtils.softDeleteById(User, userId);
+      // Import required models for cascade delete
+      const ApplicationForm = require('../models/ApplicationForm');
+      const DocumentUpload = require('../models/DocumentUpload');
+      const PersonalityTest = require('../models/PersonalityTest');
+      const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
+      const Interview = require('../models/Interview');
+      const ScholarEvaluation = require('../models/ScholarEvaluation');
+      const Evaluation = require('../models/Evaluation');
+      
+      // First, find all applications for this user to get applicationIds for interview deletion
+      const applications = await ApplicationForm.find({ user: userId });
+      const applicationIds = applications.map(app => app._id);
+      
+      // Soft delete the user
+      const result = await SoftDeleteUtils.softDeleteById(User, userId);
+      
+      // Cascade soft delete to all related data
+      // Soft delete application forms
+      await ApplicationForm.updateMany(
+        { user: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      // Soft delete documents
+      await DocumentUpload.updateMany(
+        { user: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      // Soft delete personality tests
+      await PersonalityTest.updateMany(
+        { user: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      // Soft delete personality test answers (by applicationIds)
+      if (applicationIds.length > 0) {
+        await PersonalityAssessmentAnswers.updateMany(
+          { applicationId: { $in: applicationIds }, is_deleted: false },
+          { is_deleted: true }
+        );
+        
+        // Soft delete interviews (by applicationIds)
+        await Interview.updateMany(
+          { applicationId: { $in: applicationIds }, is_deleted: false },
+          { is_deleted: true }
+        );
+      }
+      
+      // Soft delete scholar evaluations (OAS staff evaluations)
+      await ScholarEvaluation.updateMany(
+        { scholar: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      // Soft delete evaluations (Department head evaluations)
+      await Evaluation.updateMany(
+        { evaluateeUser: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      return {
+        ...result,
+        cascadeDeleted: {
+          applications: applicationIds.length,
+          documents: true,
+          personalityTests: true,
+          personalityTestAnswers: true,
+          interviews: true,
+          scholarEvaluations: true,
+          evaluations: true
+        }
+      };
     } catch (error) {
       throw error;
     }
@@ -333,25 +405,149 @@ class UserService {
         throw new Error('User not found');
       }
 
-      return await SoftDeleteUtils.softDeleteById(User, user._id);
+      // Use deleteUser method which has cascade logic
+      return await this.deleteUser(user._id);
     } catch (error) {
       throw error;
     }
   }
 
-  // Restore user
+  // Restore user and all related data
   static async restoreUser(userId) {
     try {
-      return await SoftDeleteUtils.restoreById(User, userId);
+      // Import required models for cascade restore
+      const ApplicationForm = require('../models/ApplicationForm');
+      const DocumentUpload = require('../models/DocumentUpload');
+      const PersonalityTest = require('../models/PersonalityTest');
+      const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
+      const Interview = require('../models/Interview');
+      const ScholarEvaluation = require('../models/ScholarEvaluation');
+      const Evaluation = require('../models/Evaluation');
+      
+      // First, find all applications for this user (including soft deleted)
+      const applications = await ApplicationForm.find({ user: userId });
+      const applicationIds = applications.map(app => app._id);
+      
+      // Restore the user
+      const result = await SoftDeleteUtils.restoreById(User, userId);
+      
+      // Cascade restore to all related data
+      // Restore application forms
+      await ApplicationForm.updateMany(
+        { user: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      // Restore documents
+      await DocumentUpload.updateMany(
+        { user: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      // Restore personality tests
+      await PersonalityTest.updateMany(
+        { user: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      // Restore personality test answers (by applicationIds)
+      if (applicationIds.length > 0) {
+        await PersonalityAssessmentAnswers.updateMany(
+          { applicationId: { $in: applicationIds }, is_deleted: true },
+          { is_deleted: false }
+        );
+        
+        // Restore interviews (by applicationIds)
+        await Interview.updateMany(
+          { applicationId: { $in: applicationIds }, is_deleted: true },
+          { is_deleted: false }
+        );
+      }
+      
+      // Restore scholar evaluations (OAS staff evaluations)
+      await ScholarEvaluation.updateMany(
+        { scholar: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      // Restore evaluations (Department head evaluations)
+      await Evaluation.updateMany(
+        { evaluateeUser: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      return {
+        ...result,
+        cascadeRestored: {
+          applications: applicationIds.length,
+          documents: true,
+          personalityTests: true,
+          personalityTestAnswers: true,
+          interviews: true,
+          scholarEvaluations: true,
+          evaluations: true
+        }
+      };
     } catch (error) {
       throw error;
     }
   }
 
-  // Permanently delete user
+  // Permanently delete user and all related data
   static async permanentDeleteUser(userId) {
     try {
-      return await SoftDeleteUtils.permanentDeleteById(User, userId);
+      // Import required models for cascade delete
+      const ApplicationForm = require('../models/ApplicationForm');
+      const DocumentUpload = require('../models/DocumentUpload');
+      const PersonalityTest = require('../models/PersonalityTest');
+      const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
+      const Interview = require('../models/Interview');
+      const ScholarEvaluation = require('../models/ScholarEvaluation');
+      const Evaluation = require('../models/Evaluation');
+      
+      // First, find all applications for this user to get applicationIds
+      const applications = await ApplicationForm.find({ user: userId });
+      const applicationIds = applications.map(app => app._id);
+      
+      // Cascade permanent delete to all related data FIRST (before deleting user)
+      // Delete documents
+      await DocumentUpload.deleteMany({ user: userId });
+      
+      // Delete personality tests
+      await PersonalityTest.deleteMany({ user: userId });
+      
+      // Delete personality test answers (by applicationIds)
+      if (applicationIds.length > 0) {
+        await PersonalityAssessmentAnswers.deleteMany({ applicationId: { $in: applicationIds } });
+        
+        // Delete interviews (by applicationIds)
+        await Interview.deleteMany({ applicationId: { $in: applicationIds } });
+      }
+      
+      // Delete scholar evaluations (OAS staff evaluations)
+      await ScholarEvaluation.deleteMany({ scholar: userId });
+      
+      // Delete evaluations (Department head evaluations)
+      await Evaluation.deleteMany({ evaluateeUser: userId });
+      
+      // Delete application forms
+      await ApplicationForm.deleteMany({ user: userId });
+      
+      // Finally, permanently delete the user
+      const result = await SoftDeleteUtils.permanentDeleteById(User, userId);
+      
+      return {
+        ...result,
+        cascadeDeleted: {
+          applications: applicationIds.length,
+          documents: true,
+          personalityTests: true,
+          personalityTestAnswers: true,
+          interviews: true,
+          scholarEvaluations: true,
+          evaluations: true
+        }
+      };
     } catch (error) {
       throw error;
     }

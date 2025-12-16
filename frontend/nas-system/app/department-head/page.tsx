@@ -115,6 +115,7 @@ export default function DepartmentHeadDashboardPage() {
   // Interview state
   const [interviewData, setInterviewData] = useState<any>(null);
   const [interviewLoading, setInterviewLoading] = useState(false);
+  const [schedulingInterview, setSchedulingInterview] = useState(false);
   const [interviewers, setInterviewers] = useState<any[]>([]);
   const [selectedInterviewer, setSelectedInterviewer] = useState<string>("");
   const [interviewDate, setInterviewDate] = useState("");
@@ -742,6 +743,7 @@ export default function DepartmentHeadDashboardPage() {
       return;
     }
 
+    setSchedulingInterview(true);
     try {
       // Create Date objects from the local date/time inputs
       // This ensures the time is interpreted as local time, not UTC
@@ -806,6 +808,13 @@ export default function DepartmentHeadDashboardPage() {
           variant: "destructive",
           duration: 7000
         });
+      } else if (errorMessage.includes('already booked') || errorMessage.includes('another interview')) {
+        toast({
+          title: "Schedule Conflict",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 7000
+        });
       } else {
         toast({
           title: "Error",
@@ -813,6 +822,8 @@ export default function DepartmentHeadDashboardPage() {
           variant: "destructive",
         });
       }
+    } finally {
+      setSchedulingInterview(false);
     }
   };
 
@@ -1149,7 +1160,8 @@ export default function DepartmentHeadDashboardPage() {
           startTime: interview.startTime,
           endTime: interview.endTime,
           is_finished: interview.is_finished,
-          programOfStudyAndYear: interview.programOfStudyAndYear
+          programOfStudyAndYear: interview.programOfStudyAndYear,
+          hasEvaluation: interview.hasEvaluation || false
         };
       });
       
@@ -2057,10 +2069,19 @@ export default function DepartmentHeadDashboardPage() {
                                                   <Button
                                                     className="bg-[#800000] hover:bg-[#600000]"
                                                     onClick={() => handleScheduleInterviewNew(selectedApplication)}
-                                                    disabled={!interviewDate}
+                                                    disabled={!interviewDate || schedulingInterview}
                                                   >
-                                                    <Calendar className="mr-2 h-4 w-4" />
-                                                    Schedule Interview
+                                                    {schedulingInterview ? (
+                                                      <>
+                                                        <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                                        Scheduling...
+                                                      </>
+                                                    ) : (
+                                                      <>
+                                                        <Calendar className="mr-2 h-4 w-4" />
+                                                        Schedule Interview
+                                                      </>
+                                                    )}
                                                   </Button>
                                                 </div>
                                               </div>
@@ -2095,17 +2116,13 @@ export default function DepartmentHeadDashboardPage() {
                                   size="sm"
                                   className={
                                     interview.hasEvaluation
-                                      ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                      : (interview.status === 'approved' || interview.status === 'rejected' || interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected')
-                                        ? "text-gray-400"
-                                        : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      ? "text-gray-500 hover:text-gray-600 hover:bg-gray-50"
+                                      : "text-green-600 hover:text-green-700 hover:bg-green-50"
                                   }
                                   title={
                                     interview.hasEvaluation 
                                       ? "View Evaluation (Read Only)" 
-                                      : (interview.status === 'approved' || interview.status === 'rejected' || interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected')
-                                        ? "Cannot evaluate - Final status already set" 
-                                        : "Evaluate Scholar"
+                                      : "Evaluate Scholar"
                                   }
                                   onClick={async () => {
                                     // Find the scholar data for this applicant by matching idNumber
@@ -2129,7 +2146,7 @@ export default function DepartmentHeadDashboardPage() {
                                           setScholarEvaluations(evaluations);
                                           
                                           if (evaluations.length > 0) {
-                                            // Evaluation exists - show in read-only mode
+                                            // Evaluation exists - show in read-only mode (grey icon)
                                             if (evaluations.length > 1) {
                                               // Multiple evaluations exist - show selector dialog
                                               const scholarData = scholar ? {
@@ -2156,7 +2173,6 @@ export default function DepartmentHeadDashboardPage() {
                                             }
                                             
                                             if (scholar) {
-                                              // Ensure firstName/lastName and department are set for the form
                                               const scholarData = {
                                                 ...scholar,
                                                 firstName: scholar.firstName || scholar.name?.split(' ')[0] || interview.applicantName?.split(' ')[0] || '',
@@ -2181,50 +2197,21 @@ export default function DepartmentHeadDashboardPage() {
                                             }
                                             return;
                                           } else {
-                                            // No evaluation exists
-                                            // Prevent creating new evaluation if applicant has final status
-                                            if (interview.status === 'approved' || interview.status === 'rejected' || 
-                                                interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected') {
-                                              toast({
-                                                title: "Cannot Evaluate",
-                                                description: "This applicant has already received a final status and cannot be evaluated.",
-                                                variant: "destructive"
-                                              });
-                                              return;
-                                            }
+                                            // No evaluation exists - allow creating new evaluation (green icon)
                                             setSelectedEvaluation(null);
                                             setIsViewingEvaluation(false);
                                           }
                                         }
                                       } catch (error) {
                                         console.error('Error checking for existing evaluation:', error);
-                                        // No evaluation found - check if we can create one
-                                        if (interview.status === 'approved' || interview.status === 'rejected' || 
-                                            interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected') {
-                                          toast({
-                                            title: "Cannot Evaluate",
-                                            description: "This applicant has already received a final status and cannot be evaluated.",
-                                            variant: "destructive"
-                                          });
-                                          return;
-                                        }
+                                        // No evaluation found - allow creating new one
                                         setSelectedEvaluation(null);
+                                        setIsViewingEvaluation(false);
                                       }
                                     }
                                     
-                                    // Prevent evaluation if applicant has final status and no evaluation exists
-                                    if (!interview.hasEvaluation && (interview.status === 'approved' || interview.status === 'rejected' || 
-                                        interview.applicationStatus === 'approved' || interview.applicationStatus === 'rejected')) {
-                                      toast({
-                                        title: "Cannot Evaluate",
-                                        description: "This applicant has already received a final status and cannot be evaluated.",
-                                        variant: "destructive"
-                                      });
-                                      return;
-                                    }
-                                    
+                                    // Open evaluation form for creating new evaluation
                                     if (scholar) {
-                                      // Ensure firstName/lastName and department are set for the form
                                       const scholarData = {
                                         ...scholar,
                                         firstName: scholar.firstName || scholar.name?.split(' ')[0] || interview.applicantName?.split(' ')[0] || '',
