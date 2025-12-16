@@ -36,27 +36,27 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
   const [semester, setSemester] = useState(existingEvaluation?.semester || '')
   
   const [attendance, setAttendance] = useState({
-    regularityOfAttendance: existingEvaluation?.attendanceAndPunctuality?.regularityOfAttendance || 3,
-    promptnessInReporting: existingEvaluation?.attendanceAndPunctuality?.promptnessInReporting || 3
+    regularityOfAttendance: existingEvaluation?.attendanceAndPunctuality?.regularityOfAttendance || 0,
+    promptnessInReporting: existingEvaluation?.attendanceAndPunctuality?.promptnessInReporting || 0
   })
   
   const [quality, setQuality] = useState({
-    accuracyAndThoroughness: existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughness || 3,
-    organizationAndPresentation: existingEvaluation?.qualityOfWorkOutput?.organizationAndPresentation || 3,
-    effectiveness: existingEvaluation?.qualityOfWorkOutput?.effectiveness || 3
+    accuracyAndThoroughness: existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughness || 0,
+    organizationAndPresentation: existingEvaluation?.qualityOfWorkOutput?.organizationAndPresentation || 0,
+    effectiveness: existingEvaluation?.qualityOfWorkOutput?.effectiveness || 0
   })
   
   const [quantity, setQuantity] = useState({
-    accomplishesMoreWork: existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWork || 3,
-    readinessInAccomplishing: existingEvaluation?.quantityOfWorkOutput?.readinessInAccomplishing || 3
+    accomplishesMoreWork: existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWork || 0,
+    readinessInAccomplishing: existingEvaluation?.quantityOfWorkOutput?.readinessInAccomplishing || 0
   })
   
   const [personal, setPersonal] = useState({
-    responsibilityAndUrgency: existingEvaluation?.personalQualities?.responsibilityAndUrgency || 3,
-    dependabilityAndReliability: existingEvaluation?.personalQualities?.dependabilityAndReliability || 3,
-    industryAndResourcefulness: existingEvaluation?.personalQualities?.industryAndResourcefulness || 3,
-    fairnessAndInitiative: existingEvaluation?.personalQualities?.fairnessAndInitiative || 3,
-    sociabilityAndDisposition: existingEvaluation?.personalQualities?.sociabilityAndDisposition || 3
+    responsibilityAndUrgency: existingEvaluation?.personalQualities?.responsibilityAndUrgency || 0,
+    dependabilityAndReliability: existingEvaluation?.personalQualities?.dependabilityAndReliability || 0,
+    industryAndResourcefulness: existingEvaluation?.personalQualities?.industryAndResourcefulness || 0,
+    fairnessAndInitiative: existingEvaluation?.personalQualities?.fairnessAndInitiative || 0,
+    sociabilityAndDisposition: existingEvaluation?.personalQualities?.sociabilityAndDisposition || 0
   })
   
   const [timekeeping, setTimekeeping] = useState({
@@ -265,7 +265,6 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
                 <div><Label className="text-xs text-gray-500">Scholar Name</Label><p className="font-medium">{scholar?.firstName} {scholar?.lastName}</p></div>
                 <div><Label className="text-xs text-gray-500">Student ID</Label><p className="font-medium">{scholar?.idNumber || 'N/A'}</p></div>
                 <div><Label className="text-xs text-gray-500">Course</Label><p className="font-medium">{scholar?.programOfStudyAndYear || scholar?.course || 'N/A'}</p></div>
-                <div><Label className="text-xs text-gray-500">Department/Office</Label><p className="font-medium">{scholar?.department || 'N/A'}</p></div>
               </div>
               <div><Label htmlFor="evaluatorPosition">Your Position Title *</Label><Input id="evaluatorPosition" value={evaluatorPosition} onChange={(e) => setEvaluatorPosition(e.target.value)} placeholder="e.g., Circulation in-charge" className="mt-1" disabled={readOnly} /></div>
             </div>

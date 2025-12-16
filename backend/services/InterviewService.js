@@ -1411,6 +1411,35 @@ class InterviewService {
         const application = interview.applicationId;
         const user = application?.user;
         
+        // Get applicant's department/college from their course
+        let applicantDepartment = user?.course?.departmentId?.name || 
+                                  user?.department?.name ||
+                                  user?.course?.departmentId?.departmentCode ||
+                                  user?.department?.departmentCode ||
+                                  'N/A';
+        
+        // If still N/A, try to infer from course name
+        if (applicantDepartment === 'N/A') {
+          const courseName = user?.course?.name || application?.programOfStudyAndYear || '';
+          if (courseName.includes('Tourism') || courseName.includes('Hospitality')) {
+            applicantDepartment = 'College of Tourism and Hospitality Management';
+          } else if (courseName.includes('Information Technology') || courseName.includes('Computer')) {
+            applicantDepartment = 'College of Computer Studies';
+          } else if (courseName.includes('Business') || courseName.includes('Accountancy') || courseName.includes('Management')) {
+            applicantDepartment = 'College of Business and Accountancy';
+          } else if (courseName.includes('Engineering')) {
+            applicantDepartment = 'College of Engineering';
+          } else if (courseName.includes('Education') || courseName.includes('Teacher')) {
+            applicantDepartment = 'College of Education';
+          } else if (courseName.includes('Arts') || courseName.includes('Sciences') || courseName.includes('Psychology')) {
+            applicantDepartment = 'College of Arts and Sciences';
+          } else if (courseName.includes('Nursing') || courseName.includes('Health')) {
+            applicantDepartment = 'College of Nursing and Health Sciences';
+          } else if (courseName.includes('Architecture')) {
+            applicantDepartment = 'College of Architecture and Fine Arts';
+          }
+        }
+        
         return {
           _id: interview._id,
           interviewId: `INT-${new Date(interview.createdAt).getFullYear()}-${String(interview._id).slice(-6).toUpperCase()}`,
@@ -1427,7 +1456,8 @@ class InterviewService {
           applicantEmail: user?.email || 'N/A',
           applicantIdNumber: user?.idNumber || 'N/A',
           course: user?.course ? `${user.course.courseId} - ${user.course.name}` : application?.programOfStudyAndYear || 'N/A',
-          programOfStudyAndYear: application?.programOfStudyAndYear || 'N/A'
+          programOfStudyAndYear: application?.programOfStudyAndYear || 'N/A',
+          applicantDepartment: applicantDepartment
         };
       });
 

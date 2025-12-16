@@ -30,6 +30,7 @@ interface InterviewData {
   courseId?: string;
   department?: string;
   departmentCode?: string;
+  applicantDepartment?: string;
   schedule: string;
   status: 'not yet scheduled' | 'pending interview' | 'pending evaluation' | 'evaluated' | 'approved' | 'rejected';
   applicationStatus?: string;
@@ -1137,7 +1138,7 @@ export default function DepartmentHeadDashboardPage() {
           applicantIdNumber: interview.applicantIdNumber,
           course: interview.course,
           courseId: interview.applicationId?.user?.course?.courseId,
-          department: userDepartment?.name,
+          department: interview.applicantDepartment || userDepartment?.name,
           departmentCode: userDepartment?.departmentCode,
           schedule,
           status,
@@ -2179,7 +2180,7 @@ export default function DepartmentHeadDashboardPage() {
                                         firstName: scholar.firstName || scholar.name?.split(' ')[0] || interview.applicantName?.split(' ')[0] || '',
                                         lastName: scholar.lastName || scholar.name?.split(' ').slice(1).join(' ') || interview.applicantName?.split(' ').slice(1).join(' ') || '',
                                         idNumber: idNumber,
-                                        department: scholar.department || interview.department || 'N/A'
+                                        department: scholar.department || interview.department || interview.applicantDepartment || 'N/A'
                                       };
                                       setSelectedScholar(scholarData);
                                       setShowEvaluationForm(true);
@@ -2193,7 +2194,7 @@ export default function DepartmentHeadDashboardPage() {
                                         lastName: nameParts.slice(1).join(' ') || '',
                                         idNumber: idNumber,
                                         course: interview.course,
-                                        department: interview.department || 'N/A'
+                                        department: interview.department || interview.applicantDepartment || 'N/A'
                                       });
                                       setShowEvaluationForm(true);
                                     }

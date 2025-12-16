@@ -551,7 +551,7 @@ const ScholarEvaluationController = {
       const applications = await ApplicationForm.find(query)
         .populate({
           path: 'user',
-          select: 'name idNumber email course department',
+          select: 'name idNumber email course department assigned_department',
           populate: [
             {
               path: 'course',
@@ -563,6 +563,10 @@ const ScholarEvaluationController = {
             },
             {
               path: 'department',
+              select: 'departmentCode name'
+            },
+            {
+              path: 'assigned_department',
               select: 'departmentCode name'
             }
           ]
@@ -590,14 +594,50 @@ const ScholarEvaluationController = {
         const userId = app.user?._id?.toString();
         const evaluation = userId ? evaluationMap.get(userId) : null;
         
-        // Get department from user's course or user's department field
-        const department = app.user?.course?.departmentId?.name || 
+        // Get department from multiple sources (in order of priority):
+        // 1. User's course's department
+        // 2. User's assigned department
+        // 3. User's department field
+        // 4. Extract from programOfStudyAndYear (course name usually contains department info)
+        let department = app.user?.course?.departmentId?.name || 
+                          app.user?.assigned_department?.name ||
                           app.user?.department?.name || 
-                          app.user?.course?.departmentId?.departmentCode ||
-                          app.user?.department?.departmentCode ||
                           'N/A';
         
+        // If still N/A, try to get department code
+        if (department === 'N/A') {
+          department = app.user?.course?.departmentId?.departmentCode ||
+                       app.user?.assigned_department?.departmentCode ||
+                       app.user?.department?.departmentCode ||
+                       'N/A';
+        }
+        
+        // If still N/A but we have course info, show the course department relationship
+        if (department === 'N/A' && app.user?.course?.name) {
+          // The course name might indicate the department (e.g., BSTM, BSIT, BSBA)
+          const courseName = app.user?.course?.name || app.programOfStudyAndYear || '';
+          // Common course-to-department mappings
+          if (courseName.includes('Tourism') || courseName.includes('Hospitality')) {
+            department = 'College of Tourism and Hospitality Management';
+          } else if (courseName.includes('Information Technology') || courseName.includes('Computer')) {
+            department = 'College of Computer Studies';
+          } else if (courseName.includes('Business') || courseName.includes('Accountancy') || courseName.includes('Management')) {
+            department = 'College of Business and Accountancy';
+          } else if (courseName.includes('Engineering')) {
+            department = 'College of Engineering';
+          } else if (courseName.includes('Education') || courseName.includes('Teacher')) {
+            department = 'College of Education';
+          } else if (courseName.includes('Arts') || courseName.includes('Sciences') || courseName.includes('Psychology')) {
+            department = 'College of Arts and Sciences';
+          } else if (courseName.includes('Nursing') || courseName.includes('Health')) {
+            department = 'College of Nursing and Health Sciences';
+          } else if (courseName.includes('Architecture')) {
+            department = 'College of Architecture and Fine Arts';
+          }
+        }
+        
         const departmentCode = app.user?.course?.departmentId?.departmentCode || 
+                              app.user?.assigned_department?.departmentCode || 
                               app.user?.department?.departmentCode || 
                               '';
         
