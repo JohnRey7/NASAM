@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Department = require('../models/Department');
 const Role = require('../models/Role');
 const Course = require('../models/Course');
+const sendInterviewReminderEmail = require('../utils/sendInterviewReminderEmail');
 
 class InterviewService {
   static async createInterview(userId, interviewData) {
@@ -1439,6 +1440,118 @@ class InterviewService {
       };
     } catch (error) {
       console.error('Error getting interviews for department head:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send interview reminder to applicant (email + in-app notification)
+   * @param {string} interviewId - The interview ID
+   * @returns {Object} Result with success status
+   */
+  static async sendInterviewReminder(interviewId) {
+    try {
+      // Find the interview with all related data
+      const interview = await Interview.findById(interviewId)
+        .populate('user', 'name email idNumber')
+        .populate('interviewer', 'name email')
+        .populate('application');
+
+      if (!interview) {
+        throw new Error('Interview not found');
+      }
+
+      const applicant = interview.user;
+      const interviewer = interview.interviewer;
+      const application = interview.application;
+
+      if (!applicant || !applicant.email) {
+        throw new Error('Applicant email not found');
+      }
+
+      // Determine interview type based on interviewer's role
+      let interviewType = 'Interview';
+      if (interviewer) {
+        const interviewerUser = await User.findById(interviewer._id).populate('role');
+        if (interviewerUser?.role?.name === 'department_head') {
+          interviewType = 'Department Head Interview';
+        } else if (interviewerUser?.role?.name === 'oas_staff' || interviewerUser?.role?.name === 'admin') {
+          interviewType = 'OAS Staff Interview';
+        }
+      }
+
+      // Get applicant name from application or user
+      const applicantName = application 
+        ? `${application.firstName} ${application.lastName}`
+        : applicant.name || 'Applicant';
+
+      // Format date for notification message
+      const interviewDate = new Date(interview.startTime);
+      const formattedDate = interviewDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      const formattedTime = interviewDate.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // Send email notification
+      let emailSent = false;
+      try {
+        await sendInterviewReminderEmail(applicant.email, {
+          applicantName,
+          interviewType,
+          interviewerName: interviewer?.name || 'To be confirmed',
+          scheduledDate: interview.startTime,
+          interviewId: interview.interviewId || interview._id.toString()
+        });
+        emailSent = true;
+        console.log(`📧 Interview reminder email sent to ${applicant.email}`);
+      } catch (emailError) {
+        console.error('Failed to send email reminder:', emailError);
+        // Continue even if email fails - we'll still send in-app notification
+      }
+
+      // Send in-app notification
+      let notificationSent = false;
+      try {
+        await NotificationService.createNotification({
+          userId: applicant._id,
+          type: 'interview_reminder',
+          title: `${interviewType} Reminder`,
+          message: `This is a reminder for your upcoming ${interviewType.toLowerCase()} scheduled on ${formattedDate} at ${formattedTime}. Please make sure to be available on time.`,
+          priority: 'high',
+          metadata: {
+            interviewId: interview._id,
+            applicationId: interview.application?._id,
+            scheduledDate: interview.startTime,
+            interviewType
+          }
+        });
+        notificationSent = true;
+        console.log(`🔔 In-app notification sent to user ${applicant._id}`);
+      } catch (notifError) {
+        console.error('Failed to send in-app notification:', notifError);
+      }
+
+      if (!emailSent && !notificationSent) {
+        throw new Error('Failed to send both email and in-app notification');
+      }
+
+      return {
+        success: true,
+        message: `Interview reminder sent successfully${emailSent ? ' (email sent)' : ''}${notificationSent ? ' (notification sent)' : ''}`,
+        emailSent,
+        notificationSent,
+        sentTo: applicant.email,
+        interviewType,
+        scheduledDate: interview.startTime
+      };
+    } catch (error) {
+      console.error('Error sending interview reminder:', error);
       throw error;
     }
   }

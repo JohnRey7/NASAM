@@ -571,6 +571,31 @@ const InterviewController = {
       }
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
+  },
+
+  // POST: Send interview reminder to applicant
+  async sendInterviewReminder(req, res) {
+    try {
+      const { interviewId } = req.params;
+      
+      const result = await InterviewService.sendInterviewReminder(interviewId);
+      
+      // Log audit
+      await AuditLogService.createLog({
+        userId: req.user.id,
+        action: 'Send Interview Reminder',
+        module: 'Interview',
+        details: `Sent reminder for interview ${interviewId}`
+      });
+      
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error in sendInterviewReminder:', error);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, message: `Failed to send reminder: ${error.message}` });
+    }
   }
 };
 

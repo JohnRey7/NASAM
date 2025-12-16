@@ -28,4 +28,7 @@ router.delete('/:id/permanent', authenticate, checkPermission('interview.delete'
 router.patch('/:id/finish', authenticate, checkPermission('interview.update'), InterviewController.finishInterview);
 router.patch('/:id/revert-finish', authenticate, checkPermission('interview.update'), InterviewController.revertFinishInterview);
 
+// Send reminder route
+router.post('/:id/send-reminder', authenticate, checkPermission('interview.update'), InterviewController.sendInterviewReminder);
+
 module.exports = router;

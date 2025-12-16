@@ -1327,19 +1327,19 @@ export default function DepartmentHeadDashboardPage() {
                   <thead>
                     <tr className="border-b">
                       <th className="text-left p-4 font-medium min-w-[140px]">Interview ID</th>
-                      <th className="text-left p-4 font-medium">Applicant Name</th>
-                      <th className="text-left p-4 font-medium">Course</th>
-                      <th className="text-left p-4 font-medium">Department</th>
-                      <th className="text-left p-4 font-medium">Schedule</th>
-                      <th className="text-left p-4 font-medium">Status</th>
-                      <th className="text-left p-4 font-medium">Actions</th>
+                      <th className="text-left p-4 font-medium min-w-[180px]">Applicant Name</th>
+                      <th className="text-left p-4 font-medium min-w-[200px]">Course</th>
+                      <th className="text-left p-4 font-medium min-w-[120px]">Department</th>
+                      <th className="text-left p-4 font-medium min-w-[150px]">Schedule</th>
+                      <th className="text-left p-4 font-medium min-w-[120px]">Status</th>
+                      <th className="text-left p-4 font-medium min-w-[100px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {interviews.map((interview) => (
                         <tr key={interview._id} className="border-b hover:bg-gray-50">
                           <td className="p-4 whitespace-nowrap text-sm font-mono">{interview.interviewId}</td>
-                          <td className="p-4 font-medium">{interview.applicantName}</td>
+                          <td className="p-4 font-medium whitespace-nowrap">{interview.applicantName}</td>
                           <td className="p-4">{interview.course}</td>
                           <td className="p-4">
                             <Badge variant="outline" className="text-xs">

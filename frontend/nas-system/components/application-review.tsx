@@ -1124,6 +1124,7 @@ export function ApplicationReview() {
   const [selectedInterviewer, setSelectedInterviewer] = useState<string>("")
   const [schedulingType, setSchedulingType] = useState<'OAS' | 'DepartmentHead' | null>(null)
   const [conflictError, setConflictError] = useState<{title: string, message: string} | null>(null)
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null) // Track which interview is sending reminder
 
   // Deleted applications state
   const [applicationMainTab, setApplicationMainTab] = useState<'active' | 'deleted'>('active')
@@ -1845,55 +1846,26 @@ export function ApplicationReview() {
       return
     }
 
+    // Set loading state for this specific interview
+    setSendingReminder(targetInterview._id)
+
     try {
-      const userId = selectedApplication.user?._id
-      if (!userId) {
-        toast({
-          title: "Error",
-          description: "Could not find applicant user ID",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const interviewDate = new Date(targetInterview.startTime)
-      const formattedDate = interviewDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-      const formattedTime = interviewDate.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/notifications`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/interview/${targetInterview._id}/send-reminder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          userId: userId,
-          type: 'interview_reminder',
-          title: 'Interview Reminder',
-          message: `This is a reminder for your upcoming interview scheduled on ${formattedDate} at ${formattedTime}. Please make sure to be available on time.`,
-          priority: 'high',
-          metadata: {
-            interviewId: targetInterview._id,
-            applicationId: selectedApplication._id,
-            scheduledDate: targetInterview.startTime
-          }
-        })
       })
 
       const result = await response.json()
 
       if (result.success) {
         toast({
-          title: "Reminder Sent",
-          description: "Interview reminder has been sent to the applicant.",
+          title: "✅ Reminder Sent Successfully",
+          description: result.emailSent 
+            ? `Email notification sent to ${result.sentTo}` 
+            : "In-app notification sent to the applicant.",
         })
       } else {
         throw new Error(result.message || 'Failed to send reminder')
@@ -1905,6 +1877,8 @@ export function ApplicationReview() {
         description: `Failed to send reminder: ${error instanceof Error ? error.message : String(error)}`,
         variant: "destructive",
       })
+    } finally {
+      setSendingReminder(null)
     }
   }
 
@@ -2942,9 +2916,19 @@ export function ApplicationReview() {
                                                     <Button
                                                       variant="outline"
                                                       onClick={() => handleSendReminder(interview)}
+                                                      disabled={sendingReminder === interview._id}
                                                     >
-                                                      <MessageSquare className="mr-2 h-4 w-4" />
-                                                      Send Reminder
+                                                      {sendingReminder === interview._id ? (
+                                                        <>
+                                                          <span className="mr-2 h-4 w-4 animate-spin">⏳</span>
+                                                          Sending...
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <MessageSquare className="mr-2 h-4 w-4" />
+                                                          Send Reminder
+                                                        </>
+                                                      )}
                                                     </Button>
                                                     
                                                     <Button
@@ -3062,9 +3046,19 @@ export function ApplicationReview() {
                                                     <Button
                                                       variant="outline"
                                                       onClick={() => handleSendReminder(interview)}
+                                                      disabled={sendingReminder === interview._id}
                                                     >
-                                                      <MessageSquare className="mr-2 h-4 w-4" />
-                                                      Send Reminder
+                                                      {sendingReminder === interview._id ? (
+                                                        <>
+                                                          <span className="mr-2 h-4 w-4 animate-spin">⏳</span>
+                                                          Sending...
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <MessageSquare className="mr-2 h-4 w-4" />
+                                                          Send Reminder
+                                                        </>
+                                                      )}
                                                     </Button>
                                                     
                                                     <Button
