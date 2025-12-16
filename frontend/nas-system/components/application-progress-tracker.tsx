@@ -49,13 +49,6 @@ interface ComprehensiveStatus {
       isFinished: boolean;
     }>;
   };
-  evaluation: {
-    status: string;
-    message: string;
-    grade: number | null;
-    result: string | null;
-    passingGrade?: number;
-  };
   applicationStatus: {
     status: string;
     message: string;
@@ -164,7 +157,11 @@ export function ApplicationProgressTracker() {
               isInterviewComplete ? "Completed" :
               isPersonalityTestComplete ? "Pending" : "Locked",
       icon: <Calendar className="h-6 w-6" />,
-      interviewDate: nextInterview?.scheduledDateTime || status?.interview?.oasInterview?.scheduledDateTime || null
+      interviewDate: nextInterview?.scheduledDateTime || status?.interview?.oasInterview?.scheduledDateTime || null,
+      oasInterview: status?.interview?.oasInterview || null,
+      departmentHeadInterview: status?.interview?.departmentHeadInterview || null,
+      totalInterviews: status?.interview?.totalInterviews || 0,
+      completedInterviews: status?.interview?.completedInterviews || 0
     },
     {
       title: "Application Status",
@@ -347,45 +344,72 @@ export function ApplicationProgressTracker() {
 
                   {/* ✅ Enhanced status messages for Interview step */}
                   {idx === 3 && (
-                    <div className="mt-2 text-xs">
-                      {step.status === "Completed" && step.interviewDate && (
-                        <div>
-                          <span className="text-green-600">✓ Interview completed</span>
-                          <div className="mt-1 font-medium text-green-800">
-                            {new Date(step.interviewDate).toLocaleString('en-US', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      {step.status === "Pending" && step.interviewDate && (
-                        <div>
-                          <span className="text-blue-600">📅 Interview scheduled</span>
-                          <div className="mt-1 font-medium text-blue-800">
-                            {new Date(step.interviewDate).toLocaleString('en-US', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
-                          <div className="mt-2 text-yellow-600">
-                            ⏳ Waiting for interviews to be completed
-                          </div>
-                        </div>
-                      )}
-                      {step.status === "Pending" && !step.interviewDate && (
-                        <span className="text-yellow-600">⏳ Awaiting interview scheduling</span>
-                      )}
+                    <div className="mt-2 text-xs space-y-3">
                       {step.status === "Locked" && (
                         <span className="text-red-600">🔒 Complete personality test first</span>
+                      )}
+                      
+                      {step.status !== "Locked" && (
+                        <>
+                          {/* OAS Interview Status */}
+                          <div className="border-l-2 border-blue-300 pl-3">
+                            <div className="font-medium text-gray-700">OAS Interview</div>
+                            {step.oasInterview ? (
+                              <div className="mt-1">
+                                {step.oasInterview.isFinished ? (
+                                  <span className="text-green-600">✓ Completed</span>
+                                ) : (
+                                  <span className="text-blue-600">📅 Scheduled</span>
+                                )}
+                                <div className="mt-1 font-medium text-gray-800">
+                                  {new Date(step.oasInterview.scheduledDateTime).toLocaleString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-yellow-600">⏳ Not yet scheduled</span>
+                            )}
+                          </div>
+
+                          {/* Department Head Interview Status */}
+                          <div className="border-l-2 border-purple-300 pl-3">
+                            <div className="font-medium text-gray-700">Department Head Interview</div>
+                            {step.departmentHeadInterview ? (
+                              <div className="mt-1">
+                                {step.departmentHeadInterview.isFinished ? (
+                                  <span className="text-green-600">✓ Completed</span>
+                                ) : (
+                                  <span className="text-purple-600">📅 Scheduled</span>
+                                )}
+                                <div className="mt-1 font-medium text-gray-800">
+                                  {new Date(step.departmentHeadInterview.scheduledDateTime).toLocaleString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-yellow-600">⏳ Not yet scheduled</span>
+                            )}
+                          </div>
+
+                          {/* Summary */}
+                          {(step.totalInterviews ?? 0) > 0 && (
+                            <div className="mt-2 text-gray-500">
+                              Progress: {step.completedInterviews ?? 0}/{step.totalInterviews ?? 0} interview(s) completed
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

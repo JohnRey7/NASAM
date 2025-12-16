@@ -2,7 +2,6 @@ const ApplicationForm = require('../models/ApplicationForm');
 const DocumentUpload = require('../models/DocumentUpload');
 const PersonalityTest = require('../models/PersonalityTest');
 const Interview = require('../models/Interview');
-const Evaluation = require('../models/Evaluation');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 
@@ -51,20 +50,13 @@ class ApplicationStatusService {
         }).sort({ startTime: 1 }).lean();
       }
 
-      // Get latest evaluation
-      const evaluation = await Evaluation.findOne({ 
-        evaluateeUser: userId, 
-        is_deleted: { $ne: true } 
-      }).sort({ createdAt: -1 }).lean();
-
-      // Build response object
+      // Build response object (evaluation removed - not part of application workflow)
       const response = {
         applicationForm: this.getApplicationFormStatus(application),
         documents: this.getDocumentsStatus(documents, application),
         personalityTest: this.getPersonalityTestStatus(personalityTest),
         interview: this.getInterviewStatus(interviews),
-        evaluation: this.getEvaluationStatus(evaluation),
-        applicationStatus: this.getFinalApplicationStatus(application, evaluation)
+        applicationStatus: this.getFinalApplicationStatus(application)
       };
 
       return response;
@@ -231,43 +223,11 @@ class ApplicationStatusService {
   }
 
   /**
-   * Get evaluation status
-   */
-  static getEvaluationStatus(evaluation) {
-    if (!evaluation) {
-      return {
-        status: 'not_evaluated',
-        message: 'Not yet evaluated',
-        grade: null,
-        result: null
-      };
-    }
-
-    const overallRating = evaluation.overallRating 
-      ? parseFloat(evaluation.overallRating.toString()) 
-      : 0;
-    
-    const PASSING_GRADE = 3.0;
-    const passed = overallRating >= PASSING_GRADE;
-
-    return {
-      status: 'evaluated',
-      message: passed ? 'Evaluation passed' : 'Evaluation failed',
-      grade: overallRating,
-      result: passed ? 'passed' : 'failed',
-      passingGrade: PASSING_GRADE,
-      evaluatedAt: evaluation.createdAt,
-      semester: evaluation.semester,
-      schoolYear: evaluation.schoolYear
-    };
-  }
-
-  /**
    * Get final application status
    * The database status is the source of truth - it's set by OAS staff via the buttons.
    * We just format it for display.
    */
-  static getFinalApplicationStatus(application, evaluation) {
+  static getFinalApplicationStatus(application) {
     if (!application) {
       return {
         status: 'none',

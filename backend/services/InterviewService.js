@@ -20,8 +20,11 @@ class InterviewService {
         throw new Error('No application found for this user');
       }
 
-      // Check for existing interview
-      const existingInterview = await Interview.findOne({ applicationId: application._id });
+      // Check for existing interview (exclude soft-deleted)
+      const existingInterview = await Interview.findOne({ 
+        applicationId: application._id,
+        is_deleted: { $ne: true }
+      });
       if (existingInterview) {
         throw new Error('Interview already exists for this application');
       }
@@ -637,7 +640,7 @@ class InterviewService {
     try {
       const { page = 1, limit = 10, status } = queryParams;
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      const query = {};
+      const query = { is_deleted: { $ne: true } };
       
       if (status) query['applicationId.status'] = status;
       
@@ -674,7 +677,10 @@ class InterviewService {
         throw new Error('Invalid interview ID');
       }
       
-      const interview = await Interview.findById(id)
+      const interview = await Interview.findOne({
+        _id: id,
+        is_deleted: { $ne: true }
+      })
         .populate('applicationId', 'firstName lastName status _id')
         .populate('interviewer', 'name _id');
       
@@ -758,7 +764,10 @@ class InterviewService {
         throw new Error('No application found for this user');
       }
       
-      const interview = await Interview.findOne({ applicationId: application._id })
+      const interview = await Interview.findOne({ 
+        applicationId: application._id,
+        is_deleted: { $ne: true }
+      })
         .populate('applicationId', 'firstName lastName status _id')
         .populate('interviewer', 'name _id');
       
@@ -781,8 +790,11 @@ class InterviewService {
         throw new Error('No application found for this user');
       }
       
-      // Find the interview for this application
-      const interview = await Interview.findOne({ applicationId: application._id })
+      // Find the interview for this application (exclude soft-deleted)
+      const interview = await Interview.findOne({ 
+        applicationId: application._id,
+        is_deleted: { $ne: true }
+      })
         .populate('applicationId', 'firstName lastName status _id')
         .populate('interviewer', 'name _id');
       
@@ -1059,10 +1071,11 @@ class InterviewService {
         throw new Error('Invalid interview ID');
       }
 
-      // Find the interview and verify the user is the interviewer
+      // Find the interview and verify the user is the interviewer (exclude soft-deleted)
       const interview = await Interview.findOne({ 
         _id: interviewId, 
-        interviewer: userId 
+        interviewer: userId,
+        is_deleted: { $ne: true }
       }).populate('applicationId');
 
       if (!interview) {
@@ -1097,15 +1110,21 @@ class InterviewService {
       const { page = 1, limit = 10 } = queryParams;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      // Find all interviews where the logged-in user is the interviewer
-      const interviews = await Interview.find({ interviewer: userId })
+      // Find all interviews where the logged-in user is the interviewer (exclude soft-deleted)
+      const interviews = await Interview.find({ 
+        interviewer: userId,
+        is_deleted: { $ne: true }
+      })
         .skip(skip)
         .limit(parseInt(limit))
         .sort({ createdAt: -1 })
         .populate('applicationId');
 
       // Get total count for pagination
-      const totalDocs = await Interview.countDocuments({ interviewer: userId });
+      const totalDocs = await Interview.countDocuments({ 
+        interviewer: userId,
+        is_deleted: { $ne: true }
+      });
 
       // For each interview, get the application form and document upload
       const reviewData = await Promise.all(
@@ -1195,8 +1214,11 @@ class InterviewService {
         throw new Error('Invalid interview ID');
       }
 
-      // First find the interview to check the interviewer
-      const interviewToCheck = await Interview.findById(interviewId).populate({
+      // First find the interview to check the interviewer (exclude soft-deleted)
+      const interviewToCheck = await Interview.findOne({
+        _id: interviewId,
+        is_deleted: { $ne: true }
+      }).populate({
         path: 'interviewer',
         populate: { path: 'role' }
       });
