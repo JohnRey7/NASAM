@@ -207,13 +207,21 @@ class AuthService {
 
     await user.save();
 
-    const token = AuthService.generateToken({ ...user._doc, role });
-    const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    // Only generate token if user doesn't have email (no verification needed)
+    // Users with email must verify before they can get a token
+    let token = null;
+    let maxAge = null;
+    
+    if (!email) {
+      token = AuthService.generateToken({ ...user._doc, role });
+      maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    }
 
     return {
       token,
       maxAge,
-      message: email ? 'Registration successful, please verify your email.' : 'Registration successful',
+      message: email ? 'Registration successful, please verify your email before logging in.' : 'Registration successful',
+      requiresVerification: !!email,
       user: { 
         id: user._id, 
         idNumber: user.idNumber,

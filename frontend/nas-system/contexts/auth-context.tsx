@@ -277,28 +277,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json()
       
-      // Set user data immediately after registration so it's available for the application form
-      if (data.user) {
-        const registeredUser: User = {
-          id: data.user.id,
-          name: name || `Student ${idNumber}`,
-          email: data.user.email || email,
-          role: data.user.role?.name || "applicant",
-          course: data.user.course ? {
-            courseId: data.user.course.courseId || "",
-            name: data.user.course.name || ""
-          } : undefined
-        }
-        
-        setUser(registeredUser)
-        setStatus("authenticated")
-        
-        // Store in localStorage and cookie
-        localStorage.setItem("nas_user", JSON.stringify(registeredUser))
-        document.cookie = `nas_user=${JSON.stringify(registeredUser)}; path=/; max-age=86400`
-      } else {
-        setStatus("unauthenticated")
-      }
+      // Do NOT set user as authenticated after registration
+      // User must verify their email before they can log in
+      // Keep status as unauthenticated - they need to verify email and then login
+      setStatus("unauthenticated")
+      
+      // Do NOT store in localStorage or cookie - user is not authenticated yet
       
       // Return the registration data for the UI to handle
       return {

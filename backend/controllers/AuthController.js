@@ -47,17 +47,22 @@ const AuthController = {
     try {
       const result = await AuthService.register(req.body);
 
-      res.cookie('jwt', result.token, {
-        httpOnly: true,
-        secure: false, // Set to false for HTTP in production (or use HTTPS)
-        sameSite: 'lax', // Changed from 'strict' to 'lax' for cross-origin
-        maxAge: result.maxAge,
-        path: '/',
-        domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined
-      });
+      // Only set cookie if token is provided (user without email - no verification needed)
+      // Users with email must verify before getting a token
+      if (result.token) {
+        res.cookie('jwt', result.token, {
+          httpOnly: true,
+          secure: false, // Set to false for HTTP in production (or use HTTPS)
+          sameSite: 'lax', // Changed from 'strict' to 'lax' for cross-origin
+          maxAge: result.maxAge,
+          path: '/',
+          domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined
+        });
+      }
       
       return res.status(201).json({
         message: result.message,
+        requiresVerification: result.requiresVerification,
         user: result.user
       });
     } catch (error) {
