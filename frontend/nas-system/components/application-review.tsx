@@ -1125,6 +1125,7 @@ export function ApplicationReview() {
   const [schedulingType, setSchedulingType] = useState<'OAS' | 'DepartmentHead' | null>(null)
   const [conflictError, setConflictError] = useState<{title: string, message: string} | null>(null)
   const [sendingReminder, setSendingReminder] = useState<string | null>(null) // Track which interview is sending reminder
+  const [updatingApplicationStatus, setUpdatingApplicationStatus] = useState(false) // Track application status update
 
   // Deleted applications state
   const [applicationMainTab, setApplicationMainTab] = useState<'active' | 'deleted'>('active')
@@ -1531,6 +1532,49 @@ export function ApplicationReview() {
         description: error instanceof Error ? error.message : "Failed to permanently delete interview",
         variant: "destructive"
       })
+    }
+  }
+
+  // Handle application status update (Pass/Fail/Awaiting)
+  const handleUpdateApplicationStatus = async (userId: string, status: 'approved' | 'rejected' | 'pending_evaluation', userName: string) => {
+    setUpdatingApplicationStatus(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/oas/application/user/${userId}/status`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status }),
+          credentials: 'include'
+        }
+      )
+
+      const data = await response.json()
+
+      if (data.success) {
+        const statusLabel = status === 'approved' ? 'Approved (Pass)' : 
+                           status === 'rejected' ? 'Under Consideration (Fail)' : 
+                           'Awaiting'
+        toast({
+          title: "Status Updated",
+          description: `${userName}'s application status has been updated to ${statusLabel}.`,
+        })
+        // Refresh applications list
+        fetchApplications(pagination.page, sortOrder, debouncedSearch, filter)
+      } else {
+        throw new Error(data.message || 'Failed to update application status')
+      }
+    } catch (error: any) {
+      console.error('Error updating application status:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update application status",
+        variant: "destructive"
+      })
+    } finally {
+      setUpdatingApplicationStatus(false)
     }
   }
 
@@ -3303,6 +3347,82 @@ export function ApplicationReview() {
                                 )}
                               </TabsContent>
                             </Tabs>
+
+                            {/* Application Status Decision Buttons - OAS Staff and Admin */}
+                            {/* Show only when both OAS and Department Head interviews are completed */}
+                            {(() => {
+                              const oasInterview = interviewData?.interviews?.find((i: any) => i.type === 'OAS');
+                              const deptHeadInterview = interviewData?.interviews?.find((i: any) => i.type === 'DepartmentHead');
+                              const bothInterviewsCompleted = oasInterview?.is_finished && deptHeadInterview?.is_finished;
+                              const currentStatus = selectedApplication?.status;
+                              
+                              if ((user?.role === 'oas_staff' || user?.role === 'admin') && selectedApplication?.user?._id && bothInterviewsCompleted) {
+                                return (
+                                  <div className="border-t pt-4 mt-4">
+                                    <p className="text-sm font-medium text-gray-700 mb-3">Set Application Status:</p>
+                                    <div className="flex gap-3 flex-wrap">
+                                      <Button
+                                        className={currentStatus === 'approved' 
+                                          ? "bg-green-300 text-green-800 cursor-not-allowed" 
+                                          : "bg-green-600 hover:bg-green-700 text-white"}
+                                        onClick={() => handleUpdateApplicationStatus(
+                                          selectedApplication.user._id,
+                                          'approved',
+                                          `${selectedApplication.firstName || ''} ${selectedApplication.lastName || ''}`.trim()
+                                        )}
+                                        disabled={updatingApplicationStatus || currentStatus === 'approved'}
+                                      >
+                                        {updatingApplicationStatus ? (
+                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <CheckCircle className="mr-2 h-4 w-4" />
+                                        )}
+                                        Pass (Approved)
+                                      </Button>
+                                      <Button
+                                        variant={currentStatus === 'rejected' ? "outline" : "destructive"}
+                                        className={currentStatus === 'rejected' 
+                                          ? "bg-red-100 text-red-400 border-red-200 cursor-not-allowed" 
+                                          : ""}
+                                        onClick={() => handleUpdateApplicationStatus(
+                                          selectedApplication.user._id,
+                                          'rejected',
+                                          `${selectedApplication.firstName || ''} ${selectedApplication.lastName || ''}`.trim()
+                                        )}
+                                        disabled={updatingApplicationStatus || currentStatus === 'rejected'}
+                                      >
+                                        {updatingApplicationStatus ? (
+                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <XCircle className="mr-2 h-4 w-4" />
+                                        )}
+                                        Fail (Under Consideration)
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        className={currentStatus === 'pending_evaluation' 
+                                          ? "bg-yellow-100 text-yellow-400 border-yellow-200 cursor-not-allowed" 
+                                          : "border-yellow-500 text-yellow-700 hover:bg-yellow-50"}
+                                        onClick={() => handleUpdateApplicationStatus(
+                                          selectedApplication.user._id,
+                                          'pending_evaluation',
+                                          `${selectedApplication.firstName || ''} ${selectedApplication.lastName || ''}`.trim()
+                                        )}
+                                        disabled={updatingApplicationStatus || currentStatus === 'pending_evaluation'}
+                                      >
+                                        {updatingApplicationStatus ? (
+                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Clock className="mr-2 h-4 w-4" />
+                                        )}
+                                        Awaiting
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
 
                             <DialogFooter>
                               <DialogClose asChild>
