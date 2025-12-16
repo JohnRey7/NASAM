@@ -87,7 +87,7 @@ const applicationFormSchema = new mongoose.Schema({
       companyName: { type: String },
       companyAddress: { type: String },
       homeAddress: { type: String },
-      contactNumber: { type: String, required: true }
+      contactNumber: { type: String }
     },
     mother: {
       firstName: { type: String, required: true },
@@ -107,7 +107,7 @@ const applicationFormSchema = new mongoose.Schema({
       companyName: { type: String },
       companyAddress: { type: String },
       homeAddress: { type: String },
-      contactNumber: { type: String, required: true }
+      contactNumber: { type: String }
     },
     siblings: [{
       name: { type: String, required: false },

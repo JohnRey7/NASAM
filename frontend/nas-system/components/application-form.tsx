@@ -1075,7 +1075,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
   const validateStep2 = () => {
     // Validate father's information
-    const fatherFields = ['firstName', 'lastName', 'age', 'occupation', 'grossAnnualIncome', 'contactNumber'] as const;
+    const fatherFields = ['firstName', 'lastName', 'age', 'occupation', 'grossAnnualIncome'] as const;
     const newErrors: Record<string, boolean> = {};
     let hasErrors = false;
     let incomeExceedsLimit = false;
@@ -1088,7 +1088,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     }
 
     // Validate mother's information
-    const motherFields = ['firstName', 'lastName', 'age', 'occupation', 'grossAnnualIncome', 'contactNumber'] as const;
+    const motherFields = ['firstName', 'lastName', 'age', 'occupation', 'grossAnnualIncome'] as const;
     for (const field of motherFields) {
       if (!formData.familyBackground.mother[field]) {
         newErrors[`mother_${field}`] = true;

@@ -35,41 +35,69 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
   const [schoolYear, setSchoolYear] = useState(existingEvaluation?.schoolYear || `${currentYear}-${currentYear + 1}`)
   const [semester, setSemester] = useState(existingEvaluation?.semester || '')
   
+  // Helper to convert Decimal128 or object to number
+  const toNumber = (val: any): number => {
+    if (val === null || val === undefined) return 0
+    if (typeof val === 'number') return val
+    if (typeof val === 'string') return parseFloat(val) || 0
+    if (val && typeof val === 'object' && '$numberDecimal' in val) return parseFloat(val.$numberDecimal) || 0
+    return 0
+  }
+  
+  // Map backend field names to form field names (handles both schemas)
   const [attendance, setAttendance] = useState({
-    regularityOfAttendance: existingEvaluation?.attendanceAndPunctuality?.regularityOfAttendance || 0,
-    promptnessInReporting: existingEvaluation?.attendanceAndPunctuality?.promptnessInReporting || 0
+    regularityOfAttendance: toNumber(existingEvaluation?.attendanceAndPunctuality?.regularityOfAttendance) || 
+                            toNumber(existingEvaluation?.attendanceAndPunctuality?.regularAttendance) || 0,
+    promptnessInReporting: toNumber(existingEvaluation?.attendanceAndPunctuality?.promptnessInReporting) || 
+                           toNumber(existingEvaluation?.attendanceAndPunctuality?.promptnessInReportingForDuty) || 0
   })
   
   const [quality, setQuality] = useState({
-    accuracyAndThoroughness: existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughness || 0,
-    organizationAndPresentation: existingEvaluation?.qualityOfWorkOutput?.organizationAndPresentation || 0,
-    effectiveness: existingEvaluation?.qualityOfWorkOutput?.effectiveness || 0
+    accuracyAndThoroughness: toNumber(existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughness) || 
+                              toNumber(existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughnessOfWork) || 0,
+    organizationAndPresentation: toNumber(existingEvaluation?.qualityOfWorkOutput?.organizationAndPresentation) || 
+                                  toNumber(existingEvaluation?.qualityOfWorkOutput?.organizationAndOrPresentationNeatnessOfWork) || 0,
+    effectiveness: toNumber(existingEvaluation?.qualityOfWorkOutput?.effectiveness) || 0
   })
   
   const [quantity, setQuantity] = useState({
-    accomplishesMoreWork: existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWork || 0,
-    readinessInAccomplishing: existingEvaluation?.quantityOfWorkOutput?.readinessInAccomplishing || 0
+    accomplishesMoreWork: toNumber(existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWork) || 
+                          toNumber(existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWorkOnTheGivenTime) || 0,
+    readinessInAccomplishing: toNumber(existingEvaluation?.quantityOfWorkOutput?.readinessInAccomplishing) || 
+                               toNumber(existingEvaluation?.quantityOfWorkOutput?.timelinessInAccomplishingTaskDuties) || 0
   })
   
+  // Handle both personalQualities (ScholarEvaluation) and attitudeAndWorkBehavior (Evaluation) schemas
+  const personalData = existingEvaluation?.personalQualities || existingEvaluation?.attitudeAndWorkBehavior || {}
   const [personal, setPersonal] = useState({
-    responsibilityAndUrgency: existingEvaluation?.personalQualities?.responsibilityAndUrgency || 0,
-    dependabilityAndReliability: existingEvaluation?.personalQualities?.dependabilityAndReliability || 0,
-    industryAndResourcefulness: existingEvaluation?.personalQualities?.industryAndResourcefulness || 0,
-    fairnessAndInitiative: existingEvaluation?.personalQualities?.fairnessAndInitiative || 0,
-    sociabilityAndDisposition: existingEvaluation?.personalQualities?.sociabilityAndDisposition || 0
+    responsibilityAndUrgency: toNumber(personalData?.responsibilityAndUrgency) || 
+                               toNumber(personalData?.senseOfResponsibilityAndUrgency) || 0,
+    dependabilityAndReliability: toNumber(personalData?.dependabilityAndReliability) || 0,
+    industryAndResourcefulness: toNumber(personalData?.industryAndResourcefulness) || 0,
+    fairnessAndInitiative: toNumber(personalData?.fairnessAndInitiative) || 
+                            toNumber(personalData?.alertnessAndInitiative) || 0,
+    sociabilityAndDisposition: toNumber(personalData?.sociabilityAndDisposition) || 
+                                toNumber(personalData?.sociabilityAndPleasantDisposition) || 0
   })
   
   const [timekeeping, setTimekeeping] = useState({
-    excusedAbsences: existingEvaluation?.timekeepingRecord?.excusedAbsences || 0,
-    unexcusedAbsences: existingEvaluation?.timekeepingRecord?.unexcusedAbsences || 0,
-    lateMoreThan10mins: existingEvaluation?.timekeepingRecord?.lateMoreThan10mins || 0,
-    lateLessThan1hr: existingEvaluation?.timekeepingRecord?.lateLessThan1hr || 0,
-    failureToPunch: existingEvaluation?.timekeepingRecord?.failureToPunch || 0,
-    underTime: existingEvaluation?.timekeepingRecord?.underTime || 0
+    excusedAbsences: toNumber(existingEvaluation?.timekeepingRecord?.excusedAbsences) || 0,
+    unexcusedAbsences: toNumber(existingEvaluation?.timekeepingRecord?.unexcusedAbsences) || 0,
+    lateMoreThan10mins: toNumber(existingEvaluation?.timekeepingRecord?.lateMoreThan10mins) || 0,
+    lateLessThan1hr: toNumber(existingEvaluation?.timekeepingRecord?.lateLessThan1hr) || 0,
+    failureToPunch: toNumber(existingEvaluation?.timekeepingRecord?.failureToPunch) || 0,
+    underTime: toNumber(existingEvaluation?.timekeepingRecord?.underTime) || 0
   })
   
-  const [supervisorRemarks, setSupervisorRemarks] = useState(existingEvaluation?.supervisorRemarks || '')
-  const [nasRemarks, setNasRemarks] = useState(existingEvaluation?.nasRemarks || '')
+  // Handle remarks field mapping (remarksAndRecommendationByImmediateSupervisor vs supervisorRemarks)
+  const [supervisorRemarks, setSupervisorRemarks] = useState(
+    existingEvaluation?.supervisorRemarks || 
+    existingEvaluation?.remarksAndRecommendationByImmediateSupervisor || ''
+  )
+  const [nasRemarks, setNasRemarks] = useState(
+    existingEvaluation?.nasRemarks || 
+    existingEvaluation?.remarksCommentsByTheNAS || ''
+  )
 
   const calculateOverallRating = () => {
     // Weights: Attendance 20%, Quality 25%, Quantity 20%, Personal Qualities 35% = 100%
