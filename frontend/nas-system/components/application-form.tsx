@@ -29,8 +29,8 @@ const defaultFormData: ApplicationFormData = {
   birthDate: '',
   programOfStudyAndYear: '',
   existingScholarship: '',
-  remainingUnitsIncludingThisTerm: 0,
-  remainingTermsToGraduate: 0,
+  remainingUnitsIncludingThisTerm: '' as any,
+  remainingTermsToGraduate: '' as any,
   citizenship: 'Filipino',
   civilStatus: '',
   annualFamilyIncome: '',
@@ -44,10 +44,10 @@ const defaultFormData: ApplicationFormData = {
   isCitUSeniorHighGraduate: false,
   yearLevel: '',
   citUResidency: {
-    semesterCount: 0,
-    weightedAverageGrade: 0,
+    semesterCount: '' as any,
+    weightedAverageGrade: '' as any,
     hasFailingMarks: false,
-    minimumUnitsCompleted: 0
+    minimumUnitsCompleted: '' as any
   },
   familyBackground: {
     father: {
@@ -55,7 +55,7 @@ const defaultFormData: ApplicationFormData = {
       middleName: '',
       lastName: '',
       suffix: '',
-      age: 0,
+      age: '' as any,
       occupation: '',
       grossAnnualIncome: '',
       companyName: '',
@@ -68,7 +68,7 @@ const defaultFormData: ApplicationFormData = {
       middleName: '',
       lastName: '',
       suffix: '',
-      age: 0,
+      age: '' as any,
       occupation: '',
       grossAnnualIncome: '',
       companyName: '',
@@ -83,7 +83,7 @@ const defaultFormData: ApplicationFormData = {
       nameAndAddressOfSchool: '',
       honorOrAwardsReceived: '',
       nameOfOrganizationAndPositionHeld: '',
-      generalAverage: 0,
+      generalAverage: '' as any,
       rankAmongGraduates: '',
       contestTrainingsConferencesParticipated: ''
     },
@@ -91,7 +91,7 @@ const defaultFormData: ApplicationFormData = {
       nameAndAddressOfSchool: '',
       honorOrAwardsReceived: '',
       nameOfOrganizationAndPositionHeld: '',
-      generalAverage: 0,
+      generalAverage: '' as any,
       rankAmongGraduates: '',
       contestTrainingsConferencesParticipated: ''
     },
@@ -159,7 +159,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   const [localFormData, setLocalFormData] = useState<ApplicationFormData>(defaultFormData);
   const [localSiblings, setLocalSiblings] = useState<Array<{ name: string; age: number; programCurrentlyTakingOrFinished: string; schoolOrOccupation: string }>>([]);
   const [localOrganizations, setLocalOrganizations] = useState([{ nameOfOrganization: "", position: "" }]);
-  const [localCollegeLevels, setLocalCollegeLevels] = useState([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+  const [localCollegeLevels, setLocalCollegeLevels] = useState([{ yearLevel: 1, firstSemesterAverageFinalGrade: '' as any, secondSemesterAverageFinalGrade: '' as any, thirdSemesterAverageFinalGrade: '' as any }]);
   const [localReferences, setLocalReferences] = useState([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
   const [localIsReadOnly, setLocalIsReadOnly] = useState(false);
   const [localHasExistingApplication, setLocalHasExistingApplication] = useState(false);
@@ -247,7 +247,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     const fetchCourses = async () => {
       try {
         setCoursesLoading(true);
-        const response = await axios.get(`${API_URL}/course/all`, {
+        const response = await axios.get(`${API_URL}/course/public`, {
           withCredentials: true
         });
 
@@ -550,8 +550,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
           emailAddress: prev.emailAddress || '',
           programOfStudyAndYear: prev.programOfStudyAndYear || ''
         }));
-        setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
-        setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+        setSiblings([{ name: "", age: '' as any, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
+        setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: '' as any, secondSemesterAverageFinalGrade: '' as any, thirdSemesterAverageFinalGrade: '' as any }]);
         setOrganizations([{ nameOfOrganization: "", position: "" }]);
         setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
         setIsReadOnly(false);
@@ -564,8 +564,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
         emailAddress: prev.emailAddress || '',
         programOfStudyAndYear: prev.programOfStudyAndYear || ''
       }));
-      setSiblings([{ name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
-      setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: 0, secondSemesterAverageFinalGrade: 0, thirdSemesterAverageFinalGrade: 0 }]);
+      setSiblings([{ name: "", age: '' as any, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" }]);
+      setCollegeLevels([{ yearLevel: 1, firstSemesterAverageFinalGrade: '' as any, secondSemesterAverageFinalGrade: '' as any, thirdSemesterAverageFinalGrade: '' as any }]);
       setOrganizations([{ nameOfOrganization: "", position: "" }]);
       setReferences([{ name: "", relationshipToTheApplicant: "", contactNumber: "" }]);
       setIsReadOnly(false);
@@ -582,7 +582,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     if (isReadOnly || hasExistingApplication) return;
     
     try {
-      const draftData = {
+      const draftData = sanitizeFormDataForSubmission({
         ...formData,
         currentStep,
         familyBackground: {
@@ -595,7 +595,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
           currentMembershipInOrganizations: organizations
         },
         references
-      };
+      });
       
       await applicationService.saveDraft(draftData);
       console.log('💾 Draft auto-saved');
@@ -620,7 +620,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   }, [formData, siblings, collegeLevels, organizations, references, currentStep, isReadOnly, hasExistingApplication, isInitialLoad]);
 
   const addSibling = () => {
-    const newSibling = { name: "", age: 0, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" };
+    const newSibling = { name: "", age: '' as any, programCurrentlyTakingOrFinished: "", schoolOrOccupation: "" };
     setSiblings([...siblings, newSibling]);
     setFormData(prev => ({
       ...prev,
@@ -709,9 +709,9 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
   const addCollegeLevel = () => {
     const newLevel = {
       yearLevel: collegeLevels.length + 1,
-      firstSemesterAverageFinalGrade: 0,
-      secondSemesterAverageFinalGrade: 0,
-      thirdSemesterAverageFinalGrade: 0
+      firstSemesterAverageFinalGrade: '' as any,
+      secondSemesterAverageFinalGrade: '' as any,
+      thirdSemesterAverageFinalGrade: '' as any
     };
     setCollegeLevels([...collegeLevels, newLevel]);
     setFormData(prev => ({
@@ -807,10 +807,50 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
       }
     }));
   };
+
+  // Helper function to convert empty strings to 0 for numeric fields before sending to backend
+  const sanitizeFormDataForSubmission = (data: any) => {
+    const sanitized = { ...data };
+    
+    // Convert empty string numeric fields to 0
+    if (sanitized.remainingUnitsIncludingThisTerm === '') sanitized.remainingUnitsIncludingThisTerm = 0;
+    if (sanitized.remainingTermsToGraduate === '') sanitized.remainingTermsToGraduate = 0;
+    
+    // Sanitize family background
+    if (sanitized.familyBackground?.father?.age === '') sanitized.familyBackground.father.age = 0;
+    if (sanitized.familyBackground?.mother?.age === '') sanitized.familyBackground.mother.age = 0;
+    if (sanitized.familyBackground?.siblings) {
+      sanitized.familyBackground.siblings = sanitized.familyBackground.siblings.map((s: any) => ({
+        ...s,
+        age: s.age === '' ? 0 : s.age
+      }));
+    }
+    
+    // Sanitize education
+    if (sanitized.education?.elementary?.generalAverage === '') sanitized.education.elementary.generalAverage = 0;
+    if (sanitized.education?.secondary?.generalAverage === '') sanitized.education.secondary.generalAverage = 0;
+    if (sanitized.education?.collegeLevel) {
+      sanitized.education.collegeLevel = sanitized.education.collegeLevel.map((level: any) => ({
+        ...level,
+        firstSemesterAverageFinalGrade: level.firstSemesterAverageFinalGrade === '' ? 0 : level.firstSemesterAverageFinalGrade,
+        secondSemesterAverageFinalGrade: level.secondSemesterAverageFinalGrade === '' ? 0 : level.secondSemesterAverageFinalGrade
+      }));
+    }
+    
+    // Sanitize citUResidency
+    if (sanitized.citUResidency) {
+      if (sanitized.citUResidency.semesterCount === '') sanitized.citUResidency.semesterCount = 0;
+      if (sanitized.citUResidency.weightedAverageGrade === '') sanitized.citUResidency.weightedAverageGrade = 0;
+      if (sanitized.citUResidency.minimumUnitsCompleted === '') sanitized.citUResidency.minimumUnitsCompleted = 0;
+    }
+    
+    return sanitized;
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const completeFormData = {
+      const completeFormData = sanitizeFormDataForSubmission({
         ...formData,
         shsgraduateCIT: formData.isCitUSeniorHighGraduate, // Map to backend field name
         familyBackground: {
@@ -826,7 +866,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
           relationshipToTheApplicant: ref.relationshipToTheApplicant,
           contactNumber: ref.contactNumber
         }))
-      };
+      });
 
       console.log('Saving form data:', JSON.stringify(completeFormData, null, 2));
       
@@ -873,7 +913,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
     setIsSubmitting(true);
     try {
       // Map frontend field to backend field
-      const submissionData = {
+      const submissionData = sanitizeFormDataForSubmission({
         ...formData,
         shsgraduateCIT: formData.isCitUSeniorHighGraduate, // Map to backend field name
         familyBackground: {
@@ -886,7 +926,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
           currentMembershipInOrganizations: organizations
         },
         references: references
-      };
+      });
 
       if (applicationId) {
         // Update existing application
@@ -1276,8 +1316,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
   // Defensive fallback for education fields
   const safeEducation = formData.education || { elementary: {}, secondary: {}, collegeLevel: [], currentMembershipInOrganizations: [] };
-  const safeElementary = safeEducation.elementary || { nameAndAddressOfSchool: '', honorOrAwardsReceived: '', nameOfOrganizationAndPositionHeld: '', generalAverage: 0, rankAmongGraduates: '', contestTrainingsConferencesParticipated: '' };
-  const safeSecondary = safeEducation.secondary || { nameAndAddressOfSchool: '', honorOrAwardsReceived: '', nameOfOrganizationAndPositionHeld: '', generalAverage: 0, rankAmongGraduates: '', contestTrainingsConferencesParticipated: '' };
+  const safeElementary = safeEducation.elementary || { nameAndAddressOfSchool: '', honorOrAwardsReceived: '', nameOfOrganizationAndPositionHeld: '', generalAverage: '' as any, rankAmongGraduates: '', contestTrainingsConferencesParticipated: '' };
+  const safeSecondary = safeEducation.secondary || { nameAndAddressOfSchool: '', honorOrAwardsReceived: '', nameOfOrganizationAndPositionHeld: '', generalAverage: '' as any, rankAmongGraduates: '', contestTrainingsConferencesParticipated: '' };
   const safeCollegeLevels = safeEducation.collegeLevel || [];
   const safeOrganizations = safeEducation.currentMembershipInOrganizations || [
     { nameOfOrganization: '', position: '' }
@@ -1285,8 +1325,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
 
   // Defensive fallback for nested objects to prevent undefined errors
   const safeFamilyBackground = formData.familyBackground || { father: {}, mother: {}, siblings: [] };
-  const safeFather = safeFamilyBackground.father || { firstName: '', middleName: '', lastName: '', suffix: '', age: 0, occupation: '', grossAnnualIncome: '', companyName: '', companyAddress: '', homeAddress: '', contactNumber: '' };
-  const safeMother = safeFamilyBackground.mother || { firstName: '', middleName: '', lastName: '', suffix: '', age: 0, occupation: '', grossAnnualIncome: '', companyName: '', companyAddress: '', homeAddress: '', contactNumber: '' };
+  const safeFather = safeFamilyBackground.father || { firstName: '', middleName: '', lastName: '', suffix: '', age: '' as any, occupation: '', grossAnnualIncome: '', companyName: '', companyAddress: '', homeAddress: '', contactNumber: '' };
+  const safeMother = safeFamilyBackground.mother || { firstName: '', middleName: '', lastName: '', suffix: '', age: '' as any, occupation: '', grossAnnualIncome: '', companyName: '', companyAddress: '', homeAddress: '', contactNumber: '' };
   const safeSiblings = safeFamilyBackground.siblings || [];
 
   return (
@@ -1467,8 +1507,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     id="remaining-units"
                     type="number"
                     min="0"
-                    value={formData.remainingUnitsIncludingThisTerm}
-                    onChange={(e) => { setFormData({ ...formData, remainingUnitsIncludingThisTerm: Number(e.target.value) }); setFieldErrors(prev => ({ ...prev, remainingUnitsIncludingThisTerm: false })); }}
+                    value={formData.remainingUnitsIncludingThisTerm === 0 || formData.remainingUnitsIncludingThisTerm === '' ? '' : formData.remainingUnitsIncludingThisTerm}
+                    onChange={(e) => { setFormData({ ...formData, remainingUnitsIncludingThisTerm: e.target.value === '' ? '' as any : Number(e.target.value) }); setFieldErrors(prev => ({ ...prev, remainingUnitsIncludingThisTerm: false })); }}
                     placeholder="Enter remaining units"
                     disabled={isReadOnly}
                     required
@@ -1481,8 +1521,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     id="remaining-terms"
                     type="number"
                     min="0"
-                    value={formData.remainingTermsToGraduate}
-                    onChange={(e) => { setFormData({ ...formData, remainingTermsToGraduate: Number(e.target.value) }); setFieldErrors(prev => ({ ...prev, remainingTermsToGraduate: false })); }}
+                    value={formData.remainingTermsToGraduate === 0 || formData.remainingTermsToGraduate === '' ? '' : formData.remainingTermsToGraduate}
+                    onChange={(e) => { setFormData({ ...formData, remainingTermsToGraduate: e.target.value === '' ? '' as any : Number(e.target.value) }); setFieldErrors(prev => ({ ...prev, remainingTermsToGraduate: false })); }}
                     placeholder="Enter remaining terms"
                     disabled={isReadOnly}
                     required
@@ -1673,8 +1713,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       id="father-age"
                       type="number"
                       min="0"
-                      value={safeFather.age}
-                      onChange={(e) => { updateFatherField('age', Number(e.target.value)); setFieldErrors(prev => ({ ...prev, father_age: false })); }}
+                      value={safeFather.age === 0 || safeFather.age === '' ? '' : safeFather.age}
+                      onChange={(e) => { updateFatherField('age', e.target.value === '' ? '' as any : Number(e.target.value)); setFieldErrors(prev => ({ ...prev, father_age: false })); }}
                       placeholder="Enter age"
                       disabled={isReadOnly}
                       className={getErrorClass('father_age')}
@@ -1783,8 +1823,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                       id="mother-age"
                       type="number"
                       min="0"
-                      value={safeMother.age}
-                      onChange={(e) => { updateMotherField('age', Number(e.target.value)); setFieldErrors(prev => ({ ...prev, mother_age: false })); }}
+                      value={safeMother.age === 0 || safeMother.age === '' ? '' : safeMother.age}
+                      onChange={(e) => { updateMotherField('age', e.target.value === '' ? '' as any : Number(e.target.value)); setFieldErrors(prev => ({ ...prev, mother_age: false })); }}
                       placeholder="Enter age"
                       disabled={isReadOnly}
                       className={getErrorClass('mother_age')}
@@ -1902,8 +1942,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                               id={`sibling-age-${index}`}
                               type="number"
                               min="0"
-                              value={sibling.age}
-                              onChange={(e) => updateSibling(index, "age", Number(e.target.value))}
+                              value={sibling.age === 0 || sibling.age === '' ? '' : sibling.age}
+                              onChange={(e) => updateSibling(index, "age", e.target.value === '' ? '' as any : Number(e.target.value))}
                               placeholder="Enter age"
                               disabled={isReadOnly}
                             />
@@ -2021,7 +2061,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     min="75"
                     max="100"
                     step="0.01"
-                    value={safeElementary.generalAverage}
+                    value={safeElementary.generalAverage === 0 || safeElementary.generalAverage === '' ? '' : safeElementary.generalAverage}
                     onChange={(e) => {
                       setFormData({
                         ...formData,
@@ -2029,7 +2069,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                           ...formData.education,
                           elementary: {
                             ...formData.education.elementary,
-                            generalAverage: Number(e.target.value),
+                            generalAverage: e.target.value === '' ? '' as any : Number(e.target.value),
                           },
                         },
                       });
@@ -2159,7 +2199,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                     min="75"
                     max="100"
                     step="0.01"
-                    value={safeSecondary.generalAverage}
+                    value={safeSecondary.generalAverage === 0 || safeSecondary.generalAverage === '' ? '' : safeSecondary.generalAverage}
                     onChange={(e) => {
                       setFormData({
                         ...formData,
@@ -2167,7 +2207,7 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                           ...formData.education,
                           secondary: {
                             ...formData.education.secondary,
-                            generalAverage: Number(e.target.value),
+                            generalAverage: e.target.value === '' ? '' as any : Number(e.target.value),
                           },
                         },
                       });
@@ -2274,12 +2314,12 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                             id="semester-count-education"
                             type="number"
                             min="0"
-                            value={formData.citUResidency?.semesterCount || 0}
+                            value={formData.citUResidency?.semesterCount === 0 || formData.citUResidency?.semesterCount === '' ? '' : formData.citUResidency?.semesterCount}
                             onChange={(e) => setFormData({ 
                               ...formData, 
                               citUResidency: { 
                                 ...formData.citUResidency, 
-                                semesterCount: Number(e.target.value) 
+                                semesterCount: e.target.value === '' ? '' as any : Number(e.target.value) 
                               } 
                             })}
                             placeholder="Enter number of semesters"
@@ -2296,12 +2336,12 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                             min="1.0"
                             max="4.0"
                             step="0.01"
-                            value={formData.citUResidency?.weightedAverageGrade || 0}
+                            value={formData.citUResidency?.weightedAverageGrade === 0 || formData.citUResidency?.weightedAverageGrade === '' ? '' : formData.citUResidency?.weightedAverageGrade}
                             onChange={(e) => setFormData({ 
                               ...formData, 
                               citUResidency: { 
                                 ...formData.citUResidency, 
-                                weightedAverageGrade: Number(e.target.value) 
+                                weightedAverageGrade: e.target.value === '' ? '' as any : Number(e.target.value) 
                               } 
                             })}
                             placeholder="e.g., 3.75"
@@ -2341,12 +2381,12 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                             id="minimum-units-education"
                             type="number"
                             min="0"
-                            value={formData.citUResidency?.minimumUnitsCompleted || 0}
+                            value={formData.citUResidency?.minimumUnitsCompleted === 0 || formData.citUResidency?.minimumUnitsCompleted === '' ? '' : formData.citUResidency?.minimumUnitsCompleted}
                             onChange={(e) => setFormData({ 
                               ...formData, 
                               citUResidency: { 
                                 ...formData.citUResidency, 
-                                minimumUnitsCompleted: Number(e.target.value) 
+                                minimumUnitsCompleted: e.target.value === '' ? '' as any : Number(e.target.value) 
                               } 
                             })}
                             placeholder="Enter minimum units"
@@ -2406,8 +2446,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                           min="0"
                           max="100"
                           step="0.01"
-                          value={level.firstSemesterAverageFinalGrade}
-                          onChange={(e) => updateCollegeLevel(index, "firstSemesterAverageFinalGrade", Number(e.target.value))}
+                          value={level.firstSemesterAverageFinalGrade === 0 || level.firstSemesterAverageFinalGrade === '' ? '' : level.firstSemesterAverageFinalGrade}
+                          onChange={(e) => updateCollegeLevel(index, "firstSemesterAverageFinalGrade", e.target.value === '' ? '' as any : Number(e.target.value))}
                           placeholder="Enter grade"
                           disabled={isReadOnly}
                         />
@@ -2424,8 +2464,8 @@ export function ApplicationForm({ applicationId, initialData, readOnly, onUpdate
                           min="0"
                           max="100"
                           step="0.01"
-                          value={level.secondSemesterAverageFinalGrade}
-                          onChange={(e) => updateCollegeLevel(index, "secondSemesterAverageFinalGrade", Number(e.target.value))}
+                          value={level.secondSemesterAverageFinalGrade === 0 || level.secondSemesterAverageFinalGrade === '' ? '' : level.secondSemesterAverageFinalGrade}
+                          onChange={(e) => updateCollegeLevel(index, "secondSemesterAverageFinalGrade", e.target.value === '' ? '' as any : Number(e.target.value))}
                           placeholder="Enter grade (optional)"
                           disabled={isReadOnly}
                         />

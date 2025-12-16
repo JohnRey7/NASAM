@@ -1125,6 +1125,20 @@ export function ApplicationReview() {
   const [schedulingType, setSchedulingType] = useState<'OAS' | 'DepartmentHead' | null>(null)
   const [conflictError, setConflictError] = useState<{title: string, message: string} | null>(null)
 
+  // Deleted applications state
+  const [applicationMainTab, setApplicationMainTab] = useState<'active' | 'deleted'>('active')
+  const [deletedApplications, setDeletedApplications] = useState<any[]>([])
+  const [deletedApplicationsLoading, setDeletedApplicationsLoading] = useState(false)
+  const [deletedSearchTerm, setDeletedSearchTerm] = useState("")
+  const [deletedPagination, setDeletedPagination] = useState({
+    page: 1,
+    limit: 20,
+    totalDocs: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  })
+
   const toInterviewDisplayDate = (dateValue: any) => {
     const d = new Date(dateValue)
     return new Date(d.getTime() - 8 * 60 * 60 * 1000)
@@ -1260,6 +1274,155 @@ export function ApplicationReview() {
       setInterviewers([])
     }
   }
+
+  // Fetch deleted applications
+  const fetchDeletedApplications = useCallback(async (page: number = 1, search?: string) => {
+    setDeletedApplicationsLoading(true)
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: '20'
+      })
+      if (search) params.append('search', search)
+      
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application/deleted?${params}`,
+        { credentials: 'include' }
+      )
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('🗑️ Deleted applications fetched:', result)
+        setDeletedApplications(result.data || result.applications || [])
+        if (result.pagination) {
+          setDeletedPagination({
+            page: result.pagination.page || page,
+            limit: result.pagination.limit || 20,
+            totalDocs: result.pagination.totalDocs || 0,
+            totalPages: result.pagination.totalPages || 1,
+            hasNextPage: result.pagination.hasNextPage || false,
+            hasPrevPage: result.pagination.hasPrevPage || false
+          })
+        }
+      } else {
+        console.log('🗑️ No deleted applications found or error fetching')
+        setDeletedApplications([])
+      }
+    } catch (error) {
+      console.error('Error fetching deleted applications:', error)
+      setDeletedApplications([])
+    } finally {
+      setDeletedApplicationsLoading(false)
+    }
+  }, [])
+
+  // Restore a deleted application
+  const handleRestoreApplication = async (application: any) => {
+    const isConfirmed = await confirm({
+      title: "Restore Application",
+      description: `Are you sure you want to restore the application for ${application.firstName} ${application.lastName}? This will make the application active again.`,
+      confirmText: "Restore",
+      cancelText: "Cancel",
+      type: "warning"
+    });
+
+    if (!isConfirmed) return;
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application/${application._id}/restore`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `HTTP ${response.status}`)
+      }
+
+      toast({
+        title: "Application Restored",
+        description: `${application.firstName} ${application.lastName}'s application has been restored successfully.`,
+        duration: 5000
+      })
+
+      // Refresh deleted applications list
+      fetchDeletedApplications(deletedPagination.page, deletedSearchTerm)
+      // Refresh active applications list
+      fetchApplications(pagination.page, sortOrder, debouncedSearch, filter)
+      // Refresh counts
+      try {
+        const res = await applicationService.getApplicationCounts()
+        if (res?.success) setCounts(res.data)
+      } catch (err) {
+        console.warn('Failed to refresh counts after restore', err)
+      }
+
+    } catch (error) {
+      toast({
+        title: "Restore Failed",
+        description: `Failed to restore application: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+        duration: 5000
+      })
+    }
+  }
+
+  // Permanently delete an application
+  const handlePermanentDeleteApplication = async (application: any) => {
+    const isConfirmed = await confirm({
+      title: "Permanently Delete Application",
+      description: `⚠️ WARNING: This action cannot be undone!\n\nAre you sure you want to PERMANENTLY delete the application for ${application.firstName} ${application.lastName}?\n\nThis will remove all associated data including documents, personality tests, and interviews.`,
+      confirmText: "Delete Forever",
+      cancelText: "Cancel",
+      type: "destructive"
+    });
+
+    if (!isConfirmed) return;
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application/${application._id}/permanent`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `HTTP ${response.status}`)
+      }
+
+      toast({
+        title: "Application Permanently Deleted",
+        description: `${application.firstName} ${application.lastName}'s application has been permanently deleted.`,
+        duration: 5000
+      })
+
+      // Refresh deleted applications list
+      fetchDeletedApplications(deletedPagination.page, deletedSearchTerm)
+
+    } catch (error) {
+      toast({
+        title: "Permanent Delete Failed",
+        description: `Failed to permanently delete application: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+        duration: 5000
+      })
+    }
+  }
+
+  // Fetch deleted applications when tab changes
+  useEffect(() => {
+    if (applicationMainTab === 'deleted') {
+      fetchDeletedApplications(1, deletedSearchTerm)
+    }
+  }, [applicationMainTab, fetchDeletedApplications, deletedSearchTerm])
 
   // Fetch interviewers on component mount
   useEffect(() => {
@@ -2216,6 +2379,31 @@ export function ApplicationReview() {
           <CardDescription>Review and process scholarship applications</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
+          {/* Main Tabs for Active/Deleted Applications */}
+          <Tabs value={applicationMainTab} onValueChange={(v) => setApplicationMainTab(v as 'active' | 'deleted')} className="w-full">
+            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent mb-4">
+              <TabsTrigger 
+                value="active" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#800000] data-[state=active]:bg-transparent px-4 py-2 font-medium"
+              >
+                Active Applications
+              </TabsTrigger>
+              <TabsTrigger 
+                value="deleted" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#800000] data-[state=active]:bg-transparent px-4 py-2 font-medium flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Deleted Applications
+                {deletedApplications.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 bg-red-100 text-red-700">
+                    {deletedPagination.totalDocs || deletedApplications.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Active Applications Tab Content */}
+            <TabsContent value="active" className="mt-0">
           {/* Stats Row */}
           <div className="grid grid-cols-4 gap-3 mb-4">
             <div className="p-3 bg-white border rounded">
@@ -3276,6 +3464,153 @@ export function ApplicationReview() {
               </Button>
             </div>
           </div>
+            </TabsContent>
+
+            {/* Deleted Applications Tab Content */}
+            <TabsContent value="deleted" className="mt-0">
+              <div className="space-y-4">
+                {/* Search for deleted applications */}
+                <div className="flex gap-4 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <Input
+                      placeholder="Search deleted applications by name or ID"
+                      className="pl-10 h-10"
+                      value={deletedSearchTerm}
+                      onChange={(e) => setDeletedSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => fetchDeletedApplications(1, deletedSearchTerm)}
+                    disabled={deletedApplicationsLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1 ${deletedApplicationsLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+
+                {/* Deleted Applications Table */}
+                <div className="max-h-[500px] overflow-y-auto border rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="py-3 px-4 text-left font-medium text-sm">Application ID</th>
+                        <th className="py-3 px-4 text-left font-medium text-sm">Student Name</th>
+                        <th className="py-3 px-4 text-left font-medium text-sm">Student ID</th>
+                        <th className="py-3 px-4 text-left font-medium text-sm">Course</th>
+                        <th className="py-3 px-4 text-left font-medium text-sm">Deleted Date</th>
+                        <th className="py-3 px-4 text-left font-medium text-sm">Last Status</th>
+                        <th className="py-3 px-4 text-left font-medium text-sm">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {deletedApplications.map((application: any) => (
+                        <tr key={application._id} className="hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-mono text-gray-600">{application._id?.slice(-8)}</td>
+                          <td className="py-3 px-4 text-sm whitespace-nowrap">
+                            {application.firstName} {application.lastName}
+                          </td>
+                          <td className="py-3 px-4 text-sm">{application.user?.idNumber || 'N/A'}</td>
+                          <td className="py-3 px-4 text-sm">{application.programOfStudyAndYear || 'N/A'}</td>
+                          <td className="py-3 px-4 text-sm">
+                            {application.deletedAt 
+                              ? new Date(application.deletedAt).toLocaleDateString()
+                              : 'N/A'
+                            }
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            <Badge variant="outline" className="bg-gray-100">
+                              {application.status || 'Unknown'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => handleRestoreApplication(application)}
+                                title="Restore Application"
+                              >
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                Restore
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handlePermanentDeleteApplication(application)}
+                                title="Permanently Delete"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete Forever
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {deletedApplications.length === 0 && !deletedApplicationsLoading && (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center">
+                            <div className="flex flex-col items-center gap-2 text-gray-500">
+                              <Trash2 className="h-12 w-12 text-gray-300" />
+                              <p className="font-medium">No deleted applications found</p>
+                              <p className="text-sm">Deleted applications will appear here</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+
+                      {deletedApplicationsLoading && (
+                        <tr>
+                          <td colSpan={7} className="py-6 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Loader2 className="h-5 w-5 animate-spin text-[#800000]" />
+                              <span className="text-gray-500">Loading deleted applications...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination for deleted applications */}
+                {deletedPagination.totalPages > 1 && (
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                    <span className="text-sm text-gray-500">
+                      Showing {deletedApplications.length} of {deletedPagination.totalDocs} deleted applications
+                      {deletedPagination.totalPages > 1 && ` (Page ${deletedPagination.page} of ${deletedPagination.totalPages})`}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => fetchDeletedApplications(deletedPagination.page - 1, deletedSearchTerm)}
+                        disabled={!deletedPagination.hasPrevPage || deletedApplicationsLoading}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="px-3 text-sm">
+                        Page {deletedPagination.page} of {deletedPagination.totalPages}
+                      </span>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => fetchDeletedApplications(deletedPagination.page + 1, deletedSearchTerm)}
+                        disabled={!deletedPagination.hasNextPage || deletedApplicationsLoading}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

@@ -444,10 +444,10 @@ const UserController = {
   async updateProfile(req, res) {
     try {
       const userId = req.user.id;
-      const { name, email, address, phoneNumber, birthday, gender, idNumber } = req.body;
+      const { name, email, address, phoneNumber, birthday, gender, idNumber, course } = req.body;
 
       console.log('📝 Profile update request for user:', userId);
-      console.log('📝 Received data:', { name, email, address, phoneNumber, birthday, gender });
+      console.log('📝 Received data:', { name, email, address, phoneNumber, birthday, gender, course });
 
       const updateData = {};
       if (name !== undefined) updateData.name = name;
@@ -457,6 +457,7 @@ const UserController = {
       if (birthday !== undefined) updateData.birthday = birthday;
       if (gender !== undefined) updateData.gender = gender;
       if (idNumber !== undefined) updateData.idNumber = idNumber;
+      if (course !== undefined) updateData.course = course;
 
       console.log('📝 Fields to update:', updateData);
 

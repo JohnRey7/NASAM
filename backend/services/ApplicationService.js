@@ -2024,10 +2024,24 @@ class ApplicationService {
         { is_deleted: true }
       );
       
+      // Soft delete personality test answers
+      const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
+      await PersonalityAssessmentAnswers.updateMany(
+        { applicationId: applicationId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
       // Soft delete related interviews
       const Interview = require('../models/Interview');
       await Interview.updateMany(
         { user: userId, is_deleted: false },
+        { is_deleted: true }
+      );
+      
+      // Soft delete related evaluations (ScholarEvaluation)
+      const ScholarEvaluation = require('../models/ScholarEvaluation');
+      await ScholarEvaluation.updateMany(
+        { scholar: userId, is_deleted: false },
         { is_deleted: true }
       );
       
@@ -2043,7 +2057,9 @@ class ApplicationService {
         deletedRelated: {
           documents: true,
           personalityTest: true,
-          interviews: true
+          personalityTestAnswers: true,
+          interviews: true,
+          evaluations: true
         }
       };
     } catch (error) {
@@ -2079,10 +2095,24 @@ class ApplicationService {
         { is_deleted: false }
       );
       
+      // Restore personality test answers
+      const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
+      await PersonalityAssessmentAnswers.updateMany(
+        { applicationId: applicationId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
       // Restore related interviews
       const Interview = require('../models/Interview');
       await Interview.updateMany(
         { user: userId, is_deleted: true },
+        { is_deleted: false }
+      );
+      
+      // Restore related evaluations (ScholarEvaluation)
+      const ScholarEvaluation = require('../models/ScholarEvaluation');
+      await ScholarEvaluation.updateMany(
+        { scholar: userId, is_deleted: true },
         { is_deleted: false }
       );
       
@@ -2098,7 +2128,9 @@ class ApplicationService {
         restoredRelated: {
           documents: true,
           personalityTest: true,
-          interviews: true
+          personalityTestAnswers: true,
+          interviews: true,
+          evaluations: true
         }
       };
     } catch (error) {
@@ -2109,8 +2141,48 @@ class ApplicationService {
 
   static async permanentDeleteApplication(applicationId) {
     try {
+      // First, get the application (including soft deleted) to find the user ID
+      const application = await ApplicationForm.findById(applicationId);
+      if (!application) {
+        throw new Error('Application not found');
+      }
+      
+      const userId = application.user;
+      
+      // Permanently delete related documents (DocumentUpload)
+      const DocumentUpload = require('../models/DocumentUpload');
+      await DocumentUpload.deleteMany({ user: userId });
+      
+      // Permanently delete related personality test
+      const PersonalityTest = require('../models/PersonalityTest');
+      await PersonalityTest.deleteMany({ user: userId });
+      
+      // Permanently delete personality test answers
+      const PersonalityAssessmentAnswers = require('../models/PersonalityTestAnswer');
+      await PersonalityAssessmentAnswers.deleteMany({ applicationId: applicationId });
+      
+      // Permanently delete related interviews
+      const Interview = require('../models/Interview');
+      await Interview.deleteMany({ user: userId });
+      
+      // Permanently delete related evaluations (ScholarEvaluation)
+      const ScholarEvaluation = require('../models/ScholarEvaluation');
+      await ScholarEvaluation.deleteMany({ scholar: userId });
+      
+      // Finally, permanently delete the application form
       const result = await SoftDeleteUtils.permanentDeleteById(ApplicationForm, applicationId);
-      return { message: 'Application permanently deleted', data: result };
+      
+      return { 
+        message: 'Application and all related data permanently deleted', 
+        data: result,
+        deletedRelated: {
+          documents: true,
+          personalityTest: true,
+          personalityTestAnswers: true,
+          interviews: true,
+          evaluations: true
+        }
+      };
     } catch (error) {
       console.error('Error permanently deleting application:', error);
       throw error;
@@ -2119,7 +2191,31 @@ class ApplicationService {
 
   static async getSoftDeletedApplications(query = {}) {
     try {
-      return await SoftDeleteUtils.getSoftDeleted(ApplicationForm, query);
+      const { page = 1, limit = 20, ...filters } = query;
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const skip = (pageNum - 1) * limitNum;
+      
+      // Get soft-deleted applications with pagination
+      const applications = await ApplicationForm.find({ ...filters, is_deleted: true })
+        .populate('user', 'name email idNumber')
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean();
+      
+      // Get total count for pagination
+      const total = await ApplicationForm.countDocuments({ ...filters, is_deleted: true });
+      
+      return {
+        applications,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum
+        }
+      };
     } catch (error) {
       console.error('Error getting soft deleted applications:', error);
       throw error;

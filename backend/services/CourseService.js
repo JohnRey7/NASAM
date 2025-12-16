@@ -51,6 +51,26 @@ class CourseService {
   }
 
   /**
+   * Get all courses without pagination (excludes soft deleted)
+   * Used for dropdowns and public registration
+   * @returns {Object} All courses
+   */
+  static async getAllCoursesNoPagination() {
+    try {
+      // Exclude soft deleted courses
+      const filter = { $or: [{ is_deleted: false }, { is_deleted: { $exists: false } }] };
+
+      const courses = await Course.find(filter)
+        .populate('departmentId')
+        .sort({ name: 1 });
+
+      return { courses };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
    * Get all courses with pagination (excludes soft deleted)
    * @param {Object} options - { page, limit, search }
    * @returns {Object} Paginated courses

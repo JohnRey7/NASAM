@@ -31,6 +31,10 @@ export function UserProfile() {
   })
   const [showPassword, setShowPassword] = useState(false)
   
+  // Add state for courses dropdown
+  const [courses, setCourses] = useState<Array<{ _id: string; courseId: string; name: string }>>([])
+  const [coursesLoading, setCoursesLoading] = useState(true)
+  
   // Add state for editable fields
   const [formData, setFormData] = useState({
     fullName: "",
@@ -125,6 +129,34 @@ export function UserProfile() {
     fetchUserData()
   }, [toast]) // Remove user from dependencies since we're getting email from backend
 
+  // Fetch courses from backend
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setCoursesLoading(true)
+        const response = await fetch(`${API_URL}/course/public`, {
+          method: "GET",
+          credentials: "include",
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data?.courses) {
+            setCourses(data.courses)
+          }
+        } else {
+          console.error("Failed to fetch courses")
+        }
+      } catch (error) {
+        console.error("Error fetching courses:", error)
+      } finally {
+        setCoursesLoading(false)
+      }
+    }
+    
+    fetchCourses()
+  }, [])
+
   // Fetch student picture from documents
   const fetchStudentPicture = async () => {
     try {
@@ -176,6 +208,7 @@ export function UserProfile() {
     const dataToSave = {
       name: formData.fullName,
       idNumber: formData.studentId,
+      course: formData.courseId,
       address: formData.address,
       contact: formData.contact,
       birthday: formData.birthday,
@@ -466,12 +499,29 @@ export function UserProfile() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="course">Course</Label>
-                      <Input 
-                        id="course"
-                        value={formData.courseName}
-                        readOnly
-                        className="bg-gray-50"
-                      />
+                      <Select
+                        value={formData.courseId}
+                        onValueChange={(value) => {
+                          const selectedCourse = courses.find(c => c._id === value)
+                          setFormData(prev => ({
+                            ...prev,
+                            courseId: value,
+                            courseName: selectedCourse?.name || ""
+                          }))
+                        }}
+                        disabled={coursesLoading}
+                      >
+                        <SelectTrigger id="course" className="bg-gray-50">
+                          <SelectValue placeholder={coursesLoading ? "Loading courses..." : "Select your course"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {courses.map((course) => (
+                            <SelectItem key={course._id} value={course._id}>
+                              {course.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>

@@ -55,6 +55,24 @@ const CourseController = {
   },
 
   /**
+   * Get all courses without pagination (public endpoint for dropdowns)
+   * GET /api/course/public
+   */
+  async getAllCoursesPublic(req, res) {
+    try {
+      const result = await CourseService.getAllCoursesNoPagination();
+
+      return res.json({
+        message: 'Courses retrieved successfully',
+        ...result
+      });
+    } catch (error) {
+      console.error('Get all courses public error:', error);
+      return res.status(500).json({ message: 'Failed to retrieve courses' });
+    }
+  },
+
+  /**
    * Get all soft deleted courses
    * GET /api/course/all/deleted
    */

@@ -110,6 +110,49 @@ class ActivityLogger {
     }
   }
 
+  // Log application updates (status changes, edits, deletions, etc.)
+  static async logApplicationUpdate(userId, applicationId, action, metadata = {}) {
+    try {
+      const titles = {
+        'application_soft_deleted': 'Application Deleted',
+        'application_restored': 'Application Restored',
+        'application_edited': 'Application Edited',
+        'status_changed': 'Status Changed',
+        'application_approved': 'Application Approved',
+        'application_rejected': 'Application Rejected'
+      };
+
+      const descriptions = {
+        'application_soft_deleted': 'Application and related data have been deleted',
+        'application_restored': 'Application has been restored from deleted state',
+        'application_edited': 'Application information was updated',
+        'status_changed': `Status changed to: ${metadata.newStatus || 'N/A'}`,
+        'application_approved': 'Application has been approved',
+        'application_rejected': `Application has been rejected. Reason: ${metadata.reason || 'N/A'}`
+      };
+
+      const log = new ApplicationActivityLog({
+        userId,
+        applicationId,
+        activityType: action,
+        title: titles[action] || 'Application Updated',
+        description: descriptions[action] || `Application update: ${action}`,
+        status: metadata.status || 'Completed',
+        metadata: {
+          ...metadata,
+          updateDate: new Date()
+        },
+        isSystemGenerated: true,
+        adminNotes: metadata.adminNotes
+      });
+      await log.save();
+      console.log(`✅ ${action} logged`);
+      return log;
+    } catch (error) {
+      console.error(`❌ Failed to log ${action}:`, error);
+    }
+  }
+
   // Get user's activity history
   static async getUserActivityHistory(userId, limit = 50) {
     try {
