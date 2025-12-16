@@ -1,5 +1,6 @@
 const DocumentService = require('../services/DocumentService');
 const AuditLogService = require('../services/AuditLogService');
+const ApplicationForm = require('../models/ApplicationForm');
 
 const DocumentController = {
   // Upload or update documents for the authenticated user
@@ -29,6 +30,18 @@ const DocumentController = {
           incomeTaxInfo = JSON.parse(req.body.incomeTaxInfo);
         } catch (e) {
           console.log('Failed to parse incomeTaxInfo:', e);
+        }
+      }
+      
+      // Validate college term grades for non-CIT-U SHS graduates
+      const application = await ApplicationForm.findOne({ user: req.user.id, is_deleted: { $ne: true } });
+      if (application && !application.isCitUSeniorHighGraduate) {
+        // Non-CIT-U SHS graduates must have at least Term 1 GWA
+        if (gradeAverages && !gradeAverages.collegeTerm1) {
+          return res.status(400).json({
+            success: false,
+            message: 'College Term 1 GWA is required for non-CIT-U Senior High graduates'
+          });
         }
       }
       

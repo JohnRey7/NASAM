@@ -93,6 +93,9 @@ export function DocumentUpload() {
   // Track number of college terms completed
   const [collegeTermsCompleted, setCollegeTermsCompleted] = useState(1)
   
+  // Track if user is a CIT-U Senior High graduate (college terms are optional for them)
+  const [isCitUSeniorHighGraduate, setIsCitUSeniorHighGraduate] = useState(false)
+  
   // Income tax info state
   const [incomeTaxInfo, setIncomeTaxInfo] = useState({
     annualIncome: '',
@@ -141,7 +144,7 @@ export function DocumentUpload() {
           })
         }
 
-        // Check if documents are already verified
+        // Check if documents are already verified and get CIT-U SHS graduate status
         const appResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/application`, {
           credentials: 'include'
         });
@@ -153,6 +156,9 @@ export function DocumentUpload() {
             const status = appData.application.status;
             const isVerified = ['document_verification', 'interview_scheduled', 'pending_evaluation', 'approved', 'rejected'].includes(status);
             setDocumentsVerified(isVerified);
+            
+            // Check if user is a CIT-U Senior High graduate (college terms are optional for them)
+            setIsCitUSeniorHighGraduate(appData.application.isCitUSeniorHighGraduate === true);
           }
         }
       } catch (err) {
@@ -333,6 +339,32 @@ export function DocumentUpload() {
       return
     }
 
+    // Validate college term grades for non-CIT-U SHS graduates
+    if (!isCitUSeniorHighGraduate) {
+      // Check if at least Term 1 is filled (required for non-CIT-U SHS graduates)
+      if (!gradeAverages.collegeTerm1) {
+        toast({
+          title: "College Grades Required",
+          description: "As a non-CIT-U Senior High graduate, you must enter at least your Term 1 GWA.",
+          variant: "destructive",
+        })
+        return
+      }
+      
+      // Check all terms up to collegeTermsCompleted are filled
+      for (let i = 1; i <= collegeTermsCompleted; i++) {
+        const termKey = `collegeTerm${i}` as keyof typeof gradeAverages;
+        if (!gradeAverages[termKey]) {
+          toast({
+            title: "Missing Term Grade",
+            description: `Please enter your Term ${i} GWA or reduce the number of terms completed.`,
+            variant: "destructive",
+          })
+          return
+        }
+      }
+    }
+
     setIsSubmitting(true)
     let interval: NodeJS.Timeout | null = null
     try {
@@ -359,7 +391,11 @@ export function DocumentUpload() {
           elementary: gradeAverages.elementary ? parseFloat(gradeAverages.elementary) : undefined,
           juniorHighSchool: gradeAverages.juniorHighSchool ? parseFloat(gradeAverages.juniorHighSchool) : undefined,
           seniorHighSchool: gradeAverages.seniorHighSchool ? parseFloat(gradeAverages.seniorHighSchool) : undefined,
-          college: gradeAverages.college ? parseFloat(gradeAverages.college) : undefined
+          college: gradeAverages.college ? parseFloat(gradeAverages.college) : undefined,
+          collegeTerm1: gradeAverages.collegeTerm1 ? parseFloat(gradeAverages.collegeTerm1) : undefined,
+          collegeTerm2: gradeAverages.collegeTerm2 ? parseFloat(gradeAverages.collegeTerm2) : undefined,
+          collegeTerm3: gradeAverages.collegeTerm3 ? parseFloat(gradeAverages.collegeTerm3) : undefined,
+          collegeTerm4: gradeAverages.collegeTerm4 ? parseFloat(gradeAverages.collegeTerm4) : undefined
         },
         incomeTaxInfo: {
           annualIncome: incomeTaxInfo.annualIncome ? parseFloat(incomeTaxInfo.annualIncome) : undefined,
@@ -591,8 +627,20 @@ export function DocumentUpload() {
             <div className="mt-6">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <Label className="text-base font-medium">College Term Grades</Label>
-                  <p className="text-xs text-gray-500">Enter grades for each completed term at CIT-U</p>
+                  <Label className="text-base font-medium">
+                    College Term Grades
+                    {isCitUSeniorHighGraduate ? (
+                      <span className="ml-2 text-xs font-normal text-gray-500">(Optional - CIT-U SHS Graduate)</span>
+                    ) : (
+                      <span className="ml-2 text-xs font-normal text-red-500">*Required</span>
+                    )}
+                  </Label>
+                  <p className="text-xs text-gray-500">
+                    {isCitUSeniorHighGraduate 
+                      ? "As a CIT-U Senior High graduate, college term grades are optional. Enter if available."
+                      : "Enter grades for each completed term at CIT-U (required for non-CIT-U SHS graduates)"
+                    }
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Label htmlFor="termsCompleted" className="text-sm">Terms Completed:</Label>

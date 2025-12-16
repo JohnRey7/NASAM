@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Clock, FileText, Users, Award, Calendar, Star, Loader2 } from "lucide-react"
+import { CheckCircle, Clock, FileText, Users, Award, Calendar, Loader2 } from "lucide-react"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -120,7 +120,6 @@ export function ApplicationProgressTracker() {
   const isDocumentsComplete = status?.documents?.status === 'verified'
   const isPersonalityTestComplete = status?.personalityTest?.status === 'completed'
   const isInterviewComplete = status?.interview?.status === 'completed'
-  const isEvaluationComplete = status?.evaluation?.status === 'evaluated'
   
   // Get next interview info
   const nextInterview = status?.interview?.allInterviews?.find(i => !i.isFinished)
@@ -159,7 +158,7 @@ export function ApplicationProgressTracker() {
     },
     {
       title: "Interview",
-      description: "Scheduled interview with department head",
+      description: "Scheduled interview with OAS and department head",
       // Interview: Locked until personality test is complete
       status: !hasApplication ? "Not Submitted" :
               isInterviewComplete ? "Completed" :
@@ -168,20 +167,10 @@ export function ApplicationProgressTracker() {
       interviewDate: nextInterview?.scheduledDateTime || status?.interview?.oasInterview?.scheduledDateTime || null
     },
     {
-      title: "Evaluation",
-      description: "Performance evaluation by OAS Admin",
-      // Evaluation: Locked until interview is complete
-      status: !hasApplication ? "Not Submitted" :
-              isEvaluationComplete ? "Completed" :
-              isInterviewComplete ? "Pending" : "Locked",
-      icon: <Star className="h-6 w-6" />,
-      evaluationData: status?.evaluation
-    },
-    {
       title: "Application Status",
       description: "Application approval or rejection",
       // Final status: Only show Completed when approved
-      // Rejected and pending_evaluation should show as Pending (Under Consideration)
+      // Rejected applications show as Pending (Under Consideration) to applicant
       status: !hasApplication ? "Not Submitted" :
               displayStatus === "approved" ? "Completed" :
               displayStatus === "rejected" ? "Pending" :
@@ -189,7 +178,8 @@ export function ApplicationProgressTracker() {
               applicationStatusValue === "pending_evaluation" ? "Pending" :
               isInterviewComplete ? "Pending" : "Locked",
       icon: <Award className="h-6 w-6" />,
-      displayMessage: status?.applicationStatus?.message || ''
+      displayMessage: status?.applicationStatus?.message || '',
+      isRejected: displayStatus === "rejected"
     }
   ]
 
@@ -286,14 +276,14 @@ export function ApplicationProgressTracker() {
                 {/* Status Icon */}
                 <div className={`rounded-full p-1 ${
                   step.status === "Completed" ? "bg-green-100" : 
-                  step.status === "Pending" ? "bg-yellow-100" : "bg-gray-100"  // ✅ Gray for not submitted
+                  step.status === "Pending" ? "bg-yellow-100" : "bg-gray-100"
                 }`}>
                   {step.status === "Completed" ? (
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   ) : step.status === "Pending" ? (
                     <Clock className="h-5 w-5 text-yellow-600" />
                   ) : (
-                    <Clock className="h-5 w-5 text-gray-400" />  // ✅ Gray clock for not submitted
+                    <Clock className="h-5 w-5 text-gray-400" />
                   )}
                 </div>
                 
@@ -305,7 +295,7 @@ export function ApplicationProgressTracker() {
                       step.status === "Completed" 
                         ? "bg-green-100 text-green-800" 
                         : step.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-800"  
+                        ? "bg-yellow-100 text-yellow-800"
                         : "bg-gray-100 text-gray-600"     
                     }`}>
                       {step.status}
@@ -387,7 +377,7 @@ export function ApplicationProgressTracker() {
                             })}
                           </div>
                           <div className="mt-2 text-yellow-600">
-                            ⏳ Waiting for the Department Head to conduct the interview
+                            ⏳ Waiting for interviews to be completed
                           </div>
                         </div>
                       )}
@@ -400,38 +390,11 @@ export function ApplicationProgressTracker() {
                     </div>
                   )}
 
-                  {/* ✅ Enhanced status messages for Evaluation step */}
+                  {/* ✅ Enhanced status messages for Application Status step */}
                   {idx === 4 && (
                     <div className="mt-2 text-xs">
                       {step.status === "Pending" && (
-                        <span className="text-yellow-600">⏳ Awaiting evaluation by OAS Admin</span>
-                      )}
-                      {step.status === "Completed" && step.evaluationData && (
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className={step.evaluationData.result === 'passed' ? 'text-green-600' : 'text-red-600'}>
-                              {step.evaluationData.result === 'passed' ? '✓ Passed' : '✗ Failed'}
-                            </span>
-                            <span className="text-gray-500">
-                              (Grade: {step.evaluationData.grade?.toFixed(2)} / 5.00)
-                            </span>
-                          </div>
-                          <div className="mt-1 text-gray-400">
-                            Passing grade: {step.evaluationData.passingGrade?.toFixed(1)} or higher
-                          </div>
-                        </div>
-                      )}
-                      {step.status === "Locked" && (
-                        <span className="text-red-600">🔒 Complete interview first</span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ✅ Enhanced status messages for Application Status step */}
-                  {idx === 5 && (
-                    <div className="mt-2 text-xs">
-                      {step.status === "Pending" && (
-                        <span className="text-yellow-600">⏳ Under consideration - awaiting evaluation decision</span>
+                        <span className="text-yellow-600">⏳ Under consideration - awaiting final decision</span>
                       )}
                       {step.status === "Completed" && displayStatus === "approved" && (
                         <span className="text-green-600">🎉 Application approved!</span>
