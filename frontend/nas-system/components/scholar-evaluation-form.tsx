@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,12 +28,9 @@ interface ScholarEvaluationFormProps {
 export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, existingEvaluation, readOnly = false, hideTimekeeping = false, useDepartmentHeadEndpoint = false }: ScholarEvaluationFormProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [evaluatorPosition, setEvaluatorPosition] = useState(existingEvaluation?.evaluatorPosition || '')
   
   // School year and semester for department head submissions
   const currentYear = new Date().getFullYear()
-  const [schoolYear, setSchoolYear] = useState(existingEvaluation?.schoolYear || `${currentYear}-${currentYear + 1}`)
-  const [semester, setSemester] = useState(existingEvaluation?.semester || '')
   
   // Helper to convert Decimal128 or object to number
   const toNumber = (val: any): number => {
@@ -44,60 +41,103 @@ export function ScholarEvaluationForm({ scholar, open, onOpenChange, onSuccess, 
     return 0
   }
   
-  // Map backend field names to form field names (handles both schemas)
-  const [attendance, setAttendance] = useState({
-    regularityOfAttendance: toNumber(existingEvaluation?.attendanceAndPunctuality?.regularityOfAttendance) || 
-                            toNumber(existingEvaluation?.attendanceAndPunctuality?.regularAttendance) || 0,
-    promptnessInReporting: toNumber(existingEvaluation?.attendanceAndPunctuality?.promptnessInReporting) || 
-                           toNumber(existingEvaluation?.attendanceAndPunctuality?.promptnessInReportingForDuty) || 0
-  })
+  // Helper to get value with fallback - only use fallback if primary is undefined/null
+  const getValue = (primary: any, fallback: any): number => {
+    if (primary !== undefined && primary !== null) return toNumber(primary)
+    if (fallback !== undefined && fallback !== null) return toNumber(fallback)
+    return 0
+  }
   
-  const [quality, setQuality] = useState({
-    accuracyAndThoroughness: toNumber(existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughness) || 
-                              toNumber(existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughnessOfWork) || 0,
-    organizationAndPresentation: toNumber(existingEvaluation?.qualityOfWorkOutput?.organizationAndPresentation) || 
-                                  toNumber(existingEvaluation?.qualityOfWorkOutput?.organizationAndOrPresentationNeatnessOfWork) || 0,
-    effectiveness: toNumber(existingEvaluation?.qualityOfWorkOutput?.effectiveness) || 0
-  })
+  // Initialize all state with empty/default values
+  const [evaluatorPosition, setEvaluatorPosition] = useState('')
+  const [schoolYear, setSchoolYear] = useState(`${currentYear}-${currentYear + 1}`)
+  const [semester, setSemester] = useState('')
+  const [attendance, setAttendance] = useState({ regularityOfAttendance: 0, promptnessInReporting: 0 })
+  const [quality, setQuality] = useState({ accuracyAndThoroughness: 0, organizationAndPresentation: 0, effectiveness: 0 })
+  const [quantity, setQuantity] = useState({ accomplishesMoreWork: 0, readinessInAccomplishing: 0 })
+  const [personal, setPersonal] = useState({ responsibilityAndUrgency: 0, dependabilityAndReliability: 0, industryAndResourcefulness: 0, fairnessAndInitiative: 0, sociabilityAndDisposition: 0 })
+  const [timekeeping, setTimekeeping] = useState({ excusedAbsences: 0, unexcusedAbsences: 0, lateMoreThan10mins: 0, lateLessThan1hr: 0, failureToPunch: 0, underTime: 0 })
+  const [supervisorRemarks, setSupervisorRemarks] = useState('')
+  const [nasRemarks, setNasRemarks] = useState('')
   
-  const [quantity, setQuantity] = useState({
-    accomplishesMoreWork: toNumber(existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWork) || 
-                          toNumber(existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWorkOnTheGivenTime) || 0,
-    readinessInAccomplishing: toNumber(existingEvaluation?.quantityOfWorkOutput?.readinessInAccomplishing) || 
-                               toNumber(existingEvaluation?.quantityOfWorkOutput?.timelinessInAccomplishingTaskDuties) || 0
-  })
-  
-  // Handle both personalQualities (ScholarEvaluation) and attitudeAndWorkBehavior (Evaluation) schemas
-  const personalData = existingEvaluation?.personalQualities || existingEvaluation?.attitudeAndWorkBehavior || {}
-  const [personal, setPersonal] = useState({
-    responsibilityAndUrgency: toNumber(personalData?.responsibilityAndUrgency) || 
-                               toNumber(personalData?.senseOfResponsibilityAndUrgency) || 0,
-    dependabilityAndReliability: toNumber(personalData?.dependabilityAndReliability) || 0,
-    industryAndResourcefulness: toNumber(personalData?.industryAndResourcefulness) || 0,
-    fairnessAndInitiative: toNumber(personalData?.fairnessAndInitiative) || 
-                            toNumber(personalData?.alertnessAndInitiative) || 0,
-    sociabilityAndDisposition: toNumber(personalData?.sociabilityAndDisposition) || 
-                                toNumber(personalData?.sociabilityAndPleasantDisposition) || 0
-  })
-  
-  const [timekeeping, setTimekeeping] = useState({
-    excusedAbsences: toNumber(existingEvaluation?.timekeepingRecord?.excusedAbsences) || 0,
-    unexcusedAbsences: toNumber(existingEvaluation?.timekeepingRecord?.unexcusedAbsences) || 0,
-    lateMoreThan10mins: toNumber(existingEvaluation?.timekeepingRecord?.lateMoreThan10mins) || 0,
-    lateLessThan1hr: toNumber(existingEvaluation?.timekeepingRecord?.lateLessThan1hr) || 0,
-    failureToPunch: toNumber(existingEvaluation?.timekeepingRecord?.failureToPunch) || 0,
-    underTime: toNumber(existingEvaluation?.timekeepingRecord?.underTime) || 0
-  })
-  
-  // Handle remarks field mapping (remarksAndRecommendationByImmediateSupervisor vs supervisorRemarks)
-  const [supervisorRemarks, setSupervisorRemarks] = useState(
-    existingEvaluation?.supervisorRemarks || 
-    existingEvaluation?.remarksAndRecommendationByImmediateSupervisor || ''
-  )
-  const [nasRemarks, setNasRemarks] = useState(
-    existingEvaluation?.nasRemarks || 
-    existingEvaluation?.remarksCommentsByTheNAS || ''
-  )
+  // Reset all form state when existingEvaluation changes
+  useEffect(() => {
+    // Get personal data from either schema
+    const personalData = existingEvaluation?.attitudeAndWorkBehavior || existingEvaluation?.personalQualities || {}
+    
+    setEvaluatorPosition(existingEvaluation?.evaluatorPosition || '')
+    setSchoolYear(existingEvaluation?.schoolYear || `${currentYear}-${currentYear + 1}`)
+    setSemester(existingEvaluation?.semester || '')
+    
+    setAttendance({
+      regularityOfAttendance: getValue(
+        existingEvaluation?.attendanceAndPunctuality?.regularAttendance,
+        existingEvaluation?.attendanceAndPunctuality?.regularityOfAttendance
+      ),
+      promptnessInReporting: getValue(
+        existingEvaluation?.attendanceAndPunctuality?.promptnessInReportingForDuty,
+        existingEvaluation?.attendanceAndPunctuality?.promptnessInReporting
+      )
+    })
+    
+    setQuality({
+      accuracyAndThoroughness: getValue(
+        existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughnessOfWork,
+        existingEvaluation?.qualityOfWorkOutput?.accuracyAndThoroughness
+      ),
+      organizationAndPresentation: getValue(
+        existingEvaluation?.qualityOfWorkOutput?.organizationAndOrPresentationNeatnessOfWork,
+        existingEvaluation?.qualityOfWorkOutput?.organizationAndPresentation
+      ),
+      effectiveness: toNumber(existingEvaluation?.qualityOfWorkOutput?.effectiveness)
+    })
+    
+    setQuantity({
+      accomplishesMoreWork: getValue(
+        existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWorkOnTheGivenTime,
+        existingEvaluation?.quantityOfWorkOutput?.accomplishesMoreWork
+      ),
+      readinessInAccomplishing: getValue(
+        existingEvaluation?.quantityOfWorkOutput?.timelinessInAccomplishingTaskDuties,
+        existingEvaluation?.quantityOfWorkOutput?.readinessInAccomplishing
+      )
+    })
+    
+    setPersonal({
+      responsibilityAndUrgency: getValue(
+        personalData?.senseOfResponsibilityAndUrgency,
+        personalData?.responsibilityAndUrgency
+      ),
+      dependabilityAndReliability: toNumber(personalData?.dependabilityAndReliability),
+      industryAndResourcefulness: toNumber(personalData?.industryAndResourcefulness),
+      fairnessAndInitiative: getValue(
+        personalData?.alertnessAndInitiative,
+        personalData?.fairnessAndInitiative
+      ),
+      sociabilityAndDisposition: getValue(
+        personalData?.sociabilityAndPleasantDisposition,
+        personalData?.sociabilityAndDisposition
+      )
+    })
+    
+    setTimekeeping({
+      excusedAbsences: toNumber(existingEvaluation?.timekeepingRecord?.excusedAbsences),
+      unexcusedAbsences: toNumber(existingEvaluation?.timekeepingRecord?.unexcusedAbsences),
+      lateMoreThan10mins: toNumber(existingEvaluation?.timekeepingRecord?.lateMoreThan10mins),
+      lateLessThan1hr: toNumber(existingEvaluation?.timekeepingRecord?.lateLessThan1hr),
+      failureToPunch: toNumber(existingEvaluation?.timekeepingRecord?.failureToPunch),
+      underTime: toNumber(existingEvaluation?.timekeepingRecord?.underTime)
+    })
+    
+    setSupervisorRemarks(
+      existingEvaluation?.remarksAndRecommendationByImmediateSupervisor || 
+      existingEvaluation?.supervisorRemarks || ''
+    )
+    setNasRemarks(
+      existingEvaluation?.remarksCommentsByTheNAS || 
+      existingEvaluation?.nasRemarks || ''
+    )
+  }, [existingEvaluation, currentYear])
 
   const calculateOverallRating = () => {
     // Weights: Attendance 20%, Quality 25%, Quantity 20%, Personal Qualities 35% = 100%
