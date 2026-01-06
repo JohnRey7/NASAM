@@ -354,7 +354,7 @@ After logging in as admin, you can create test users for each role:
  
 ## License
  
-This project is developed for educational purposes at Cebu Institute of Technology – University (CIT-U).
+This project is developed for educational purposes at Cebu Institute of Technology – University (CIT-U) under GPL 2.0
  
 ---
  
